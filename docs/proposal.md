@@ -1,6 +1,6 @@
 # AI 기반 인파 밀집(군중 난류) 감지·위험 예측 경보 시스템 기획서
 
-> 문서 상태: **초안 v0.1** · 작성일 2026-10-28 · 작성 Triple Y
+> 문서 상태: **초안 v0.2** · 수정일 2026-10-28 · 작성 Triple Y
 > 표기 규칙: `[토론]` = 팀 합의 전 / `(확인 필요)` = 출처·수치 미검증
 > 작성·수정 규칙은 [proposal-guide.md](proposal-guide.md)를 따른다.
 
@@ -34,7 +34,10 @@ CCTV 영상에서 사람 수·밀집도·움직임을 AI로 분석해 "군중 �
 - 이 상태에서는 힘이 사람을 통해 전달·누적되어 넘어짐·압사로 이어진다.
 - Helbing 등(2007)은 2006년 메카 성지순례 압사 사고 영상을 분석해, 사고 직전 군중 움직임이 "정지-진행 파동 → 난류"로 바뀌는 패턴을 보고했다.
 - 같은 연구는 위험 지표로 **군중 압력(crowd pressure) = 밀도 × 속도 분산**을 제안했다. 즉, 빽빽한데 움직임이 제각각 요동치면 위험하다.
-- 일반적으로 1㎡당 5명 이상부터 위험이 급격히 커진다고 알려져 있다. (확인 필요)
+- 위험 밀도 기준은 출처마다 조금씩 다르다.
+    - 1㎡당 7~8명을 넘으면 군중 난류가 나타난다 (Haghani, UNSW 인터뷰, 2022).
+    - 1㎡당 8~10명이면 군중이 유체처럼 움직이고 압사 위험 구간에 들어선다 (Haghani & Lovreglio, 2022).
+- 같은 밀도라도 흐르는 군중과 멈춘 군중의 위험은 다르다. 그래서 이 시스템은 밀도 하나만 보지 않고 움직임(F2)을 함께 본다.
 
 ### 2.3 필요성
 - 사람이 모든 CCTV를 볼 수 없으므로, **AI가 위험 후보 화면을 먼저 골라 알려주는 보조 도구**가 필요하다.
@@ -103,20 +106,34 @@ CCTV 영상에서 사람 수·밀집도·움직임을 AI로 분석해 "군중 �
 ## 6. 데이터
 
 ### 6.1 모델 학습·평가용 공개 데이터셋 (후보)
-| 데이터셋 | 내용 | 용도 |
-|---|---|---|
-| ShanghaiTech (Part A / B) | 군중 이미지 + 사람 머리 위치 라벨. A는 고밀도, B는 거리 장면 | F1 학습·평가의 기본 벤치마크 |
-| UCF-QNRF | 초고밀도 군중 이미지 | 고밀도 상황 평가 |
-| JHU-Crowd++ | 날씨·조명 등 다양한 조건의 군중 이미지 | 일반화 성능 확인 |
+| 데이터셋 | 내용 | 용도 | 이용 조건 |
+|---|---|---|---|
+| ShanghaiTech (Part A / B) | 군중 이미지 + 사람 머리 위치 라벨. A는 고밀도, B는 거리 장면 | F1 학습·평가의 기본 벤치마크 | GitHub 배포 저장소에 BSD-2-Clause 라이선스 표기 |
+| UCF-QNRF | 초고밀도 군중 이미지 1,535장 | 고밀도 상황 평가 | 웹에서 원문을 찾지 못함 → 다운로드 파일의 README로 확인 (확인 필요) |
+| JHU-Crowd++ | 날씨·조명 등 다양한 조건의 군중 이미지 | 일반화 성능 확인 | 웹에서 원문을 찾지 못함 → 다운로드 파일의 README로 확인 (확인 필요) |
+| AI Hub 실내외 군중 특성 데이터 | 국내 CCTV 이미지 115,460장 + 시나리오 촬영 이미지. 라벨: 머리 좌표(HeadPoint), 군중 계수, 밀집도·안정도·균일도 | 국내 CCTV 화각에 맞춘 학습·평가 | 내국인만 신청 가능, 다운로드 승인 필요. 개별 라이선스 표기 없음 → 신청 시 AI Hub 이용약관 확인 |
 
-- 각 데이터셋의 이용 조건(라이선스, 상업적 이용 제한)은 다운로드 전에 확인한다. (확인 필요)
+- AI Hub 데이터는 2022년 구축, 2023-12 v1.1 공개. 재난안전환경 분야로 분류되어 있다.
+- 국내 CCTV 화각과 밀집도 라벨이 함께 있어 주력 데이터 후보로 검토한다. `[토론]`
 
 ### 6.2 시스템 시연용 영상
-- 공개 군중 영상 데이터셋 또는 공개 영상 중 이용 허가가 명확한 것. (확인 필요)
-- AI Hub 등 국내 공개 데이터 중 군중·CCTV 관련 데이터 존재 여부와 신청 절차. (확인 필요)
+
+| 데이터 | 내용 | 비고 |
+|---|---|---|
+| AI Hub 실내외 군중 특성 데이터 (원시 영상) | CCTV 원시 영상(mp4) 400개 | 6.1과 같은 신청 절차. 국내 장면이라 시연에 적합 |
+| FDST (Fudan-ShanghaiTech) | 13개 장면 100개 영상, 15,000프레임, 머리 위치 394,081개 라벨 | 영상 단위 인원 계수 데이터라 F2 흐름 분석 검증에도 활용. GitHub 공개, 라이선스 표기 없음 → 교육·연구 목적 내부 사용만 |
+
+- FDST 저장소 README에는 150,000프레임으로 적혀 있으나, 학습 9,000 + 테스트 6,000 = 15,000프레임이 맞다 (논문 초록 기준).
+- 어떤 데이터든 사람 얼굴이 나오는 영상을 발표 자료나 공개 저장소에 그대로 올리지 않는다 (6.4).
 
 ### 6.3 보조 데이터 (선택)
-- 서울 열린데이터광장의 "서울시 실시간 도시데이터"(주요 장소 인구 혼잡도) — 9장 추가 기능 후보 A4와 연결. (확인 필요)
+- 서울 열린데이터광장 **"서울시 실시간 도시데이터"**: 서울 주요 121장소의 실시간 인구현황, 도로 소통, 날씨, 사고 통제 등. 인구 항목만 따로 제공하는 **"서울시 실시간 인구데이터"**도 있다. 9장 추가 기능 후보 A4와 연결.
+- 라이선스: 공공누리 1유형 (출처 표시, 상업적 이용·변경 가능).
+- 제약
+    - 1회 호출에 장소 1곳만 조회한다.
+    - 샘플 키로는 "광화문·덕수궁"만 조회되고, 나머지는 인증키를 발급받아야 한다.
+    - 과거 데이터는 제공하지 않는다. 추이가 필요하면 직접 주기적으로 호출해 저장한다.
+- 통신 데이터 기반의 지역 인구 추정이라 골목 단위 밀도는 알 수 없다. CCTV 분석(본 시스템)과 서로 보완하는 관계다.
 
 ### 6.4 데이터 관리 규칙
 - 원본은 `data/raw/`에 두고 수정하지 않는다. 전처리 결과는 `data/processed/`.
@@ -132,7 +149,7 @@ CCTV 영상에서 사람 수·밀집도·움직임을 AI로 분석해 "군중 �
 | 언어 | Python | |
 | 영상 처리 | OpenCV | 프레임 추출, 옵티컬 플로우 |
 | 딥러닝 | PyTorch | 밀도 추정·탐지 모델 |
-| 모델 | CSRNet 계열(밀도 맵) / YOLO 계열(사람 탐지) | `[토론]` 고밀도에서는 탐지보다 밀도 맵이 유리하다고 알려짐 (확인 필요) |
+| 모델 | CSRNet 계열(밀도 맵) / YOLO 계열(사람 탐지) | `[토론]` 고밀도에서는 사람이 가려지고 작아져 탐지 방식이 인원을 적게 센다. 반대로 저밀도에서는 밀도 맵이 과대 추정할 수 있어, 둘을 결합한 연구도 있다 (Liu et al., 2018) |
 | 대시보드 | Streamlit | 빠른 프로토타입 |
 | 협업 | GitHub (PR 리뷰), Jupyter Notebook | |
 
@@ -243,7 +260,15 @@ CCTV 영상에서 사람 수·밀집도·움직임을 AI로 분석해 "군중 �
 - Li, Y., Zhang, X., & Chen, D. (2018). *CSRNet: Dilated Convolutional Neural Networks for Understanding the Highly Congested Scenes.* CVPR.
 - Idrees, H. et al. (2018). *Composition Loss for Counting, Density Map Estimation and Localization in Dense Crowds.* ECCV. — UCF-QNRF 데이터셋
 - Sindagi, V. A. et al. (2020). *JHU-CROWD++: Large-Scale Crowd Counting Dataset and A Benchmark Method.* IEEE TPAMI.
-- 서울 열린데이터광장, 서울시 실시간 도시데이터. (확인 필요: 정확한 API 이름·제공 항목)
+- Haghani, M., & Lovreglio, R. (2022). *Data-based tools can prevent crowd crushes.* Science, 378(6624), 1060–1061.
+- UNSW Newsroom (2022.11). *'Be alert, avoid complacency,' crowd safety expert says ahead of busy festive period.* — Haghani 인터뷰
+- Liu, J., Gao, C., Meng, D., & Hauptmann, A. G. (2018). *DecideNet: Counting Varying Density Crowds Through Attention Guided Detection and Density Estimation.* CVPR.
+- Fang, Y. et al. (2019). *Locality-constrained Spatial Transformer Network for Video Crowd Counting.* ICME. — FDST 데이터셋
+- AI Hub, 실내외 군중 특성 데이터. https://www.aihub.or.kr/aihubdata/data/view.do?dataSetSn=71368
+- 서울 열린데이터광장, 서울시 실시간 도시데이터 (OA-21285). https://data.seoul.go.kr/dataList/OA-21285/A/1/datasetView.do
+- 서울 열린데이터광장, 서울시 실시간 인구데이터 (OA-21778). https://data.seoul.go.kr/dataList/OA-21778/S/1/datasetView.do
+- ShanghaiTech 데이터셋 배포 저장소. https://github.com/desenzhou/ShanghaiTechDataset
+- FDST 데이터셋 배포 저장소. https://github.com/sweetyy83/Lstn_fdst_dataset
 
 ---
 
@@ -252,3 +277,4 @@ CCTV 영상에서 사람 수·밀집도·움직임을 AI로 분석해 "군중 �
 | 버전 | 날짜 | 작성자 | 내용 |
 |---|---|---|---|
 | v0.1 | 2026-10-28 | 이유노 (Claude 작성 보조) | 기본틀·추가 기능 후보 초안 작성 |
+| v0.2 | 2026-10-28 | 이유노 (Claude 작성 보조) | (확인 필요) 항목 웹 조사 반영: 위험 밀도 기준, 데이터셋 이용 조건, AI Hub·FDST 데이터, 서울시 실시간 도시데이터, 탐지 vs 밀도 맵 근거 |
