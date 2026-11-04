@@ -38,6 +38,9 @@ AI 기반 인파 밀집(군중 난류) 감지·위험 예측 정보 시스템. 3
 ```
 Triple-Y/
 ├─ src/           # AI 워커 (Python, FastAPI) - 재사용 코드
+│  ├─ counting/   # 인원 추정·밀도 (이유노)
+│  ├─ flow/       # 흐름·군중난류 (조영준)
+│  └─ predict/    # 60초 예측·모델 비교 (나예린)
 ├─ server/        # Spring Boot - 등급 판정·알림·경로 API
 ├─ web/           # React PWA - 시민·상황실 화면
 ├─ infra/         # docker-compose.yml, MediaMTX 설정, DB 초기화 SQL
@@ -94,7 +97,7 @@ git push -u origin feat/기능명              # 3. 푸시
 
 ### 충돌 줄이는 법
 - 작업 시작 전에 `main`을 pull하고, 긴 작업은 중간에 `main`을 반영한다.
-- 트랙마다 폴더(`src/`·`server/`·`web/`·`infra/`)가 나뉘므로 다른 트랙 폴더는 담당자와 상의 후 고친다. `.ipynb`는 한 번에 한 명만 수정한다.
+- 담당마다 폴더(`src/counting/`·`src/flow/`·`src/predict/`·`server/`·`web/`·`infra/`)가 나뉘므로 다른 사람의 폴더는 담당자와 상의 후 고친다. `.ipynb`는 한 번에 한 명만 수정한다.
 - PR은 작게 자주 올린다.
 
 ### 커밋 메시지
@@ -108,10 +111,10 @@ git push -u origin feat/기능명              # 3. 푸시
 자세한 규칙은 [CLAUDE.md](CLAUDE.md)를 참고한다.
 
 ## 팀원
-| 이름 | 역할 | 담당 폴더 |
-|---|---|---|
-| 이유노 | 팀장 · PM + AI 분석 | `src/`, `notebooks/` |
-| 조영준 | 백엔드·경로 | `server/`, `infra/` |
-| 나예린 | 화면·검증 | `web/` |
+| 이름 | AI 모듈 | 서비스 파트 | 담당 폴더 |
+|---|---|---|---|
+| 이유노 (팀장) | 인원 추정·밀도 (P2PNet, 호모그래피) | PM, 데이터, 실행 환경(Docker·가상 CCTV), 통합 검증 | `src/counting/`, `infra/` |
+| 조영준 | 흐름·군중난류 (광학 흐름, 군중 압력) | Spring Boot 판정·알림·경로 | `src/flow/`, `server/` |
+| 나예린 | 60초 예측·모델 비교 | React 화면 | `src/predict/`, `web/` |
 
-- 기획서의 공수 균형으로 정한 담당이다. 바꾸면 이 표와 `CLAUDE.md`를 함께 고친다.
+- 모두 AI 과정을 들으므로 각자 AI 모듈 하나와 서비스 파트 하나를 맡는다. 바꾸면 이 표와 `CLAUDE.md`, 기획서 3.4를 함께 고친다.

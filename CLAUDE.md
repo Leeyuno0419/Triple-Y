@@ -7,6 +7,9 @@ SafeRoute — AI 기반 인파 밀집(군중 난류) 감지·위험 예측 정�
 ```
 Triple Y/
 ├─ src/           # AI 워커 (Python, FastAPI) - 재사용 코드 (.py)
+│  ├─ counting/   # 인원 추정·밀도 (이유노)
+│  ├─ flow/       # 흐름·군중난류 (조영준)
+│  └─ predict/    # 60초 예측·모델 비교 (나예린)
 ├─ server/        # Spring Boot - 등급 판정·알림·경로 API
 ├─ web/           # React PWA - 시민·상황실 화면
 ├─ infra/         # docker-compose.yml, MediaMTX 설정, DB 초기화 SQL
@@ -20,7 +23,8 @@ Triple Y/
 ├─ requirements.txt
 └─ .env           # 비밀키 (git 제외)
 ```
-- 트랙마다 폴더가 나뉜다: AI `src/`, 서버 `server/`, 화면 `web/`, 실행 설정 `infra/`. 다른 트랙의 폴더는 담당자와 상의한 뒤 수정한다.
+- 담당마다 폴더가 나뉜다: AI `src/counting/`(인원·밀도)·`src/flow/`(흐름·난류)·`src/predict/`(예측), 서버 `server/`, 화면 `web/`, 실행 설정 `infra/`. 다른 사람의 폴더는 담당자와 상의한 뒤 수정한다.
+- AI 모듈끼리는 11-05 인터페이스 계약에서 정한 입출력(기획서 3.4)으로만 주고받는다.
 - 재사용할 로직은 `src/`의 `.py`로 두고, 노트북에서 import해서 쓴다.
 - 원본 데이터(`data/raw/`)는 절대 덮어쓰거나 수정하지 않는다.
 
@@ -83,10 +87,10 @@ Triple Y/
 - 설계 근거·수식·기술 비교·사업성·여유 시 기능 설계는 `docs/proposal-detail.md`(내부용 상세 문서)에, 출처는 `docs/references.md`에 있다. 기능을 만들기 전에 상세 문서의 해당 절을 먼저 읽는다.
 
 ## 역할
-| 이름 | 역할 | 담당 폴더 |
-|---|---|---|
-| 이유노 (팀장) | PM + AI 분석 (인원 추정·밀도·흐름·난류·예측) | `src/`, `notebooks/` |
-| 조영준 | 백엔드·경로 (판정·알림·경로·DB·실행 환경) | `server/`, `infra/` |
-| 나예린 | 화면·검증 (시민·상황실 화면, 검증 게이트·성능 측정) | `web/` |
+| 이름 | AI 모듈 | 서비스 파트 | 담당 폴더 |
+|---|---|---|---|
+| 이유노 (팀장) | 인원 추정·밀도 (P2PNet, 호모그래피, AI 워커 통합) | PM, 데이터, 실행 환경(Docker·가상 CCTV), G1·G2 검증·성능 측정 | `src/counting/`, `infra/` |
+| 조영준 | 흐름·군중난류 (광학 흐름, 군중 압력, E5) | Spring Boot 판정·알림·WebSocket·경로 | `src/flow/`, `server/` |
+| 나예린 | 60초 예측·모델 비교 (E6, E3) | React 시민·상황실 화면 | `src/predict/`, `web/` |
 
-- 기획서의 공수 균형으로 정한 담당이다. 숙련도에 맞게 팀 회의에서 바꾸면 이 표와 `README.md`를 함께 고친다.
+- 모두 AI 과정을 들으므로 1인 = AI 모듈 1개 + 서비스 파트 1개로 나눴다. 바꾸면 이 표와 `README.md`, 기획서 3.4를 함께 고친다.
