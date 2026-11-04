@@ -21,3 +21,25 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# 모델 가중치 (용량·라이선스 문제로 git 제외)
+*.pth
+*.pt
+*.onnx
+*.ckpt
+
+# 서버 (Spring Boot)
+server/build/
+server/.gradle/
+server/out/
+*.class
+
+# 화면 (React)
+node_modules/
+web/dist/
+web/build/
+
+# 로그·환경 파일 (.env.example만 추적)
+*.log
+.env.*
+!.env.example
