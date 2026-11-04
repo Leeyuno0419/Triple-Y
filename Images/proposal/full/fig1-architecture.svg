@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="760" height="624" viewBox="0 0 760 624" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fig1-architecture-title fig1-architecture-desc" id="fig1-architecture-root">
+        <title id="fig1-architecture-title">SafeRoute 전체 아키텍처</title>
+        <desc id="fig1-architecture-desc">영상 입력이 MediaMTX와 AI 워커, Redis를 거쳐 Spring Boot에서 판정·경로 계산된 뒤 시민·안전요원·상황실 화면으로 전달되는 구조.</desc>
+        <defs>
+      <style>#fig1-architecture-root { --color-paper: #f7f6f2;
+      --color-ink: #1e2a44;
+      --color-muted: #4a5670;
+      --color-accent: #b3163c;
+      --font-sans: 'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+      --font-serif: 'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono: 'Geist Mono', ui-monospace, Consolas, monospace; }
+      #fig1-architecture-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #fig1-architecture-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#fig1-architecture-root .diagram-container { overflow-x: visible; }
+}</style><marker id="fig1-architecture-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4a5670"/></marker><marker id="fig1-architecture-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b3163c"/></marker><marker id="fig1-architecture-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#0f7a63"/></marker><marker id="fig1-architecture-arrow-open" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polyline points="0 0, 8 3, 0 6" fill="none" stroke="#4a5670" stroke-width="1.2"/></marker></defs>
+        <rect width="100%" height="100%" fill="#f7f6f2"/>
+        <rect x="196" y="60" width="528" height="328" rx="8" fill="#1e2a44" stroke="rgba(30,42,68,0.1)" stroke-width="0.8" fill-opacity="0.02"/>
+        <rect x="204" y="64" width="188" height="16" rx="2" fill="#f7f6f2"/>
+        <text x="210" y="76" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">GPU 서버 · Docker Compose</text>
+        <rect x="196" y="420" width="528" height="116" rx="8" fill="#1e2a44" stroke="rgba(30,42,68,0.1)" stroke-width="0.8" fill-opacity="0.02"/>
+        <rect x="204" y="424" width="36" height="16" rx="2" fill="#f7f6f2"/>
+        <text x="210" y="436" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">화면</text>
+        <path d="M168,124 H210" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig1-architecture-arrow)"/>
+        <path d="M348,124 H390" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig1-architecture-arrow)"/>
+        <path d="M460,152 V198" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig1-architecture-arrow)"/>
+        <path d="M460,256 V302" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig1-architecture-arrow)"/>
+        <path d="M528,332 H570" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig1-architecture-arrow)"/>
+        <path d="M460,360 V454" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig1-architecture-arrow)"/>
+        <path d="M426,360 V392 Q426,400 418,400 H312 Q304,400 304,408 V454" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig1-architecture-arrow)"/>
+        <path d="M494,360 V392 Q494,400 502,400 H632 Q640,400 640,408 V454" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig1-architecture-arrow)"/>
+        <path d="M256,152 V454" fill="none" stroke="#4a5670" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#fig1-architecture-arrow)"/>
+        <rect x="174" y="107" width="32" height="12" rx="2" fill="#f7f6f2"/>
+        <text x="190" y="116" fill="#556179" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.06em" text-anchor="middle">LOOP</text>
+        <rect x="354" y="107" width="32" height="12" rx="2" fill="#f7f6f2"/>
+        <text x="370" y="116" fill="#556179" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.06em" text-anchor="middle">RTSP</text>
+        <rect x="464" y="171" width="64" height="12" rx="2" fill="#f7f6f2"/>
+        <text x="468" y="180" fill="#556179" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.06em" text-anchor="start">JSON · 1HZ</text>
+        <rect x="464" y="275" width="48" height="12" rx="2" fill="#f7f6f2"/>
+        <text x="468" y="284" fill="#556179" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.06em" text-anchor="start">PUB/SUB</text>
+        <rect x="538" y="315" width="24" height="12" rx="2" fill="#f7f6f2"/>
+        <text x="550" y="324" fill="#556179" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.06em" text-anchor="middle">SQL</text>
+        <rect x="464" y="431" width="60" height="12" rx="2" fill="#f7f6f2"/>
+        <text x="468" y="440" fill="#556179" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.06em" text-anchor="start">WEBSOCKET</text>
+        <rect x="260" y="281" width="76" height="12" rx="2" fill="#f7f6f2"/>
+        <text x="264" y="290" fill="#556179" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.06em" text-anchor="start">HLS · WEBRTC</text>
+        <rect x="40" y="96" width="128" height="56" rx="6" fill="#f7f6f2"/>
+        <rect x="40" y="96" width="128" height="56" rx="6" fill="#4a5670" stroke="#556179" stroke-width="1" fill-opacity="0.1"/>
+        <rect x="48" y="102" width="20" height="12" rx="2" fill="none" stroke="#556179" stroke-opacity="0.45" stroke-width="0.8"/>
+        <text x="58" y="111" fill="#556179" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">IN</text>
+        <text x="104" y="131" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">영상 입력</text>
+        <text x="104" y="144" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">mp4 loop · RTSP</text>
+        <rect x="212" y="96" width="136" height="56" rx="6" fill="#f7f6f2"/>
+        <rect x="212" y="96" width="136" height="56" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
+        <rect x="220" y="102" width="40" height="12" rx="2" fill="none" stroke="#1e2a44" stroke-opacity="0.45" stroke-width="0.8"/>
+        <text x="240" y="111" fill="#1e2a44" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">STREAM</text>
+        <text x="280" y="131" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">MediaMTX</text>
+        <text x="280" y="144" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">RTSP · HLS · WebRTC</text>
+        <rect x="392" y="96" width="136" height="56" rx="6" fill="#f7f6f2"/>
+        <rect x="392" y="96" width="136" height="56" rx="6" fill="#b3163c" stroke="#b3163c" stroke-width="1" fill-opacity="0.08"/>
+        <rect x="400" y="102" width="20" height="12" rx="2" fill="none" stroke="#b3163c" stroke-opacity="0.45" stroke-width="0.8"/>
+        <text x="410" y="111" fill="#b3163c" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">AI</text>
+        <text x="460" y="131" fill="#b3163c" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">AI 워커</text>
+        <text x="460" y="144" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">FastAPI · P2PNet</text>
+        <rect x="392" y="200" width="136" height="56" rx="6" fill="#f7f6f2"/>
+        <rect x="392" y="200" width="136" height="56" rx="6" fill="#1e2a44" stroke="#4a5670" stroke-width="1" fill-opacity="0.05"/>
+        <rect x="400" y="206" width="32" height="12" rx="2" fill="none" stroke="#4a5670" stroke-opacity="0.45" stroke-width="0.8"/>
+        <text x="416" y="215" fill="#4a5670" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">CACHE</text>
+        <text x="460" y="235" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">Redis</text>
+        <text x="460" y="248" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">pub/sub · latest</text>
+        <rect x="392" y="304" width="136" height="56" rx="6" fill="#f7f6f2"/>
+        <rect x="392" y="304" width="136" height="56" rx="6" fill="#b3163c" stroke="#b3163c" stroke-width="1" fill-opacity="0.08"/>
+        <rect x="400" y="310" width="24" height="12" rx="2" fill="none" stroke="#b3163c" stroke-opacity="0.45" stroke-width="0.8"/>
+        <text x="412" y="319" fill="#b3163c" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">API</text>
+        <text x="460" y="339" fill="#b3163c" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">Spring Boot</text>
+        <text x="460" y="352" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">grade · alert · route</text>
+        <rect x="572" y="304" width="136" height="56" rx="6" fill="#f7f6f2"/>
+        <rect x="572" y="304" width="136" height="56" rx="6" fill="#1e2a44" stroke="#4a5670" stroke-width="1" fill-opacity="0.05"/>
+        <rect x="580" y="310" width="20" height="12" rx="2" fill="none" stroke="#4a5670" stroke-opacity="0.45" stroke-width="0.8"/>
+        <text x="590" y="319" fill="#4a5670" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">DB</text>
+        <text x="640" y="339" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">PostgreSQL</text>
+        <text x="640" y="352" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">PostGIS · pgRouting</text>
+        <rect x="212" y="456" width="136" height="56" rx="6" fill="#f7f6f2"/>
+        <rect x="212" y="456" width="136" height="56" rx="6" fill="#4a5670" stroke="#556179" stroke-width="1" fill-opacity="0.1"/>
+        <rect x="220" y="462" width="24" height="12" rx="2" fill="none" stroke="#556179" stroke-opacity="0.45" stroke-width="0.8"/>
+        <text x="232" y="471" fill="#556179" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">WEB</text>
+        <text x="280" y="491" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">상황실 웹</text>
+        <text x="280" y="504" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">PC dashboard</text>
+        <rect x="392" y="456" width="136" height="56" rx="6" fill="#f7f6f2"/>
+        <rect x="392" y="456" width="136" height="56" rx="6" fill="#4a5670" stroke="#556179" stroke-width="1" fill-opacity="0.1"/>
+        <rect x="400" y="462" width="24" height="12" rx="2" fill="none" stroke="#556179" stroke-opacity="0.45" stroke-width="0.8"/>
+        <text x="412" y="471" fill="#556179" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">PWA</text>
+        <text x="460" y="491" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">안전요원 앱</text>
+        <text x="460" y="504" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">mobile PWA</text>
+        <rect x="572" y="456" width="136" height="56" rx="6" fill="#f7f6f2"/>
+        <rect x="572" y="456" width="136" height="56" rx="6" fill="#4a5670" stroke="#556179" stroke-width="1" fill-opacity="0.1"/>
+        <rect x="580" y="462" width="24" height="12" rx="2" fill="none" stroke="#556179" stroke-opacity="0.45" stroke-width="0.8"/>
+        <text x="592" y="471" fill="#556179" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">PWA</text>
+        <text x="640" y="491" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">시민 앱</text>
+        <text x="640" y="504" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">mobile PWA</text>
+        <line x1="40" y1="572" x2="720" y2="572" stroke="rgba(30,42,68,0.1)" stroke-width="0.8"/>
+        <text x="40" y="592" fill="#4a5670" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.14em">LEGEND</text>
+        <line x1="104" y1="588" x2="132" y2="588" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig1-architecture-arrow)"/>
+        <text x="140" y="592" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">데이터 흐름</text>
+        <line x1="236" y1="588" x2="264" y2="588" stroke="#4a5670" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#fig1-architecture-arrow)"/>
+        <text x="272" y="592" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">원본 영상 표시</text>
+        <rect x="388" y="581" width="22" height="14" rx="3" fill="#b3163c" stroke="#b3163c" stroke-width="1" fill-opacity="0.08"/>
+        <text x="418" y="592" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">핵심 처리</text>
+        <rect x="502" y="581" width="22" height="14" rx="3" fill="#1e2a44" stroke="#4a5670" stroke-width="1" fill-opacity="0.05"/>
+        <text x="532" y="592" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">저장소</text>
+        <rect x="596" y="581" width="22" height="14" rx="3" fill="#4a5670" stroke="#556179" stroke-width="1" fill-opacity="0.1"/>
+        <text x="626" y="592" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">입력·화면</text>
+      </svg>

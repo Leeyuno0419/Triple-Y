@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="760" height="600" viewBox="0 0 760 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fig6-positioning-title fig6-positioning-desc" id="fig6-positioning-root">
+        <title id="fig6-positioning-title">경쟁 포지셔닝</title>
+        <desc id="fig6-positioning-desc">대응 범위(관제 경보에서 시민 행동 안내까지)와 분석 깊이(밀도에서 흐름·예측까지)로 기존 사례와 SafeRoute를 배치한 사분면. 기존 국내 솔루션은 관제·밀도 쪽에, SafeRoute는 시민·예측 쪽에 있다.</desc>
+        <defs>
+      <style>#fig6-positioning-root { --color-paper: #f7f6f2;
+      --color-ink: #1e2a44;
+      --color-muted: #4a5670;
+      --color-accent: #b3163c;
+      --font-sans: 'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+      --font-serif: 'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono: 'Geist Mono', ui-monospace, Consolas, monospace; }
+      #fig6-positioning-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #fig6-positioning-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#fig6-positioning-root .diagram-container { overflow-x: visible; }
+}</style><marker id="fig6-positioning-arrow-ink" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1e2a44"/></marker><marker id="fig6-positioning-arrow-ink-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#1e2a44"/></marker><marker id="fig6-positioning-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4a5670"/></marker><marker id="fig6-positioning-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b3163c"/></marker><marker id="fig6-positioning-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#0f7a63"/></marker><marker id="fig6-positioning-arrow-open" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polyline points="0 0, 8 3, 0 6" fill="none" stroke="#4a5670" stroke-width="1.2"/></marker></defs>
+        <rect width="100%" height="100%" fill="#f7f6f2"/>
+        <line x1="120" y1="280" x2="640" y2="280" stroke="#1e2a44" stroke-width="1" marker-end="url(#fig6-positioning-arrow-ink)" marker-start="url(#fig6-positioning-arrow-ink-start)"/>
+        <line x1="380" y1="496" x2="380" y2="64" stroke="#1e2a44" stroke-width="1" marker-end="url(#fig6-positioning-arrow-ink)" marker-start="url(#fig6-positioning-arrow-ink-start)"/>
+        <text x="652" y="284" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="start">시민</text>
+        <text x="108" y="284" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="end">관제</text>
+        <text x="380" y="48" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">예측</text>
+        <text x="380" y="520" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">밀도</text>
+        <circle cx="164" cy="136" r="4" fill="#4a5670"/>
+        <text x="174" y="140" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">부산시 실증 과제</text>
+        <circle cx="300" cy="112" r="4" fill="#4a5670"/>
+        <text x="310" y="116" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">NEC</text>
+        <circle cx="236" cy="196" r="4" fill="#4a5670"/>
+        <text x="246" y="200" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">오토세이퍼</text>
+        <circle cx="164" cy="324" r="4" fill="#4a5670"/>
+        <text x="174" y="328" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">인텔리빅스</text>
+        <circle cx="164" cy="372" r="4" fill="#4a5670"/>
+        <text x="174" y="376" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">알체라</text>
+        <circle cx="236" cy="412" r="4" fill="#4a5670"/>
+        <text x="246" y="416" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">서울시 인파감지</text>
+        <circle cx="236" cy="460" r="4" fill="#4a5670"/>
+        <text x="246" y="464" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">행안부 현장인파관리</text>
+        <circle cx="452" cy="352" r="4" fill="#4a5670"/>
+        <text x="462" y="356" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">Hillen 2015</text>
+        <circle cx="548" cy="432" r="4" fill="#4a5670"/>
+        <text x="558" y="436" fill="#1e2a44" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">Densiflow</text>
+        <circle cx="580" cy="116" r="5" fill="#b3163c"/>
+        <text x="590" y="120" fill="#b3163c" font-size="12" font-weight="700" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">SafeRoute</text>
+        <line x1="40" y1="552" x2="720" y2="552" stroke="#1e2a44" stroke-width="0.8" stroke-opacity="0.1"/>
+        <text x="40" y="572" fill="#4a5670" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.14em">LEGEND</text>
+        <circle cx="110" cy="568" r="5" fill="#b3163c"/>
+        <text x="120" y="572" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">SafeRoute</text>
+        <circle cx="222" cy="568" r="4" fill="#4a5670"/>
+        <text x="232" y="572" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">기존 사례 (공개 자료 기준 정성 배치)</text>
+      </svg>

@@ -66,6 +66,8 @@ Triple Y/
 
 ## 기획서
 - 기획서(`docs/proposal.md`, `docs/proposal.pdf`) 작업 시 `docs/proposal-guide.md`를 따른다.
+- `docs/proposal.md`는 제출용 요약본이고, 이번 발표 범위(MVP)·담당·일정의 기준이다.
+- 설계 근거·수식·기술 비교·사업성·여유 시 기능 설계는 `docs/proposal-detail.md`(내부용 상세 문서)에, 출처는 `docs/references.md`에 있다. 기능을 만들기 전에 상세 문서의 해당 절을 먼저 읽는다.
 
 ## 역할
 - 팀장: 이유노 / 팀원: 조영준, 나예린
