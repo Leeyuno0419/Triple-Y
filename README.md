@@ -1,11 +1,11 @@
-# Triple Y — SafeRoute
+# Triple Y — CrowdSight
 
-AI 기반 인파 밀집(군중 난류) 감지·위험 예측 정보 시스템. 3인 팀 프로젝트 (2026-11-02 ~ 11-27 기업 발표).
+CCTV 기반 군중 밀도·흐름 불안정·60초 변화 예측 시스템. 3인 팀 프로젝트 (2026-11-02 ~ 11-27 기업 발표).
 
 ## 프로젝트 개요
-- CCTV 영상으로 1㎡당 밀도·흐름·군중난류를 재고, 60초 뒤 밀도를 예측한다.
-- 시민에게 밀집 지도와 우회·탈출 경로를, 상황실에 비상 알림과 대피 경로를 준다.
-- 영상 1개로 핵심 기능(MVP)을 만들고 검증한 뒤 영상·지역을 늘린다.
+- CCTV 영상으로 1㎡당 밀도·군중 불안정·경계 유입을 재고, 60초 뒤 밀도를 예측한다.
+- 상황실 대시보드에 히트맵, 지표 그래프, 등급 알림으로 보여준다.
+- 기본 구역 1개로 핵심 기능(MVP)을 만들고 검증한 뒤 영상·구역을 늘린다.
 
 | 문서 | 내용 |
 |---|---|
@@ -16,34 +16,38 @@ AI 기반 인파 밀집(군중 난류) 감지·위험 예측 정보 시스템. 3
 | [CLAUDE.md](CLAUDE.md) | 팀·Claude 공통 작업 규칙 |
 
 ## 시스템 구성
-![SafeRoute 전체 아키텍처](Images/proposal/fig1-architecture.svg)
+![CrowdSight 전체 아키텍처](Images/proposal/fig1-architecture.svg)
 
 | 구성 | 기술 | 폴더 |
 |---|---|---|
-| AI 워커 | Python, FastAPI, PyTorch(P2PNet), OpenCV(Farneback) | `src/` |
-| 서버 | Spring Boot, Redis, PostgreSQL + PostGIS + pgRouting | `server/` |
-| 화면 | React PWA, 카카오 지도 | `web/` |
-| 실행 환경 | Docker Compose, MediaMTX(가상 CCTV) | `infra/` |
+| 사전 분석 | Python, PyTorch(P2PNet), OpenCV(Farneback) → `timeline.json` | `src/` |
+| 서버 | Spring Boot (타임라인 재생, 등급 판정, 알림, WebSocket) | `server/` |
+| 화면 | React (상황실 대시보드) | `web/` |
+| 실행 설정 | 구역 설정 | `infra/` |
 
 ## 일정
 | 날짜 | 마일스톤 |
 |---|---|
-| 11-05 | M1 인터페이스 계약 (메시지·API·셀 규격) |
-| 11-13 | G1 영상 1개 기본 흐름 검증 |
+| 11-09 | `timeline.json` 규격 확정 |
+| 11-10 | G0 역할별 영상 확정 |
+| 11-13 | G1 기본 흐름 검증 |
 | 11-18 | G2 MVP 전체 기능 검증 |
-| 11-19 ~ 11-24 | 오류 수정·개선, 11-24 코드 동결 |
+| 11-19 | 코드 동결 |
+| 11-20, 11-26 | 발표 자료·백업 영상, 리허설 |
 | 11-27 | 기업 발표 |
+
+- RPA 프로젝트가 11-23~11-25에 진행된다는 가정이다.
 
 ## 폴더 구조
 ```
 Triple-Y/
-├─ src/           # AI 워커 (Python, FastAPI) - 재사용 코드
+├─ src/           # 사전 분석 (Python) - 재사용 코드
 │  ├─ counting/   # 인원 추정·밀도 (이유노)
-│  ├─ flow/       # 흐름·군중난류 (조영준)
-│  └─ predict/    # 60초 예측·모델 비교 (나예린)
-├─ server/        # Spring Boot - 등급 판정·알림·경로 API
-├─ web/           # React PWA - 시민·상황실 화면
-├─ infra/         # docker-compose.yml, MediaMTX 설정, DB 초기화 SQL
+│  ├─ flow/       # 흐름·군중 불안정 (조영준)
+│  └─ predict/    # 60초 예측 (나예린)
+├─ server/        # Spring Boot - 타임라인 재생·등급 판정·알림 API
+├─ web/           # React - 상황실 대시보드
+├─ infra/         # 구역 설정
 ├─ notebooks/     # 탐색·실험용 .ipynb
 ├─ data/
 │  ├─ raw/        # 원본 데이터 (수정 금지, git 제외)
@@ -55,7 +59,7 @@ Triple-Y/
 └─ .env           # 비밀키 (git 제외)
 ```
 
-## 시작하기 (AI 워커)
+## 시작하기 (사전 분석)
 ```powershell
 git clone https://github.com/Leeyuno0419/Triple-Y.git
 cd Triple-Y
@@ -113,8 +117,8 @@ git push -u origin feat/기능명              # 3. 푸시
 ## 팀원
 | 이름 | AI 모듈 | 서비스 파트 | 담당 폴더 |
 |---|---|---|---|
-| 이유노 (팀장) | 인원 추정·밀도 (P2PNet, 호모그래피) | PM, 데이터, 실행 환경(Docker·가상 CCTV), 통합 검증 | `src/counting/`, `infra/` |
-| 조영준 | 흐름·군중난류 (광학 흐름, 군중 압력) | Spring Boot 판정·알림·경로 | `src/flow/`, `server/` |
-| 나예린 | 60초 예측·모델 비교 | React 화면 | `src/predict/`, `web/` |
+| 이유노 (팀장) | 인원 추정·밀도 (P2PNet, 호모그래피) | PM, 데이터, 구역 설정, 통합 검증 | `src/counting/`, `infra/` |
+| 조영준 | 흐름·군중 불안정 (광학 흐름, 군중 압력, 유입 경보) | Spring Boot 판정·알림 | `src/flow/`, `server/` |
+| 나예린 | 60초 예측 | React 대시보드 | `src/predict/`, `web/` |
 
 - 모두 AI 과정을 들으므로 각자 AI 모듈 하나와 서비스 파트 하나를 맡는다. 바꾸면 이 표와 `CLAUDE.md`, 기획서 3.4를 함께 고친다.
