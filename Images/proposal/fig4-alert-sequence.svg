@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="760" height="584" viewBox="0 0 760 584" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fig4-alert-sequence-title fig4-alert-sequence-desc" id="fig4-alert-sequence-root">
+<svg width="760" height="464" viewBox="0 0 760 464" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fig4-alert-sequence-title fig4-alert-sequence-desc" id="fig4-alert-sequence-root">
         <title id="fig4-alert-sequence-title">비상 알림 시퀀스</title>
-        <desc id="fig4-alert-sequence-desc">AI 워커가 1초마다 구역 상태를 발행하고, Spring Boot가 2회 연속 조건 충족 시 경계로 올려 상황실에 알림을 보내고 시민 경로를 다시 계산하는 순서.</desc>
+        <desc id="fig4-alert-sequence-desc">Spring Boot가 타임라인을 1초마다 재생하고, 2회 연속 조건 충족 시 경계로 올려 상황실에 알림을 보낸 뒤 확인 기록을 남기는 순서.</desc>
         <defs>
       <style>#fig4-alert-sequence-root { --color-paper: #f7f6f2;
       --color-ink: #1e2a44;
@@ -16,67 +16,46 @@
 #fig4-alert-sequence-root .diagram-container { overflow-x: visible; }
 }</style><marker id="fig4-alert-sequence-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4a5670"/></marker><marker id="fig4-alert-sequence-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b3163c"/></marker><marker id="fig4-alert-sequence-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#0f7a63"/></marker><marker id="fig4-alert-sequence-arrow-open" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polyline points="0 0, 8 3, 0 6" fill="none" stroke="#4a5670" stroke-width="1.2"/></marker></defs>
         <rect width="100%" height="100%" fill="#f7f6f2"/>
-        <line x1="100" y1="104" x2="100" y2="504" stroke="#1e2a44" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.2"/>
-        <line x1="240" y1="104" x2="240" y2="504" stroke="#1e2a44" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.2"/>
-        <line x1="380" y1="104" x2="380" y2="504" stroke="#1e2a44" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.2"/>
-        <line x1="520" y1="104" x2="520" y2="504" stroke="#1e2a44" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.2"/>
-        <line x1="660" y1="104" x2="660" y2="504" stroke="#1e2a44" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.2"/>
-        <rect x="376" y="168" width="8" height="304" fill="#1e2a44" stroke="#4a5670" stroke-width="0.8" fill-opacity="0.06"/>
-        <path d="M100,136 H238" fill="none" stroke="#4a5670" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#fig4-alert-sequence-arrow-open)"/>
-        <path d="M240,176 H374" fill="none" stroke="#4a5670" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#fig4-alert-sequence-arrow-open)"/>
-        <path d="M384,196 H408 V220 H386" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow)"/>
-        <path d="M100,256 H238" fill="none" stroke="#4a5670" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#fig4-alert-sequence-arrow-open)"/>
-        <path d="M240,296 H374" fill="none" stroke="#4a5670" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#fig4-alert-sequence-arrow-open)"/>
-        <path d="M384,316 H408 V340 H386" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow)"/>
-        <path d="M384,376 H518" fill="none" stroke="#b3163c" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow-accent)"/>
-        <path d="M384,396 H408 V420 H386" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow)"/>
-        <path d="M384,456 H658" fill="none" stroke="#0f7a63" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow-link)"/>
-        <rect x="124" y="116" width="92" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="170" y="128" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">상태 발행 · t</text>
-        <rect x="276" y="156" width="64" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="308" y="168" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">구독 전달</text>
-        <rect x="412" y="201" width="92" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="416" y="213" fill="#4a5670" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="start">경계 조건 1회</text>
-        <rect x="112" y="236" width="116" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="170" y="248" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">상태 발행 · t+1s</text>
-        <rect x="276" y="276" width="64" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="308" y="288" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">구독 전달</text>
-        <rect x="412" y="321" width="104" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="416" y="333" fill="#4a5670" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="start">2회 연속 → 경계</text>
-        <rect x="402" y="356" width="100" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="452" y="368" fill="#b3163c" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">비상 알림 ≤ 3s</text>
-        <rect x="412" y="401" width="108" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="416" y="413" fill="#4a5670" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="start">비용 갱신·재계산</text>
-        <rect x="546" y="436" width="88" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="590" y="448" fill="#0f7a63" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">새 경로 ≤ 2s</text>
-        <rect x="38" y="56" width="124" height="48" rx="6" fill="#f7f6f2"/>
-        <rect x="38" y="56" width="124" height="48" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
-        <text x="100" y="78" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">AI 워커</text>
-        <text x="100" y="91" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">FastAPI</text>
-        <rect x="178" y="56" width="124" height="48" rx="6" fill="#f7f6f2"/>
-        <rect x="178" y="56" width="124" height="48" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
-        <text x="240" y="78" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">Redis</text>
-        <text x="240" y="91" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">pub/sub</text>
-        <rect x="318" y="56" width="124" height="48" rx="6" fill="#f7f6f2"/>
-        <rect x="318" y="56" width="124" height="48" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
-        <text x="380" y="78" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">Spring Boot</text>
-        <text x="380" y="91" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">API</text>
-        <rect x="458" y="56" width="124" height="48" rx="6" fill="#f7f6f2"/>
-        <rect x="458" y="56" width="124" height="48" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
-        <text x="520" y="78" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">상황실 웹</text>
-        <text x="520" y="91" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">WebSocket</text>
-        <rect x="598" y="56" width="124" height="48" rx="6" fill="#f7f6f2"/>
-        <rect x="598" y="56" width="124" height="48" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
-        <text x="660" y="78" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">시민 앱</text>
-        <text x="660" y="91" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">WebSocket</text>
-        <line x1="40" y1="536" x2="720" y2="536" stroke="#1e2a44" stroke-width="0.8" stroke-opacity="0.1"/>
-        <text x="40" y="556" fill="#4a5670" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.14em">LEGEND</text>
-        <line x1="104" y1="552" x2="132" y2="552" stroke="#4a5670" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#fig4-alert-sequence-arrow)"/>
-        <text x="140" y="556" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">비동기 발행</text>
-        <line x1="236" y1="552" x2="264" y2="552" stroke="#b3163c" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow-accent)"/>
-        <text x="272" y="556" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">비상 알림</text>
-        <line x1="356" y1="552" x2="384" y2="552" stroke="#0f7a63" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow-link)"/>
-        <text x="392" y="556" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">경로 전송</text>
-        <line x1="476" y1="552" x2="504" y2="552" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow)"/>
-        <text x="512" y="556" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">요청·자기 처리</text>
+        <line x1="140" y1="104" x2="140" y2="384" stroke="#1e2a44" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.2"/>
+        <line x1="380" y1="104" x2="380" y2="384" stroke="#1e2a44" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.2"/>
+        <line x1="620" y1="104" x2="620" y2="384" stroke="#1e2a44" stroke-width="1" stroke-dasharray="3,3" stroke-opacity="0.2"/>
+        <rect x="376" y="128" width="8" height="236" fill="#1e2a44" stroke="#4a5670" stroke-width="0.8" fill-opacity="0.06"/>
+        <path d="M140,136 H374" fill="none" stroke="#4a5670" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#fig4-alert-sequence-arrow-open)"/>
+        <path d="M384,156 H408 V180 H386" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow)"/>
+        <path d="M140,216 H374" fill="none" stroke="#4a5670" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#fig4-alert-sequence-arrow-open)"/>
+        <path d="M384,236 H408 V260 H386" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow)"/>
+        <path d="M384,296 H618" fill="none" stroke="#b3163c" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow-accent)"/>
+        <path d="M620,344 H386" fill="none" stroke="#4a5670" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#fig4-alert-sequence-arrow-open)"/>
+        <rect x="214" y="116" width="92" height="16" rx="2" fill="#f7f6f2"/>
+        <text x="260" y="128" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">상태 재생 · t</text>
+        <rect x="412" y="161" width="92" height="16" rx="2" fill="#f7f6f2"/>
+        <text x="416" y="173" fill="#4a5670" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="start">경계 조건 1회</text>
+        <rect x="202" y="196" width="116" height="16" rx="2" fill="#f7f6f2"/>
+        <text x="260" y="208" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">상태 재생 · t+1s</text>
+        <rect x="412" y="241" width="104" height="16" rx="2" fill="#f7f6f2"/>
+        <text x="416" y="253" fill="#4a5670" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="start">2회 연속 → 경계</text>
+        <rect x="444" y="276" width="112" height="16" rx="2" fill="#f7f6f2"/>
+        <text x="500" y="288" fill="#b3163c" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">비상 알림 ≤ 1.7s</text>
+        <rect x="468" y="324" width="64" height="16" rx="2" fill="#f7f6f2"/>
+        <text x="500" y="336" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">확인 기록</text>
+        <rect x="72" y="56" width="136" height="48" rx="6" fill="#f7f6f2"/>
+        <rect x="72" y="56" width="136" height="48" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
+        <text x="140" y="77" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">타임라인</text>
+        <text x="140" y="92" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">timeline.json</text>
+        <rect x="312" y="56" width="136" height="48" rx="6" fill="#f7f6f2"/>
+        <rect x="312" y="56" width="136" height="48" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
+        <text x="380" y="77" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">Spring Boot</text>
+        <text x="380" y="92" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">API</text>
+        <rect x="552" y="56" width="136" height="48" rx="6" fill="#f7f6f2"/>
+        <rect x="552" y="56" width="136" height="48" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
+        <text x="620" y="77" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">상황실 웹</text>
+        <text x="620" y="92" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">WebSocket</text>
+        <line x1="40" y1="416" x2="720" y2="416" stroke="#1e2a44" stroke-width="0.8" stroke-opacity="0.1"/>
+        <text x="40" y="436" fill="#4a5670" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.14em">LEGEND</text>
+        <path d="M104,432 H130" fill="none" stroke="#4a5670" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#fig4-alert-sequence-arrow-open)"/>
+        <text x="138" y="436" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">재생·응답</text>
+        <path d="M240,432 H266" fill="none" stroke="#b3163c" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow-accent)"/>
+        <text x="274" y="436" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">비상 알림</text>
+        <path d="M368,432 H394" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig4-alert-sequence-arrow)"/>
+        <text x="402" y="436" fill="#1e2a44" font-size="12" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">자기 처리</text>
       </svg>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="760" height="724" viewBox="0 0 760 724" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fig2-ai-pipeline-title fig2-ai-pipeline-desc" id="fig2-ai-pipeline-root">
         <title id="fig2-ai-pipeline-title">AI 분석 파이프라인</title>
-        <desc id="fig2-ai-pipeline-desc">프레임 하나에서 인원 추정·셀 밀도 경로와 광학 흐름 경로가 갈라졌다가 셀 상태에서 합쳐지고, 군중난류 판정과 60초 예측을 거쳐 구역 상태로 발행되는 과정.</desc>
+        <desc id="fig2-ai-pipeline-desc">프레임 하나에서 인원 추정·셀 밀도 경로와 광학 흐름 경로가 갈라졌다가 셀 상태에서 합쳐지고, 불안정 지표와 60초 예측을 거쳐 timeline.json에 저장되는 과정.</desc>
         <defs>
       <style>#fig2-ai-pipeline-root { --color-paper: #f7f6f2;
       --color-ink: #1e2a44;
@@ -18,7 +18,7 @@
         <rect width="100%" height="100%" fill="#f7f6f2"/>
         <rect x="104" y="32" width="552" height="632" rx="8" fill="#1e2a44" stroke="rgba(30,42,68,0.1)" stroke-width="0.8" fill-opacity="0.02"/>
         <rect x="112" y="36" width="168" height="16" rx="2" fill="#f7f6f2"/>
-        <text x="118" y="48" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">FastAPI AI 워커 · 1 Hz</text>
+        <text x="118" y="48" fill="#556179" font-size="12" font-weight="500" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif">사전 분석 스크립트 · 1 Hz</text>
         <path d="M352,120 V136 Q352,144 344,144 H228 Q220,144 220,152 V166" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig2-ai-pipeline-arrow)"/>
         <path d="M408,120 V136 Q408,144 416,144 H532 Q540,144 540,152 V166" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig2-ai-pipeline-arrow)"/>
         <path d="M220,224 V270" fill="none" stroke="#4a5670" stroke-width="1.2" marker-end="url(#fig2-ai-pipeline-arrow)"/>
@@ -61,25 +61,25 @@
         <rect x="304" y="382" width="32" height="12" rx="2" fill="none" stroke="#1e2a44" stroke-opacity="0.45" stroke-width="0.8"/>
         <text x="320" y="391" fill="#1e2a44" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">STATE</text>
         <text x="380" y="411" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">셀 상태</text>
-        <text x="380" y="424" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">ρ · v · Var(v) / cell</text>
+        <text x="380" y="424" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">ρ · v · Var(v) · inflow</text>
         <rect x="136" y="480" width="168" height="56" rx="6" fill="#f7f6f2"/>
         <rect x="136" y="480" width="168" height="56" rx="6" fill="#b3163c" stroke="#b3163c" stroke-width="1" fill-opacity="0.08"/>
         <rect x="144" y="486" width="28" height="12" rx="2" fill="none" stroke="#b3163c" stroke-opacity="0.45" stroke-width="0.8"/>
         <text x="158" y="495" fill="#b3163c" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">RULE</text>
-        <text x="220" y="515" fill="#b3163c" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">군중난류 판정</text>
-        <text x="220" y="528" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">P = ρ·Var(v) ≥ θ</text>
+        <text x="220" y="515" fill="#b3163c" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">불안정 지표</text>
+        <text x="220" y="528" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">P = ρ·Var(v)</text>
         <rect x="456" y="480" width="168" height="56" rx="6" fill="#f7f6f2"/>
         <rect x="456" y="480" width="168" height="56" rx="6" fill="#ffffff" stroke="#1e2a44" stroke-width="1"/>
         <rect x="464" y="486" width="28" height="12" rx="2" fill="none" stroke="#1e2a44" stroke-opacity="0.45" stroke-width="0.8"/>
         <text x="478" y="495" fill="#1e2a44" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">PRED</text>
         <text x="540" y="515" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">60초 예측</text>
-        <text x="540" y="528" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">density trend · 60 s</text>
+        <text x="540" y="528" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">ρ + inflow · 60 s</text>
         <rect x="296" y="584" width="168" height="56" rx="6" fill="#f7f6f2"/>
         <rect x="296" y="584" width="168" height="56" rx="6" fill="#1e2a44" stroke="#4a5670" stroke-width="1" fill-opacity="0.05"/>
         <rect x="304" y="590" width="24" height="12" rx="2" fill="none" stroke="#4a5670" stroke-opacity="0.45" stroke-width="0.8"/>
         <text x="316" y="599" fill="#4a5670" font-size="7" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">OUT</text>
-        <text x="380" y="619" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">구역 상태 발행</text>
-        <text x="380" y="632" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">JSON → Redis</text>
+        <text x="380" y="619" fill="#1e2a44" font-size="12" font-weight="600" font-family="'Geist', 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif" text-anchor="middle">구역 상태 저장</text>
+        <text x="380" y="632" fill="#4a5670" font-size="9" font-family="'Geist Mono', ui-monospace, Consolas, monospace" text-anchor="middle">timeline.json</text>
         <line x1="40" y1="676" x2="720" y2="676" stroke="rgba(30,42,68,0.1)" stroke-width="0.8"/>
         <text x="40" y="696" fill="#4a5670" font-size="8" font-family="'Geist Mono', ui-monospace, Consolas, monospace" letter-spacing="0.14em">LEGEND</text>
         <rect x="104" y="685" width="22" height="14" rx="3" fill="#4a5670" stroke="#556179" stroke-width="1" fill-opacity="0.1"/>

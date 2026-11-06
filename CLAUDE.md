@@ -1,18 +1,18 @@
 # Triple Y 팀 프로젝트 지침
 
-SafeRoute — AI 기반 인파 밀집(군중 난류) 감지·위험 예측 정보 시스템. 3인 팀 프로젝트 (AI: Python / 서버: Spring Boot / 화면: React).
+CrowdSight — CCTV 기반 군중 밀도·흐름 불안정·60초 변화 예측 시스템. 3인 팀 프로젝트 (AI: Python / 서버: Spring Boot / 화면: React).
 전역 지침(`~/.claude/CLAUDE.md`)에 더해 아래 규칙을 따른다.
 
 ## 폴더 구조
 ```
 Triple Y/
-├─ src/           # AI 워커 (Python, FastAPI) - 재사용 코드 (.py)
+├─ src/           # 사전 분석 (Python) - 재사용 코드 (.py)
 │  ├─ counting/   # 인원 추정·밀도 (이유노)
-│  ├─ flow/       # 흐름·군중난류 (조영준)
-│  └─ predict/    # 60초 예측·모델 비교 (나예린)
-├─ server/        # Spring Boot - 등급 판정·알림·경로 API
-├─ web/           # React PWA - 시민·상황실 화면
-├─ infra/         # docker-compose.yml, MediaMTX 설정, DB 초기화 SQL
+│  ├─ flow/       # 흐름·군중 불안정 (조영준)
+│  └─ predict/    # 60초 예측 (나예린)
+├─ server/        # Spring Boot - 타임라인 재생·등급 판정·알림 API
+├─ web/           # React - 상황실 대시보드
+├─ infra/         # 구역 설정
 ├─ notebooks/     # 탐색·실험용 .ipynb
 ├─ data/
 │  ├─ raw/        # 원본 데이터 (수정 금지, git 제외)
@@ -23,8 +23,8 @@ Triple Y/
 ├─ requirements.txt
 └─ .env           # 비밀키 (git 제외)
 ```
-- 담당마다 폴더가 나뉜다: AI `src/counting/`(인원·밀도)·`src/flow/`(흐름·난류)·`src/predict/`(예측), 서버 `server/`, 화면 `web/`, 실행 설정 `infra/`. 다른 사람의 폴더는 담당자와 상의한 뒤 수정한다.
-- AI 모듈끼리는 11-05 인터페이스 계약에서 정한 입출력(기획서 3.4)으로만 주고받는다.
+- 담당마다 폴더가 나뉜다: AI `src/counting/`(인원·밀도)·`src/flow/`(흐름·불안정)·`src/predict/`(예측), 서버 `server/`, 화면 `web/`, 실행 설정 `infra/`. 다른 사람의 폴더는 담당자와 상의한 뒤 수정한다.
+- AI 모듈끼리는 기획서 3.4의 입출력과 `timeline.json` 규격으로만 주고받는다. `timeline.json`에는 구역 ID와 셀·구역 집계값만 넣는다.
 - 재사용할 로직은 `src/`의 `.py`로 두고, 노트북에서 import해서 쓴다.
 - 원본 데이터(`data/raw/`)는 절대 덮어쓰거나 수정하지 않는다.
 
@@ -77,9 +77,9 @@ Triple Y/
 
 ## 진행 원칙 (MVP)
 - 범위·담당·일정의 기준은 `docs/proposal.md`다. MVP 밖 기능(여유 시)은 G2를 통과하고 시간이 남을 때만 만든다.
-- 영상 1개로 먼저 끝까지 만들고 검증 게이트(G1 11-13, G2 11-18)를 통과한 뒤 넓힌다. 여러 영상·구역을 한꺼번에 붙이지 않는다.
-- 메시지·DB·API에는 처음부터 `zone_id`·`camera_id`를 둔다. 그래야 영상·구역 추가가 등록 작업으로 끝난다.
-- 11-24에 코드를 동결하고, 11-19~24는 오류 수정·개선에 쓴다.
+- 기본 구역 1개로 먼저 끝까지 만들고 검증 게이트(G0 11-10, G1 11-13, G2 11-18)를 통과한 뒤 넓힌다. 여러 구역을 한꺼번에 붙이지 않는다.
+- 타임라인·API에는 처음부터 `zone_id`·`camera_id`를 둔다. 그래야 영상·구역 추가가 등록 작업으로 끝난다.
+- 11-19에 코드를 동결한다. RPA 프로젝트는 11-23~25에 진행된다고 가정하며, 일정이 정해지면 조정한다.
 
 ## 기획서
 - 기획서(`docs/proposal.md`, `docs/proposal.pdf`) 작업 시 `docs/proposal-guide.md`를 따른다.
@@ -89,8 +89,8 @@ Triple Y/
 ## 역할
 | 이름 | AI 모듈 | 서비스 파트 | 담당 폴더 |
 |---|---|---|---|
-| 이유노 (팀장) | 인원 추정·밀도 (P2PNet, 호모그래피, AI 워커 통합) | PM, 데이터, 실행 환경(Docker·가상 CCTV), G1·G2 검증·성능 측정 | `src/counting/`, `infra/` |
-| 조영준 | 흐름·군중난류 (광학 흐름, 군중 압력, E5) | Spring Boot 판정·알림·WebSocket·경로 | `src/flow/`, `server/` |
-| 나예린 | 60초 예측·모델 비교 (E6, E3) | React 시민·상황실 화면 | `src/predict/`, `web/` |
+| 이유노 (팀장) | 인원 추정·밀도 (P2PNet, 호모그래피, 분석 스크립트 통합) | PM, 데이터, 구역 설정, G0·G1·G2 검증·성능 측정 | `src/counting/`, `infra/` |
+| 조영준 | 흐름·군중 불안정 (광학 흐름, 군중 압력, 유입 경보, E5) | Spring Boot 판정·알림·WebSocket | `src/flow/`, `server/` |
+| 나예린 | 60초 예측 (E6) | React 상황실 대시보드 | `src/predict/`, `web/` |
 
 - 모두 AI 과정을 들으므로 1인 = AI 모듈 1개 + 서비스 파트 1개로 나눴다. 바꾸면 이 표와 `README.md`, 기획서 3.4를 함께 고친다.
