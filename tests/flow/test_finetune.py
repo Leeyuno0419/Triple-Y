@@ -1,4 +1,4 @@
-"""S9 seam: finetune.train 시험 (VideoPairs 포함).
+"""S9 테스트 경계: finetune.train 시험 (VideoPairs 포함).
 
 기본 시험은 학습을 돌리지 않는다: 설정·체크포인트 경로 검사, 합성
 FFV1 영상으로 VideoPairs의 쌍 간격·개수·시드·증강 정렬을 본다.

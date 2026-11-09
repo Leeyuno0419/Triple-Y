@@ -1,4 +1,4 @@
-"""S8 seam: unsup_losses.backward_warp·sequence_unsup_loss 시험.
+"""S8 테스트 경계: unsup_losses.backward_warp·sequence_unsup_loss 시험.
 
 흐름은 (B, 2, H, W) px 단위이고 채널 0이 x(오른쪽 +), 채널 1이 y(아래 +)다.
 기대값은 손으로 정한 영상과 이동량에서 숫자로 적는다.
