@@ -1,4 +1,4 @@
-"""S6 seam: noise_floor.measure_noise_floor 시험.
+"""S6 테스트 경계: noise_floor.measure_noise_floor 시험.
 
 셀 평균 속도 V_c 시계열과 정지 표시를 손으로 정해 넣고,
 셀별 잡음 분산 Var_noise_c = <|V_c − U_c|²> [m²/s²]를 손으로 계산한 값과

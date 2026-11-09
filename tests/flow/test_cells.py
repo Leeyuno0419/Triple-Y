@@ -1,4 +1,4 @@
-"""S4 seam: cells.reduce_to_cells 시험.
+"""S4 테스트 경계: cells.reduce_to_cells 시험.
 
 픽셀마다 셀 번호와 지면 속도를 손으로 정해 넣고,
 셀 평균 V_c, 유효 픽셀 수 Q_c, 역방향 비율 B_c를 손으로 계산한 값과 비교한다.
@@ -186,7 +186,7 @@ def test_accepts_lists_and_float_typed_integer_cell_ids() -> None:
     np.testing.assert_array_equal(out.count, [2, 1])
 
 
-# --- S5 seam: cells.TemporalInstability.update ---
+# --- S5 테스트 경계: cells.TemporalInstability.update ---
 
 
 def test_alternating_series_gives_variance_a_squared_when_full() -> None:

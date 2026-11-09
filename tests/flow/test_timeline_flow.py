@@ -1,4 +1,4 @@
-"""S10 seam: timeline_flow.build_flow_cells 시험.
+"""S10 테스트 경계: timeline_flow.build_flow_cells 시험.
 
 셀 통계 배열을 손으로 정해 넣고, timeline.json 흐름 필드가
 단위 변환 없이(m/s, m²/s², 1/s², 0~1, 개) 들어가는지 숫자로 확인한다.
