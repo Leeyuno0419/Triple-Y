@@ -1,4 +1,4 @@
-"""S1 seam: FlowEstimator.estimate 시험.
+"""S1 테스트 경계: FlowEstimator.estimate 시험.
 
 합성 질감 영상을 알려진 정수 px만큼 평행 이동해 두 프레임을 만들고,
 추정 흐름의 내부 중앙값이 그 이동량과 맞는지 본다.
