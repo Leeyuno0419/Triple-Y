@@ -1,4 +1,4 @@
-"""S11 seam: run_flow.analyze_video 통합 시험.
+"""S11 테스트 경계: run_flow.analyze_video 통합 시험.
 
 고정 시드 질감이 알려진 px/프레임으로 움직이는 합성 영상을 FFV1(무손실)
 코덱으로 tmp_path에 쓰고, 영상 1개를 끝까지 분석해 흐름 타임라인 파일을
