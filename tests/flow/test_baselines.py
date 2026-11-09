@@ -1,4 +1,4 @@
-"""S7 seam: baselines.persistence_forecast·advect_density·mae 시험.
+"""S7 테스트 경계: baselines.persistence_forecast·advect_density·mae 시험.
 
 밀도·속도 격자를 손으로 정해 넣고, 동작(질량 이동, 벽에서 질량 보존,
 음수 밀도 없음)만 확인한다. CFL 분할 같은 내부 구현은 시험하지 않는다.
