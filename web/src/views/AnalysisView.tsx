@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GradeBadge } from '../components/GradeBadge';
 import { CHART_COLORS } from '../config/density';
 import { EyeIcon, PulseIcon, UsersIcon, AlertIcon } from '../components/Icons';
 import { KpiCard } from '../components/KpiCard';
 import { TrendChart } from '../components/TrendChart';
 import { zoneSeries, type Dashboard } from '../lib/dashboard';
+import { matchZone } from '../lib/search';
 import type { Frame, ZoneMeta } from '../types/timeline';
 
 interface Props {
@@ -14,7 +15,10 @@ interface Props {
   index: number;
   /** 지도 뷰의 현재 프레임 기준 요약 (구역 비교 표용) */
   dash: Dashboard;
-  initialZoneId: string | null;
+  /** 앱에서 선택된 구역 (검색·다른 화면에서 고르면 따라간다) */
+  selectedZoneId: string | null;
+  /** 검색으로 걸린 구역 필터 (빈 문자열이면 전체) */
+  query: string;
 }
 
 const MAX_HISTORY_ROWS = 12;
@@ -22,9 +26,15 @@ const fmt = (v: number | null, d = 2) => (v === null ? '-' : v.toFixed(d));
 const hhmmss = (iso: string) => new Date(iso).toLocaleTimeString('ko-KR', { hour12: false });
 
 /** 구역별 분석: 구역 선택 → 지표 카드, 밀도 추이, 프레임 기록 표, 구역 비교 표 */
-export function AnalysisView({ zones, frames, index, dash, initialZoneId }: Props) {
-  const [pickedId, setPickedId] = useState<string | null>(initialZoneId);
-  const zone = zones.find((z) => z.zone_id === pickedId) ?? zones[0];
+export function AnalysisView({ zones, frames, index, dash, selectedZoneId, query }: Props) {
+  const [pickedId, setPickedId] = useState<string | null>(selectedZoneId);
+  useEffect(() => {
+    if (selectedZoneId) setPickedId(selectedZoneId);
+  }, [selectedZoneId]);
+
+  // 검색 필터: 구역 선택 알약과 구역 비교 표는 일치하는 구역만, 선택 구역도 그 안에서 고른다
+  const visibleZones = useMemo(() => zones.filter((z) => matchZone(z, query)), [zones, query]);
+  const zone = visibleZones.find((z) => z.zone_id === pickedId) ?? visibleZones[0] ?? zones[0];
 
   const series = useMemo(() => (zone ? zoneSeries(zone, frames) : []), [zone, frames]);
   const predictedFrom = useMemo(() => frames.findIndex((f) => f.kind === 'predicted'), [frames]);
@@ -45,7 +55,7 @@ export function AnalysisView({ zones, frames, index, dash, initialZoneId }: Prop
           <p className="hero-note">구역을 고르면 프레임별 인원·밀도 변화를 볼 수 있습니다.</p>
         </div>
         <div className="pill-group" role="group" aria-label="분석할 구역">
-          {zones.map((z) => (
+          {visibleZones.map((z) => (
             <button
               key={z.zone_id}
               type="button"
@@ -136,7 +146,7 @@ export function AnalysisView({ zones, frames, index, dash, initialZoneId }: Prop
                 <tr><th>구역</th><th className="num">인원</th><th className="num">평균</th><th className="num">최대</th><th>단계</th></tr>
               </thead>
               <tbody>
-                {dash.zones.map((s) => (
+                {dash.zones.filter((s) => matchZone(s.zone, query)).map((s) => (
                   <tr key={s.zone.zone_id} className={s.zone.zone_id === zone.zone_id ? 'current' : undefined}>
                     <td>{s.zone.name}</td>
                     <td className="num">{s.count == null ? '-' : Math.round(s.count).toLocaleString()}</td>

@@ -16,7 +16,7 @@ function makeZone(): ZoneMeta {
   const { dLat, dLng } = metersToDegrees(DEFAULT_CENTER.lat, (COLS * CELL_M) / 2, (ROWS * CELL_M) / 2);
   return {
     zone_id: 'Z01',
-    name: '데모 구역 (mock)',
+    name: '기본 구역',
     bounds: {
       south: DEFAULT_CENTER.lat - dLat,
       north: DEFAULT_CENTER.lat + dLat,

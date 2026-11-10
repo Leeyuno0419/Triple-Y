@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 
 /** 가벼운 선형 아이콘 모음 (24px 격자, currentColor). 외부 아이콘 패키지 없이 필요한 것만 둔다. */
-function Icon({ children, size = 18 }: { children: ReactNode; size?: number }) {
+function Icon({ children, size = 18, stroke = 2 }: { children: ReactNode; size?: number; stroke?: number }) {
   return (
     <svg
       viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+      strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
     >
       {children}
     </svg>
@@ -72,5 +72,43 @@ export const LayersIcon = (p: { size?: number }) => (
   <Icon {...p}>
     <path d="m12 2 10 5-10 5L2 7z" />
     <path d="m2 17 10 5 10-5M2 12l10 5 10-5" />
+  </Icon>
+);
+export const SearchIcon = (p: { size?: number }) => (
+  <Icon {...p} stroke={1.75}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m21 21-4.3-4.3" />
+  </Icon>
+);
+export const RectIcon = (p: { size?: number }) => (
+  <Icon {...p}>
+    <rect x="4" y="5" width="16" height="14" rx="1.5" strokeDasharray="3 2.5" />
+  </Icon>
+);
+export const PolygonIcon = (p: { size?: number }) => (
+  <Icon {...p}>
+    <path d="M12 3.5 20.5 9.7 17.3 19.5H6.7L3.5 9.7z" strokeDasharray="3 2.5" />
+  </Icon>
+);
+export const StarIcon = (p: { size?: number }) => (
+  <Icon {...p} stroke={1.8}>
+    <path d="m12 2.8 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3L12 17.3l-5.7 3 1.1-6.3-4.6-4.5 6.4-.9z" fill="currentColor" />
+  </Icon>
+);
+export const FlameIcon = (p: { size?: number }) => (
+  <Icon {...p} stroke={1.8}>
+    <path d="M12 3c1 3.5 5 5.6 5 10a5 5 0 0 1-10 0c0-2 1-3.2 2-4.3.2 1.3.9 2 1.7 2.3C10.2 8.6 10.5 5.6 12 3z" />
+  </Icon>
+);
+export const GridIcon = (p: { size?: number }) => (
+  <Icon {...p} stroke={1.8}>
+    <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+    <path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17" />
+  </Icon>
+);
+export const CircleIcon = (p: { size?: number }) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="8" strokeDasharray="3 2.5" />
+    <path d="M12 12h8" />
   </Icon>
 );

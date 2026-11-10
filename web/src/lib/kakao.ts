@@ -26,7 +26,7 @@ export function loadKakaoSdk(appKey: string): Promise<void> {
     const script = document.createElement('script');
     script.dataset.kakaoSdk = 'true';
     script.async = true;
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false`;
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&libraries=services&autoload=false`;
     script.onload = done;
     script.onerror = () => reject(new Error('카카오 SDK 로드 실패 (키/도메인 등록/네트워크 확인)'));
     document.head.appendChild(script);

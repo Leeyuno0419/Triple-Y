@@ -1,5 +1,7 @@
 // TODO: 프로젝트 명칭 확정 후 수정 (index.html <title>, vite.config.ts manifest 와 함께)
 export const APP_NAME = '인파 밀집 모니터';
+/** 상단 내비게이션 오른쪽에 표시하는 영문 서비스 제목 */
+export const APP_NAME_EN = 'Crowd Density Monitoring System';
 
 export const KAKAO_JS_KEY: string = import.meta.env.VITE_KAKAO_JS_KEY ?? '';
 export const TIMELINE_URL: string = import.meta.env.VITE_TIMELINE_URL ?? '/timeline.json';

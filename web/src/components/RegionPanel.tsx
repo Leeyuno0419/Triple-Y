@@ -1,7 +1,7 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { DENSITY_LEVELS, SEVERE_BLINK, UNOBSERVED } from '../config/density';
 import { shouldBlink } from '../lib/density';
-import { frameLabel } from '../lib/format';
+import { frameKindLabel } from '../lib/format';
 import type { RegionSummary } from '../lib/region';
 import type { Frame } from '../types/timeline';
 
@@ -20,6 +20,8 @@ interface Props {
   /** 지도에서 클릭한 셀(같은 구역일 때만 표시) */
   cell?: SelectedCellInfo | null;
   onClose: () => void;
+  /** 해외 가상 시뮬레이션 데이터인가 */
+  simulated?: boolean;
 }
 
 const fmt = (v: number | null, digits = 2) => (v === null ? '-' : v.toFixed(digits));
@@ -29,7 +31,7 @@ const fmt = (v: number | null, digits = 2) => (v === null ? '-' : v.toFixed(digi
  * - 데스크톱: 지도 오른쪽 사이드 패널 / 모바일: 아래에서 올라오는 시트 (CSS 미디어쿼리)
  * - 닫기: X 버튼 또는 Esc
  */
-export function RegionPanel({ region, frame, cell, onClose }: Props) {
+export function RegionPanel({ region, frame, cell, onClose, simulated = false }: Props) {
   // 닫히는 애니메이션 동안 내용이 사라지지 않도록 마지막 내용을 유지한다.
   const last = useRef<RegionSummary | null>(null);
   if (region) last.current = region;
@@ -62,7 +64,6 @@ export function RegionPanel({ region, frame, cell, onClose }: Props) {
           <header className="rp-header">
             <div>
               <h2>{shown.zone.name}</h2>
-              <small>{shown.zone.zone_id}</small>
             </div>
             <button type="button" className="rp-close" onClick={onClose} aria-label="상세 패널 닫기" tabIndex={open ? 0 : -1}>
               ✕
@@ -79,8 +80,7 @@ export function RegionPanel({ region, frame, cell, onClose }: Props) {
                 {level?.label ?? UNOBSERVED.label}
               </strong>
               <span className={`rp-frame${predicted ? ' predicted' : ''}`}>
-                {frameLabel(frame)}
-                {predicted && ' · 추정'}
+                {simulated ? '가상 시뮬레이션 데이터' : frameKindLabel(frame)}
               </span>
             </div>
 

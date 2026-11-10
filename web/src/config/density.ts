@@ -23,6 +23,26 @@ export const DENSITY_LEVELS: DensityLevel[] = [
 /** 시계열 차트 선 색: 최대(피크) 밀도 = 코랄, 평균 밀도 = 슬레이트 */
 export const CHART_COLORS = { max: '#ff6b6b', mean: '#8294ad' };
 
+/** 기본 지도 모드에서 데이터 구역의 위치를 알려 주는 테두리 (kakao.maps.Polyline 옵션) */
+export const ZONE_OUTLINE = {
+  strokeColor: '#94a3b8',
+  strokeWeight: 2,
+  strokeOpacity: 0.9,
+  strokeStyle: 'dash',
+  zIndex: 5,
+};
+
+/** 사용자가 지도에서 직접 지정한 구역의 표시 스타일 (kakao.maps.Polygon 옵션) */
+export const CUSTOM_AREA_STYLE = {
+  strokeColor: '#5b73c9',
+  strokeWeight: 3,
+  strokeOpacity: 0.95,
+  strokeStyle: 'dash',
+  fillColor: '#5b73c9',
+  fillOpacity: 0.1,
+  previewFillOpacity: 0.16,
+};
+
 /** '위험 구역'으로 세는 최소 단계 (DENSITY_LEVELS 인덱스; 2 = 경고 이상) */
 export const RISK_MIN_LEVEL_INDEX = 2;
 

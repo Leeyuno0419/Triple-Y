@@ -19,3 +19,15 @@ export function metersToDegrees(latitude: number, dxMeters: number, dyMeters: nu
   const dLng = dxMeters / (111_320 * Math.cos((latitude * Math.PI) / 180));
   return { dLat, dLng };
 }
+
+/** 위·경도가 어느 구역의 어느 셀 안인지 찾는다. 어느 구역에도 없으면 null. */
+export function cellAt(zones: ZoneMeta[], lat: number, lng: number): { zone_id: string; row: number; col: number } | null {
+  for (const z of zones) {
+    const { south, west, north, east } = z.bounds;
+    if (lat < south || lat > north || lng < west || lng > east) continue;
+    const row = Math.min(z.rows - 1, Math.floor(((north - lat) / (north - south)) * z.rows));
+    const col = Math.min(z.cols - 1, Math.floor(((lng - west) / (east - west)) * z.cols));
+    return { zone_id: z.zone_id, row, col };
+  }
+  return null;
+}

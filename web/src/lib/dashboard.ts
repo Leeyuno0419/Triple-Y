@@ -33,6 +33,35 @@ export interface Dashboard {
 
 const HOT_CELL_LIMIT = 5;
 
+/**
+ * 한 프레임에서 밀도가 높은 셀 상위 limit 개. level 을 주면 그 단계의 셀만 대상으로 한다.
+ */
+export function hotCellsFor(
+  zones: ZoneMeta[],
+  frame: Frame | undefined,
+  level: DensityLevel | null = null,
+  limit = HOT_CELL_LIMIT,
+  /** 주어지면 이 조건을 만족하는 셀만 (예: 사용자 지정 구역 안) */
+  inArea?: (zone: ZoneMeta, row: number, col: number) => boolean,
+): HotCell[] {
+  const byId = new Map(zones.map((z) => [z.zone_id, z]));
+  const hot: HotCell[] = [];
+  frame?.zones.forEach((zf) =>
+    zf.density.forEach((rowVals, row) =>
+      rowVals.forEach((value, col) => {
+        if (value === null || !Number.isFinite(value)) return;
+        const lv = levelOf(value);
+        if (level && lv !== level) return;
+        const zm = byId.get(zf.zone_id);
+        if (inArea && zm && !inArea(zm, row, col)) return;
+        hot.push({ zone_id: zf.zone_id, zoneName: zm?.name ?? zf.zone_id, row, col, value, level: lv });
+      }),
+    ),
+  );
+  hot.sort((a, b) => b.value - a.value);
+  return hot.slice(0, limit);
+}
+
 /** 한 프레임의 전체 구역을 대시보드 지표로 요약한다. */
 export function buildDashboard(zones: ZoneMeta[], frame: Frame | undefined): Dashboard {
   const summaries = zones.map((z) => summarizeZone(z, frame?.zones.find((f) => f.zone_id === z.zone_id)));
@@ -56,17 +85,6 @@ export function buildDashboard(zones: ZoneMeta[], frame: Frame | undefined): Das
     }
   }
 
-  const hot: HotCell[] = [];
-  const nameOf = new Map(zones.map((z) => [z.zone_id, z.name]));
-  frame?.zones.forEach((zf) =>
-    zf.density.forEach((rowVals, row) =>
-      rowVals.forEach((value, col) => {
-        if (value === null || !Number.isFinite(value)) return;
-        hot.push({ zone_id: zf.zone_id, zoneName: nameOf.get(zf.zone_id) ?? zf.zone_id, row, col, value, level: levelOf(value) });
-      }),
-    ),
-  );
-  hot.sort((a, b) => b.value - a.value);
 
   const riskLevels = DENSITY_LEVELS.slice(RISK_MIN_LEVEL_INDEX);
   return {
@@ -79,7 +97,7 @@ export function buildDashboard(zones: ZoneMeta[], frame: Frame | undefined): Das
     totalCells,
     zonesPerLevel,
     unobservedZones,
-    hotCells: hot.slice(0, HOT_CELL_LIMIT),
+    hotCells: hotCellsFor(zones, frame),
   };
 }
 

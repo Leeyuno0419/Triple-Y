@@ -7,7 +7,8 @@ import { Sparkline } from '../components/Sparkline';
 import { ZoneRankList } from '../components/ZoneRankList';
 import type { AlertItem } from '../lib/alerts';
 import type { Dashboard } from '../lib/dashboard';
-import { frameLabel } from '../lib/format';
+import type { StatusInfo } from '../lib/format';
+import { matchZone } from '../lib/search';
 import type { Frame } from '../types/timeline';
 
 interface Props {
@@ -19,9 +20,13 @@ interface Props {
   lastObservedIndex: number;
   predictedFrom: number;
   hasData: boolean;
+  /** 맨 위 간결한 상태 표시 */
+  status: StatusInfo;
   onOpenMap: () => void;
   /** 구역을 골라 지도 뷰로 이동 */
   onOpenZone: (zoneId: string) => void;
+  /** 검색으로 걸린 구역 필터 (빈 문자열이면 전체) */
+  query: string;
 }
 
 /** 시작 화면: 전체 현황 요약 → 순위/알림 → 추이/분포, 그리고 지도 바로가기 */
@@ -36,7 +41,7 @@ export function HomeView(p: Props) {
         <div>
           <h2>전체 현황</h2>
           <p>
-            <span className="frame-chip">{frameLabel(frame) || '데이터 대기 중'}</span>
+            <span className={`frame-chip ${p.status.kind}`}>{frame ? p.status.text : '데이터 대기 중'}</span>
             <span className="hero-note">가장 최근 관측 기준</span>
           </p>
         </div>
@@ -96,9 +101,9 @@ export function HomeView(p: Props) {
         <section className="card" aria-label="구역별 위험도 순위">
           <div className="card-title">
             <h3>구역별 위험도 순위</h3>
-            <small>최대 밀도 기준 · 눌러서 지도로 이동</small>
+            <small>{p.query ? `검색: ${p.query}` : '최대 밀도 기준 · 눌러서 지도로 이동'}</small>
           </div>
-          <ZoneRankList zones={dash.zones} onSelect={p.onOpenZone} />
+          <ZoneRankList zones={dash.zones.filter((s) => matchZone(s.zone, p.query))} onSelect={p.onOpenZone} />
         </section>
 
         <section className="card" aria-label="최근 알림">
