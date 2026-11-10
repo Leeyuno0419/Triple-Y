@@ -26,7 +26,7 @@ def make_sample_timeline(n_frames: int = 5, peak: float = 6.2) -> Timeline:  # �
     d_lat = (ROWS * CELL_M / 2) / 111_320
     d_lng = (COLS * CELL_M / 2) / (111_320 * np.cos(np.radians(CENTER_LAT)))
     zone = ZoneMeta(
-        zone_id="Z01", name="샘플 구역 (predict.sample)",
+        zone_id="Z01", name="기본 구역",
         bounds=Bounds(CENTER_LAT - d_lat, CENTER_LNG - d_lng, CENTER_LAT + d_lat, CENTER_LNG + d_lng),
         rows=ROWS, cols=COLS, cell_size_m=CELL_M,
     )
