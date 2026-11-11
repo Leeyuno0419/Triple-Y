@@ -74,9 +74,9 @@ def count_image(model: nn.Module, img_path: Path) -> int:
 
 
 @torch.no_grad()
-def head_points(model: nn.Module, frame_bgr: np.ndarray, scale: float = 1.0,
-                threshold: float = 0.5) -> np.ndarray:
-    """영상 프레임(BGR)에서 머리 점 (N, 2)을 원래 픽셀 좌표로 돌려준다.
+def head_candidates(model: nn.Module, frame_bgr: np.ndarray,
+                    scale: float = 1.0) -> tuple[np.ndarray, np.ndarray]:
+    """프레임의 머리 후보 점 전부와 점수를 돌려준다. 점은 원래 픽셀 좌표.
 
     scale로 프레임을 줄여 머리 크기를 학습 데이터(SHA, 머리 10~20px)에 맞춘다.
     가까이서 찍은 CCTV를 원본 크기로 넣으면 바닥 무늬를 머리로 잘못 찾는다.
@@ -85,9 +85,15 @@ def head_points(model: nn.Module, frame_bgr: np.ndarray, scale: float = 1.0,
     nw, nh = int(w * scale) // 128 * 128, int(h * scale) // 128 * 128
     img = Image.fromarray(frame_bgr[:, :, ::-1]).resize((nw, nh), Image.LANCZOS)
     out = model(_TF(img).unsqueeze(0))
-    scores = torch.softmax(out["pred_logits"], -1)[0, :, 1]
-    pts = out["pred_points"][0][scores > threshold].numpy()
-    return pts * [w / nw, h / nh]
+    scores = torch.softmax(out["pred_logits"], -1)[0, :, 1].numpy()
+    return out["pred_points"][0].numpy() * [w / nw, h / nh], scores
+
+
+def head_points(model: nn.Module, frame_bgr: np.ndarray, scale: float = 1.0,
+                threshold: float = 0.5) -> np.ndarray:
+    """프레임에서 점수가 threshold를 넘는 머리 점 (N, 2)을 원래 픽셀 좌표로 돌려준다."""
+    pts, scores = head_candidates(model, frame_bgr, scale)
+    return pts[scores > threshold]
 
 
 def gt_count(mat_path: Path) -> int:
