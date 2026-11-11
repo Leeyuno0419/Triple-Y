@@ -1,93 +1,15 @@
-"""흐름 외삽 핵심 수치 로직 (순수 numpy, I/O 없음).
+"""흐름 이류 핵심 수치 로직 (순수 numpy, I/O 없음).
 
-- fill_flow_outside_view : 화각 밖 셀의 흐름을 화각 경계에서 바깥으로 번져 채운다.
-- extend_density_outside_view : 화각 밖 셀의 초기 밀도를 화각 경계 밀도로부터 감쇠시키며 연장한다.
-- advect_density         : 질량 보존 이류(기본 2차 TVD, 선택 1차 upwind)로 밀도를 흐름 방향으로 이동시킨다.
+- advect_density : 질량 보존 이류(기본 2차 TVD, 선택 1차 upwind)로 값을 흐름 방향으로 이동시킨다.
+                   model.FlowAdvectionPredictor 가 셀별 인원수(밀도 × 보행 가능 면적)를 이동시키는 데 쓴다.
 
-단위: 밀도 = 명/m², 속도 = 셀/초. 모든 셀 면적이 같으므로 밀도 합 = 질량(인원) 비례.
+단위: 속도 = 셀/초. 모든 셀 면적이 같다고 보고 격자 값의 합을 보존한다.
 """
 from __future__ import annotations
 
 from typing import Tuple
 
 import numpy as np
-
-
-def _shifted_sums(field: np.ndarray, known: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """상하좌우 4-이웃 중 known 인 셀의 값 합과 개수."""
-    f = np.where(known, field, 0.0)
-    k = known.astype(float)
-    fp = np.pad(f, 1)
-    kp = np.pad(k, 1)
-    total = fp[:-2, 1:-1] + fp[2:, 1:-1] + fp[1:-1, :-2] + fp[1:-1, 2:]
-    count = kp[:-2, 1:-1] + kp[2:, 1:-1] + kp[1:-1, :-2] + kp[1:-1, 2:]
-    return total, count
-
-
-def fill_flow_outside_view(
-    u: np.ndarray,
-    v: np.ndarray,
-    visible: np.ndarray,
-    decay: float = 0.9,
-    max_iters: int = 50,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """화각 밖(또는 흐름이 NaN 인) 셀의 흐름을 이웃 평균 × decay 로 바깥쪽으로 채운다.
-
-    흐름이 전혀 없는 입력(known 이 하나도 없음)이면 0 흐름을 반환한다.
-    """
-    known = visible & np.isfinite(u) & np.isfinite(v)
-    uf = np.where(known, u, 0.0).astype(float)
-    vf = np.where(known, v, 0.0).astype(float)
-    if not known.any():
-        return uf, vf
-
-    for _ in range(max_iters):
-        if known.all():
-            break
-        su, cnt = _shifted_sums(uf, known)
-        sv, _ = _shifted_sums(vf, known)
-        newly = (~known) & (cnt > 0)
-        if not newly.any():
-            break
-        safe = np.where(cnt > 0, cnt, 1.0)
-        uf = np.where(newly, su / safe * decay, uf)
-        vf = np.where(newly, sv / safe * decay, vf)
-        known = known | newly
-    return uf, vf
-
-
-def extend_density_outside_view(
-    density: np.ndarray,
-    visible: np.ndarray,
-    decay: float = 0.8,
-    max_cells: int = 3,
-    floor: float = 0.0,
-) -> np.ndarray:
-    """화각 밖 초기 밀도를 화각 경계 밀도로부터 바깥으로 연장한다.
-
-    군중은 화각 경계에서 갑자기 끊기지 않고 이어진다는 가정이다.
-    경계에 인접한 화각 밖 셀부터 한 겹씩 "이웃(이미 값이 있는 셀) 평균 × decay" 로 채우므로,
-    경계에서 k 칸 떨어진 셀의 밀도는 대략 경계값 × decay^k 이다.
-    max_cells 칸보다 먼 셀은 floor(사전값)로 둔다. 화각 안(visible) 셀은 그대로 둔다.
-    visible 이 하나도 없으면 전부 floor 이다.
-    """
-    known = visible & np.isfinite(density)
-    out = np.where(known, density, floor).astype(float)
-    if not known.any():
-        return out
-
-    for _ in range(max(0, int(max_cells))):
-        if known.all():
-            break
-        s, cnt = _shifted_sums(out, known)
-        newly = (~known) & (cnt > 0)
-        if not newly.any():
-            break
-        safe = np.where(cnt > 0, cnt, 1.0)
-        out = np.where(newly, np.maximum(s / safe * decay, floor), out)
-        known = known | newly
-    return out
-
 
 def _antidiffusive_flux(d: np.ndarray, uf: np.ndarray, h: float) -> np.ndarray:
     """x 방향 내부 면의 2차 보정 플럭스 (van Leer 제한자, flux-limited Lax-Wendroff).

@@ -1,60 +1,79 @@
-"""개발용 샘플 timeline 생성 (관측 프레임 + 흐름). 실제 데이터 연동 전 파이프라인/화면 확인용.
+"""개발용 샘플 timeline 생성 (규격 v0.1, 합성 데이터). 실제 데이터 연동 전 파이프라인/화면 확인용.
 
-인파 덩어리가 동쪽(+col)으로 이동하고, 오른쪽 열들은 화각 밖(NaN)이다.
-마지막 관측 시점에 덩어리가 화각 경계에 걸쳐 있어, 예측에서 화각 밖으로 넘어가는 모습이 보인다.
+인파 덩어리가 동쪽(+col)으로 일정 속도로 이동한다. 1초 간격 프레임이며 예측값(density_pred_60s)은 비어 있다.
+빈 셀(밀도 0)은 규격대로 density·pressure = 0, vx·vy·speed_var = null 로 둔다.
 
-    python -m src.predict.sample --output data/processed/timeline.sample.json
+    python -m src.predict.sample --output data/processed/timeline/SAMPLE.json
 """
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Sequence
 
 import numpy as np
 
 from .io import save_timeline
-from .schema import SCHEMA_VERSION, Bounds, Frame, Timeline, ZoneFrame, ZoneMeta
+from .schema import (
+    SCHEMA_VERSION, CellMeta, CellState, Frame, Meta, Models, Prediction, Timeline,
+)
 
-ROWS, COLS, CELL_M, VISIBLE_COLS = 8, 12, 12.0, 8
-CENTER_LAT, CENTER_LNG = 37.5663, 126.9779   # 서울시청 (web/src/config/app.ts 와 동일)
-SPEED_CELLS_PER_S = 0.05
-FRAME_INTERVAL_S = 30
+ROWS, COLS, CELL_M = 6, 10, 2.0
+HISTORY_S, HORIZON_S = 30, 60
+SPEED_CELLS_PER_S = 0.05            # 덩어리 이동 속도 (셀/초)
+SPEED_VAR = 0.004                   # 점유 셀의 속도 분산 (m²/s²)
+PEAK = 6.2                          # 셀 최대 밀도(명/㎡), 기획서 3.2 "심각" 수준
 
 
-def make_sample_timeline(n_frames: int = 5, peak: float = 6.2) -> Timeline:  # 셀 최대 ≈5.4명/m² (기획서 3.2 "심각")
-    d_lat = (ROWS * CELL_M / 2) / 111_320
-    d_lng = (COLS * CELL_M / 2) / (111_320 * np.cos(np.radians(CENTER_LAT)))
-    zone = ZoneMeta(
-        zone_id="Z01", name="기본 구역",
-        bounds=Bounds(CENTER_LAT - d_lat, CENTER_LNG - d_lng, CENTER_LAT + d_lat, CENTER_LNG + d_lng),
-        rows=ROWS, cols=COLS, cell_size_m=CELL_M,
+def _cell_id(row: int, col: int) -> str:
+    return "c-{:02d}{:02d}".format(row, col)
+
+
+def make_sample_timeline(duration_s: int = 150, peak: float = PEAK) -> Timeline:
+    """덩어리가 동쪽으로 이동하는 합성 timeline 을 만든다 (프레임 duration_s 개)."""
+    cells_meta: List[CellMeta] = []
+    for r in range(ROWS):
+        for c in range(COLS):
+            x0, x1, y0, y1 = c / COLS, (c + 1) / COLS, r / ROWS, (r + 1) / ROWS
+            cells_meta.append(
+                CellMeta(
+                    cell_id=_cell_id(r, c), row=r, col=c,
+                    walkable_area_m2=CELL_M ** 2 * (0.8 if r == 0 else 1.0),  # 첫 행은 보행 면적이 작다
+                    image_polygon=[(x0, y0), (x1, y0), (x1, y1), (x0, y1)],
+                )
+            )
+    meta = Meta(
+        zone_id="zone-sample", camera_id="cam-sample", video_id="SAMPLE",
+        duration_s=duration_s, interval_s=1, cell_size_m=CELL_M,
+        models=Models(counter="synthetic", flow="synthetic", predictor="none"),
+        prediction=Prediction(history_s=HISTORY_S, horizon_s=HORIZON_S),
+        cells=cells_meta,
     )
 
     rr, cc = np.mgrid[0:ROWS, 0:COLS]
-    visible = cc < VISIBLE_COLS
-    kst = timezone(timedelta(hours=9))
-    now = datetime.now(kst).replace(microsecond=0)
-
+    vx_ms = SPEED_CELLS_PER_S * CELL_M
     frames: List[Frame] = []
-    for i in range(n_frames):
-        center = 1.5 + i * SPEED_CELLS_PER_S * FRAME_INTERVAL_S
-        dens = peak * np.exp(-((cc - center) ** 2 / 4.0 + (rr - 3.5) ** 2 / 3.0))
-        dens = np.where(visible, dens, np.nan)
-        u = np.where(visible, SPEED_CELLS_PER_S, np.nan)
-        v = np.where(visible, 0.0, np.nan)
-        count = float(np.nansum(dens) * zone.cell_area_m2)
-        t = (now + timedelta(seconds=(i - n_frames + 1) * FRAME_INTERVAL_S)).isoformat()
-        frames.append(Frame(t=t, kind="observed", zones=[ZoneFrame("Z01", dens, u, v, count)]))
+    for t in range(duration_s):
+        center = 1.5 + SPEED_CELLS_PER_S * t
+        dens = np.round(peak * np.exp(-((cc - center) ** 2 / 4.0 + (rr - 2.5) ** 2 / 3.0)), 2)
+        cells: List[CellState] = []
+        for cm in cells_meta:
+            d = float(dens[cm.row, cm.col])
+            if d > 0:
+                cells.append(CellState(cm.cell_id, d, vx_ms, 0.0, SPEED_VAR, d * SPEED_VAR, None))
+            else:
+                cells.append(CellState(cm.cell_id, 0.0, None, None, None, 0.0, None))
+        frames.append(Frame(t=t, inflow_ratio=round(min(0.1 + 0.002 * t, 0.4), 4), cells=cells))
 
-    return Timeline(SCHEMA_VERSION, [zone], frames)
+    return Timeline(meta=meta, frames=frames, schema_version=SCHEMA_VERSION)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
+    """CLI 진입점."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--output", required=True)
+    ap.add_argument("--duration", type=int, default=150, help="분석 길이(초). 예측을 보려면 90 이상")
     args = ap.parse_args(argv)
-    save_timeline(make_sample_timeline(), args.output)
+    save_timeline(make_sample_timeline(args.duration), args.output)
     print("저장 완료:", args.output)
 
 

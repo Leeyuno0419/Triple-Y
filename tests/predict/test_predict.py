@@ -1,25 +1,146 @@
-import json
-
 import numpy as np
 import pytest
 
+from predict_helpers import blob_series
 from src.predict.config import PredictConfig, load_config
-from src.predict.extrapolate import advect_density, extend_density_outside_view, fill_flow_outside_view
-from src.predict.io import append_predictions, assert_not_raw, save_timeline
-from src.predict.model import FlowExtrapolationPredictor
-from src.predict.schema import (
-    Bounds, Frame, Timeline, ZoneFrame, ZoneMeta, timeline_from_dict, timeline_to_dict,
+from src.predict.extrapolate import advect_density
+from src.predict.io import assert_not_raw, load_timeline, save_timeline
+from src.predict.model import (
+    CellLayout, FlowAdvectionPredictor, LinearTrendPredictor, PersistencePredictor,
+    fill_predictions, make_predictor, to_arrays,
 )
 
 
-def _meta(rows=5, cols=8):
-    return ZoneMeta("Z01", "test", Bounds(37.0, 127.0, 37.001, 127.001), rows, cols, 10.0)
+# --------------------------------------------------------------------------- #
+# 설정
+# --------------------------------------------------------------------------- #
+def test_default_config_loads_with_spec_values():
+    cfg = load_config()
+    assert (cfg.history_s, cfg.horizon_s) == (30, 60)
+    assert cfg.predictor == "persistence"
 
 
-def test_default_config_loads():
-    assert load_config().horizons_s
+@pytest.mark.parametrize("bad", [dict(predictor="nope"), dict(history_s=1), dict(horizon_s=0),
+                                 dict(scheme="nope"), dict(step_s=0), dict(cfl_max=1.5)])
+def test_invalid_config_rejected(bad):
+    with pytest.raises(ValueError):
+        PredictConfig(**bad)
 
 
+# --------------------------------------------------------------------------- #
+# 예측기
+# --------------------------------------------------------------------------- #
+def _layout(make_timeline, rows=3, cols=20, area=None):
+    return CellLayout.from_meta(make_timeline(np.zeros((1, rows, cols)), area=area).meta)
+
+
+def _hist(dens):
+    """(T, rows, cols) → (T, N)"""
+    return dens.reshape(dens.shape[0], -1)
+
+
+def test_persistence_returns_current_value(make_timeline):
+    dens = np.random.RandomState(0).rand(30, 2, 3)
+    pred = PersistencePredictor(PredictConfig()).predict(_layout(make_timeline, 2, 3), _hist(dens), None, None)
+    assert np.allclose(pred, dens[-1].ravel())
+
+
+def test_linear_extends_a_straight_line_exactly(make_timeline):
+    steps = 30
+    dens = np.stack([np.full((2, 2), 1.0 + 0.01 * t) for t in range(steps)])
+    pred = LinearTrendPredictor(PredictConfig()).predict(_layout(make_timeline, 2, 2), _hist(dens), None, None)
+    assert np.allclose(pred, 1.0 + 0.01 * (steps - 1 + 60))
+
+
+def test_linear_never_goes_negative(make_timeline):
+    dens = np.stack([np.full((1, 2), 1.0 - 0.03 * t) for t in range(30)])   # 빠르게 줄어드는 추세
+    pred = LinearTrendPredictor(PredictConfig()).predict(_layout(make_timeline, 1, 2), _hist(dens), None, None)
+    assert (pred == 0.0).all()
+
+
+def test_flow_moves_crowd_and_conserves_people(make_timeline):
+    dens = blob_series(30)                                      # 덩어리는 마지막 시각에 col ≈ 4.9
+    area = np.full((3, 20), 4.0); area[0] = 3.2                 # 행마다 보행 면적이 다르다
+    layout = _layout(make_timeline, area=area)
+    cfg = PredictConfig(predictor="flow", flow_decay_tau_s=0.0)
+    n = layout.row.size
+    vx = np.full(n, 0.2)                                        # 0.2 m/s ÷ 2 m = 0.1 셀/초 → 60초에 6칸
+    pred = FlowAdvectionPredictor(cfg).predict(layout, _hist(dens), vx, np.zeros(n)).reshape(3, 20)
+
+    cols = np.arange(20)
+    centroid = lambda g: float((g[1] * cols).sum() / g[1].sum())
+    assert centroid(pred) - centroid(dens[-1]) == pytest.approx(6.0, abs=0.7)
+    assert (pred * area).sum() == pytest.approx((dens[-1] * area).sum(), rel=1e-6)   # 인원 보존(면적 가중)
+
+
+def test_flow_without_velocity_equals_persistence(make_timeline):
+    dens = blob_series(30)
+    layout = _layout(make_timeline)
+    nan = np.full(layout.row.size, np.nan)
+    pred = FlowAdvectionPredictor(PredictConfig(predictor="flow")).predict(layout, _hist(dens), nan, nan)
+    assert np.allclose(pred, dens[-1].ravel())
+
+
+# --------------------------------------------------------------------------- #
+# timeline 에 예측 채우기
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("name", ["persistence", "linear", "flow"])
+def test_fill_predictions_nulls_before_history_and_valid_after(make_timeline, tmp_path, name):
+    tl = make_timeline(blob_series(100), vx=0.2, vy=0.0)
+    cfg = PredictConfig(predictor=name)
+    out = fill_predictions(tl, make_predictor(cfg))
+
+    first = [f.cells[0].density_pred_60s for f in out.frames]
+    assert all(v is None for v in first[:29]) and all(v is not None for v in first[29:])
+    assert out.meta.models.predictor == name
+    assert (out.meta.prediction.history_s, out.meta.prediction.horizon_s) == (30, 60)
+    assert all(c.density_pred_60s is None for c in tl.frames[50].cells)      # 입력은 변경되지 않음
+
+    save_timeline(out, tmp_path / "out.json")                                # 규격 검증 통과 + 저장
+    back = load_timeline(tmp_path / "out.json")
+    assert back.frames[60].cells[5].density_pred_60s == pytest.approx(out.frames[60].cells[5].density_pred_60s, abs=0.01)
+
+
+@pytest.mark.parametrize("name", ["persistence", "linear", "flow"])
+def test_prediction_at_t_never_uses_future_frames(make_timeline, name):
+    a = blob_series(100)
+    b = a.copy(); b[41:] = 9.0                                  # t=41 이후만 다르다
+    out_a = fill_predictions(make_timeline(a, vx=0.2, vy=0.0), make_predictor(PredictConfig(predictor=name)))
+    out_b = fill_predictions(make_timeline(b, vx=0.2, vy=0.0), make_predictor(PredictConfig(predictor=name)))
+    for t in range(0, 41):
+        pa = [c.density_pred_60s for c in out_a.frames[t].cells]
+        pb = [c.density_pred_60s for c in out_b.frames[t].cells]
+        assert pa == pb, "t={} 의 예측이 미래 값에 영향을 받았다".format(t)
+    assert [c.density_pred_60s for c in out_a.frames[60].cells] != [c.density_pred_60s for c in out_b.frames[60].cells]
+
+
+def test_only_one_second_interval_supported(make_timeline):
+    tl = make_timeline(blob_series(40), interval_s=2)
+    with pytest.raises(ValueError):
+        fill_predictions(tl, make_predictor(PredictConfig()))
+
+
+def test_to_arrays_maps_null_to_nan(make_timeline):
+    dens, vx, vy = to_arrays(make_timeline(np.ones((2, 1, 2))))
+    assert dens.shape == (2, 2) and np.isnan(vx).all() and np.isnan(vy).all()
+
+
+def test_save_refuses_spec_violation(make_timeline, tmp_path):
+    tl = make_timeline(blob_series(40))
+    tl.frames[10].cells[0].density_pred_60s = 1.0               # t < 29 에서 예측값이 있으면 위반
+    with pytest.raises(ValueError):
+        save_timeline(tl, tmp_path / "bad.json")
+
+
+def test_raw_directory_is_protected(tmp_path):
+    with pytest.raises(PermissionError):
+        assert_not_raw(tmp_path / "data" / "raw" / "timeline.json")
+    assert_not_raw(tmp_path / "data" / "processed" / "timeline.json")
+
+
+# --------------------------------------------------------------------------- #
+# 이류 방식 비교 (TVD vs 1차 upwind)
+# --------------------------------------------------------------------------- #
 def test_advect_conserves_mass_with_closed_flow():
     d = np.zeros((5, 8)); d[2, 2] = 1.0
     u = np.full_like(d, 0.5); v = np.zeros_like(d)
@@ -38,60 +159,6 @@ def test_advect_reports_outflow_and_balances_mass():
     assert (out >= 0).all()
 
 
-def test_fill_flow_extends_from_visible_region():
-    visible = np.zeros((4, 6), bool); visible[:, :3] = True
-    u = np.where(visible, 1.0, np.nan); v = np.where(visible, 0.0, np.nan)
-    uf, vf = fill_flow_outside_view(u, v, visible, decay=0.9)
-    assert np.isfinite(uf).all() and (uf[:, 3:] > 0).all()
-    assert uf[0, 3] > uf[0, 5]  # 멀어질수록 감쇠
-
-
-def test_predictor_moves_crowd_into_unobserved_cells():
-    meta = _meta()
-    dens = np.full((5, 8), np.nan); dens[:, :4] = 0.0; dens[2, 3] = 2.0   # 화각: 왼쪽 4열
-    flow_u = np.where(np.isfinite(dens), 0.5, np.nan); flow_v = np.where(np.isfinite(dens), 0.0, np.nan)
-    zf = ZoneFrame("Z01", dens, flow_u, flow_v, count=2.0 * meta.cell_area_m2)
-
-    cfg = PredictConfig(horizons_s=[30.0, 60.0], flow_decay_tau_s=0.0, prior_mode="constant")
-    preds = FlowExtrapolationPredictor(cfg).predict(meta, zf, cfg.horizons_s)
-
-    assert [p.horizon_s for p in preds] == [30.0, 60.0]
-    p30 = preds[0]
-    assert p30.extrapolated[:, 4:].all() and not p30.extrapolated[:, :4].any()
-    assert p30.density[:, 4:].sum() > 0  # 화각 밖으로 인파가 넘어감
-    total0 = 2.0 * meta.cell_area_m2
-    assert p30.count + p30.outflow_count == pytest.approx(total0)
-
-
-def test_timeline_roundtrip_and_append_predictions(tmp_path):
-    meta = _meta()
-    dens = np.full((5, 8), np.nan); dens[:, :4] = 0.5
-    zf = ZoneFrame("Z01", dens, np.full((5, 8), 0.2), np.zeros((5, 8)), count=10.0)
-    tl = Timeline("0.1", [meta], [Frame("2026-11-10T09:00:00+09:00", "observed", [zf])])
-
-    tl2 = timeline_from_dict(json.loads(json.dumps(timeline_to_dict(tl))))
-    assert np.isnan(tl2.frames[0].zones[0].density[0, 7])
-
-    cfg = PredictConfig(horizons_s=[30.0, 60.0])
-    out = append_predictions(tl2, FlowExtrapolationPredictor(cfg), cfg.horizons_s)
-    kinds = [f.kind for f in out.frames]
-    assert kinds == ["observed", "predicted", "predicted"]
-    assert out.frames[1].t.startswith("2026-11-10T09:00:30")
-    assert len(tl2.frames) == 1  # 입력은 변경되지 않음
-
-    save_timeline(out, tmp_path / "out.json")
-    assert (tmp_path / "out.json").exists()
-
-
-def test_raw_directory_is_protected(tmp_path):
-    with pytest.raises(PermissionError):
-        assert_not_raw(tmp_path / "data" / "raw" / "timeline.json")
-    assert_not_raw(tmp_path / "data" / "processed" / "timeline.json")
-
-
-# --------------------------------------------------------------------------- #
-# 이류 방식 비교 (TVD vs 1차 upwind)
-# --------------------------------------------------------------------------- #
 def _gaussian_strip(cols=60, center=6.0, sigma=1.5, rows=5):
     x = np.arange(cols)
     row = np.exp(-((x - center) ** 2) / (2 * sigma ** 2))
@@ -139,60 +206,6 @@ def test_tvd_preserves_uniform_field_and_no_new_maxima():
     assert out.max() <= d.max() + 1e-9                              # 새 극댓값(오버슈트) 없음
 
 
-# --------------------------------------------------------------------------- #
-# 화각 밖 초기 밀도 연장
-# --------------------------------------------------------------------------- #
-def _half_view(rows=5, cols=10, view_cols=5, value=4.0):
-    visible = np.zeros((rows, cols), bool); visible[:, :view_cols] = True
-    dens = np.where(visible, value, np.nan)
-    return dens, visible
-
-
-def test_extend_density_decays_with_distance_and_keeps_visible():
-    dens, visible = _half_view()
-    out = extend_density_outside_view(dens, visible, decay=0.5, max_cells=3)
-    assert (out[:, :5] == 4.0).all()                                   # 화각 안은 그대로
-    assert out[2, 5] == pytest.approx(2.0)                             # 경계 4.0 × 0.5
-    assert out[2, 6] == pytest.approx(1.0)
-    assert out[2, 7] == pytest.approx(0.5)
-    assert (out[:, 8:] == 0.0).all()                                   # max_cells(3) 밖은 사전값
-    assert np.isfinite(out).all()
-
-
-def test_extend_density_respects_floor_and_empty_view():
-    dens, visible = _half_view(value=0.0)
-    out = extend_density_outside_view(dens, visible, decay=0.8, max_cells=2, floor=0.3)
-    assert np.allclose(out[:, 5:], 0.3)                  # 연장값이 floor 미만이면 floor
-    nothing = extend_density_outside_view(np.full((3, 3), np.nan), np.zeros((3, 3), bool), floor=0.2)
-    assert (nothing == 0.2).all()
-
-
-def test_extend_mode_keeps_more_than_constant_at_boundary():
-    meta = _meta(rows=5, cols=10)
-    dens, visible = _half_view(rows=5, cols=10, view_cols=5, value=4.0)
-    flow_u = np.where(visible, 0.05, np.nan); flow_v = np.where(visible, 0.0, np.nan)
-    zf = ZoneFrame("Z01", dens, flow_u, flow_v, count=4.0 * 25 * meta.cell_area_m2)
-    kw = dict(horizons_s=[30.0], flow_decay_tau_s=0.0)
-    ext = FlowExtrapolationPredictor(PredictConfig(prior_mode="extend", **kw)).predict(meta, zf, [30.0])[0]
-    con = FlowExtrapolationPredictor(PredictConfig(prior_mode="constant", **kw)).predict(meta, zf, [30.0])[0]
-    assert ext.density.max() > con.density.max()                       # 경계 절벽이 사라져 정점 유지
-    assert ext.count > con.count                                       # 추정 인원이 더해진다
-    assert ext.density[:, :5].min() > con.density[:, :5].min() - 1e-9
-    # 어느 쪽이든 질량은 보존(격자 안 + 유출)
-    area = meta.cell_area_m2
-    init_ext = extend_density_outside_view(dens, visible, 0.8, 3).sum() * area
-    assert ext.count + ext.outflow_count == pytest.approx(init_ext)
-
-
-def test_invalid_prior_config_rejected():
-    for bad in (dict(prior_mode="nope"), dict(extend_decay=1.5), dict(extend_max_cells=-1),
-                dict(prior_density=-0.1)):
-        with pytest.raises(ValueError):
-            PredictConfig(**bad)
-
-
 def test_invalid_scheme_rejected():
     with pytest.raises(ValueError):
         advect_density(np.ones((3, 3)), np.zeros((3, 3)), np.zeros((3, 3)), 1.0, scheme="nope")
-    with pytest.raises(ValueError):
-        PredictConfig(scheme="nope")
