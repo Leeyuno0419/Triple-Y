@@ -1,7 +1,7 @@
 """timeline.json 읽기/쓰기.
 
 원본 데이터(data/raw/)는 절대 덮어쓰지 않는다 — save_timeline 이 경로를 검사해 막는다.
-저장 전에 validate_timeline 으로 규격 v0.1 을 지키는지 확인한다.
+저장 전에 validate_timeline 으로 규격 v0.2 를 지키는지 확인한다 (읽을 때는 v0.1 파일도 받아 v0.2 로 올려 담는다).
 """
 from __future__ import annotations
 

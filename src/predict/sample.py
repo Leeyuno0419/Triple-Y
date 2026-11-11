@@ -62,7 +62,8 @@ def make_sample_timeline(duration_s: int = 150, peak: float = PEAK) -> Timeline:
                 cells.append(CellState(cm.cell_id, d, vx_ms, 0.0, SPEED_VAR, d * SPEED_VAR, None))
             else:
                 cells.append(CellState(cm.cell_id, 0.0, None, None, None, 0.0, None))
-        frames.append(Frame(t=t, inflow_ratio=round(min(0.1 + 0.002 * t, 0.4), 4), cells=cells))
+        count = round(sum(c.density * m.walkable_area_m2 for c, m in zip(cells, cells_meta)), 2)  # 구역 인원 = 셀 인원의 합
+        frames.append(Frame(t=t, inflow_ratio=round(min(0.1 + 0.002 * t, 0.4), 4), count=count, cells=cells))
 
     return Timeline(meta=meta, frames=frames, schema_version=SCHEMA_VERSION)
 

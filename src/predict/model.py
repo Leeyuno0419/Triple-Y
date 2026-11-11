@@ -208,7 +208,7 @@ def fill_predictions(timeline: Timeline, predictor: BasePredictor) -> Timeline:
             preds = [None] * len(timeline.meta.cells)
         by_id = {c.cell_id: p for c, p in zip(timeline.meta.cells, preds)}
         cells = [replace(c, density_pred_60s=by_id[c.cell_id]) for c in fr.cells]
-        frames.append(Frame(t=fr.t, inflow_ratio=fr.inflow_ratio, cells=cells))
+        frames.append(Frame(t=fr.t, inflow_ratio=fr.inflow_ratio, count=fr.count, cells=cells))
 
     meta = replace(
         timeline.meta,
