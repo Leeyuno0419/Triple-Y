@@ -60,6 +60,31 @@ def compute_homography(img_pts: np.ndarray, world_pts: np.ndarray) -> np.ndarray
     return h
 
 
+def head_plane_homography(h_ground: np.ndarray, img_size: tuple[int, int],
+                          head_h: float) -> np.ndarray:
+    """바닥 행렬에서 카메라를 역산해 높이 head_h 평면의 영상→지면(x, y) 행렬을 만든다.
+
+    P2PNet 점은 발이 아니라 머리라서, 바닥 행렬에 그대로 넣으면 사람이 카메라에서 먼 쪽으로 밀린다.
+    초점거리는 주점=영상 중심, 정사각 화소를 가정하고 '두 지면 축의 길이가 같다'는 조건으로 구한다.
+    역산한 카메라 높이에 오차가 있으므로 head_h는 실제 키가 아니라
+    화면 속 사람들의 머리·발 쌍으로 맞춘 '유효 머리 높이'를 넣는다.
+    """
+    cx, cy = img_size[0] / 2, img_size[1] / 2
+    g = np.linalg.inv(h_ground)  # 지면 → 영상 = K [r1 r2 t] (배율 무관)
+    a1 = np.array([g[0, 0] - cx * g[2, 0], g[1, 0] - cy * g[2, 0]])
+    a2 = np.array([g[0, 1] - cx * g[2, 1], g[1, 1] - cy * g[2, 1]])
+    f = float(np.sqrt((a2 @ a2 - a1 @ a1) / (g[2, 0] ** 2 - g[2, 1] ** 2)))
+    k = np.array([[f, 0, cx], [0, f, cy], [0, 0, 1]])
+    m = np.linalg.inv(k) @ g
+    m = m * 2 / (np.linalg.norm(m[:, 0]) + np.linalg.norm(m[:, 1]))
+    r1, r2, t = m[:, 0], m[:, 1], m[:, 2]
+    r3 = np.cross(r1, r2)
+    up = np.sign((-np.column_stack([r1, r2, r3]).T @ t)[2])  # 카메라가 있는 쪽이 위
+    p = k @ np.column_stack([r1, r2, head_h * up * r3 + t])
+    h = np.linalg.inv(p)
+    return h / h[2, 2]
+
+
 def draw_ground_grid(img: np.ndarray, h: np.ndarray, cell_m: float,
                      extent_m: float) -> np.ndarray:
     """지면의 cell_m 간격 격자를 영상 위에 겹쳐 그린다. 바닥과 맞으면 H가 맞다."""

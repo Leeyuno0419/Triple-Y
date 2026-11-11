@@ -73,6 +73,23 @@ def count_image(model: nn.Module, img_path: Path) -> int:
     return int((scores > 0.5).sum())
 
 
+@torch.no_grad()
+def head_points(model: nn.Module, frame_bgr: np.ndarray, scale: float = 1.0,
+                threshold: float = 0.5) -> np.ndarray:
+    """영상 프레임(BGR)에서 머리 점 (N, 2)을 원래 픽셀 좌표로 돌려준다.
+
+    scale로 프레임을 줄여 머리 크기를 학습 데이터(SHA, 머리 10~20px)에 맞춘다.
+    가까이서 찍은 CCTV를 원본 크기로 넣으면 바닥 무늬를 머리로 잘못 찾는다.
+    """
+    h, w = frame_bgr.shape[:2]
+    nw, nh = int(w * scale) // 128 * 128, int(h * scale) // 128 * 128
+    img = Image.fromarray(frame_bgr[:, :, ::-1]).resize((nw, nh), Image.LANCZOS)
+    out = model(_TF(img).unsqueeze(0))
+    scores = torch.softmax(out["pred_logits"], -1)[0, :, 1]
+    pts = out["pred_points"][0][scores > threshold].numpy()
+    return pts * [w / nw, h / nh]
+
+
 def gt_count(mat_path: Path) -> int:
     """ShanghaiTech .mat 라벨의 정답 인원수(머리 점 개수)를 돌려준다."""
     return len(scipy.io.loadmat(mat_path)["image_info"][0][0][0][0][0])
