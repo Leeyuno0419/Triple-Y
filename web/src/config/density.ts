@@ -71,10 +71,13 @@ export const CELL_STYLE = {
   /** 격자선: 은은한 반투명 흰색 1px (영상 위 SVG 는 vector-effect 로 화면 크기와 무관하게 이 두께 유지) */
   strokeWeight: 1,
   strokeColor: '#ffffff',
-  strokeOpacity: 0.4,
-  /** 밀도가 이 값 이하인 셀은 거의 투명하게 처리해 지도가 가려지지 않게 한다 */
+  strokeOpacity: 0.55,
+  /**
+   * 밀도가 이 값 이하인 셀은 비어 있는 셀로 본다. 완전히 투명하게 두면 사람이 없는 구역은 격자가 안 보이므로
+   * 옅게(emptyFillOpacity) 칠해 전체 격자 범위를 보여 준다. 사람이 있는 셀은 minFillOpacity 부터 짙어져 구분된다.
+   */
   emptyDensity: 0.02,
-  emptyFillOpacity: 0.08,
+  emptyFillOpacity: 0.18,
 };
 
 /**
