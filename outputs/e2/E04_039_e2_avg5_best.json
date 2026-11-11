@@ -1,0 +1,9 @@
+{
+  "avg_frames": 5,
+  "window_s": 0.4,
+  "scale": 0.25,
+  "threshold": 0.2,
+  "test_rel_err": 0.1767,
+  "test_mae": 1.52,
+  "passed": true
+}

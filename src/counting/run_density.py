@@ -4,6 +4,8 @@
         --video data/processed/g1/E04_039.mp4 --out data/processed/timeline/E04_039.json
 
 머리 점은 머리 높이 평면 행렬(head_plane)로 지면에 옮긴 뒤 셀마다 센다.
+초마다 앞뒤 window_s초 안의 avg_frames장을 세어 평균한다. 사람이 움직이면 장마다 가려지는 사람이
+달라 한 장만 세면 들쭉날쭉하다. 축소 배율·판정 기준·평균 장수는 구역 설정의 counter(E2로 정함)를 쓴다.
 머리 좌표는 메모리에서만 쓰고 저장하지 않는다. 저장하는 값은 셀 밀도와 초별 구역 인원(집계)뿐이다.
 흐름·예측 필드는 아직 만들지 않았으므로 null로 둔다 (규격 6절 G1 단계).
 """
@@ -45,45 +47,62 @@ def main() -> None:
     ap.add_argument("--video", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit", type=int, default=0, help="앞에서 몇 초만 (빠른 확인용)")
-    ap.add_argument("--scale", type=float, default=0.4, help="P2PNet 입력 축소 배율 (머리 크기 맞춤)")
-    ap.add_argument("--threshold", type=float, default=0.4, help="머리 점 점수 기준")
     args = ap.parse_args()
 
     cfg = json.loads(Path(args.homography).read_text(encoding="utf-8"))
     h_ground = np.array(cfg["H_img_to_ground"])
     h_head = np.array(cfg["head_plane"]["H_head_img_to_ground"])
     origin, cell_m = tuple(cfg["cell_origin_m"]), 2.0
+    ctr = cfg["counter"]
+    scale, threshold = ctr["scale"], ctr["threshold"]
+    offsets = np.linspace(-ctr["window_s"], ctr["window_s"], ctr["avg_frames"])
 
     cap = cv2.VideoCapture(args.video)
     fps = cap.get(cv2.CAP_PROP_FPS)
+    n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-    duration = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) / fps)
+    duration = int(n_frames / fps)
     if args.limit:
         duration = min(duration, args.limit)
     cells = build_cells(h_ground, cfg["walkable_polygon_px"], size, cell_m, origin_m=origin)
     areas = np.array([c["walkable_area_m2"] for c in cells])
 
+    # 프레임 번호 -> 그 프레임을 쓰는 초들 (영상 앞뒤 끝은 안쪽으로 자른다)
+    need: dict[int, list[int]] = {}
+    for t in range(duration):
+        for off in offsets:
+            need.setdefault(int(np.clip(round((t + off) * fps), 0, n_frames - 1)), []).append(t)
+    acc = np.zeros((duration, len(cells)))
+    used = np.zeros(duration)
+    frame_total = np.zeros(duration)
+
     model = load_p2pnet(WEIGHTS)
-    frames, rows, start = [], [], time.time()
-    idx, t = 0, 0
-    while t < duration:
-        ok = cap.grab()
-        if not ok:
+    start = time.time()
+    for idx in range(max(need) + 1):
+        if not cap.grab():
             break
-        if idx == round(t * fps):
-            _, frame = cap.retrieve()
-            pts = head_points(model, frame, args.scale, args.threshold)
-            counts = count_cells(image_to_ground(h_head, pts), cells, origin, cell_m) if len(pts) \
-                else np.zeros(len(cells), int)
-            dens = np.round(counts / areas, 2)
-            frames.append({"t": t, "inflow_ratio": None, "cells": [
-                {"cell_id": c["cell_id"], "density": float(d), "vx": None, "vy": None,
-                 "speed_var": None, "pressure": None, "density_pred_60s": None}
-                for c, d in zip(cells, dens)]})
-            rows.append((t, int(counts.sum()), len(pts)))
-            print(f"t={t:3d}s 구역 {counts.sum():3d}명 / 화면 전체 {len(pts):3d}명", flush=True)
-            t += 1
-        idx += 1
+        if idx not in need:
+            continue
+        _, frame = cap.retrieve()
+        pts = head_points(model, frame, scale, threshold)
+        counts = count_cells(image_to_ground(h_head, pts), cells, origin, cell_m) if len(pts) \
+            else np.zeros(len(cells), int)
+        for t in need[idx]:
+            acc[t] += counts
+            used[t] += 1
+            frame_total[t] += len(pts)
+        if idx % round(fps * 10) < 1:
+            print(f"{idx / fps:5.1f}s 처리 중", flush=True)
+
+    mean = acc / used[:, None]
+    frames, rows = [], []
+    for t in range(duration):
+        dens = np.round(mean[t] / areas, 2)
+        frames.append({"t": t, "inflow_ratio": None, "cells": [
+            {"cell_id": c["cell_id"], "density": float(d), "vx": None, "vy": None,
+             "speed_var": None, "pressure": None, "density_pred_60s": None}
+            for c, d in zip(cells, dens)]})
+        rows.append((t, round(float(mean[t].sum()), 2), round(float(frame_total[t] / used[t]), 2)))
 
     vid = cfg["video"]
     timeline = validate_timeline({
@@ -92,7 +111,7 @@ def main() -> None:
             "zone_id": f"zone-{vid.lower().replace('_', '-')}",
             "camera_id": f"cam-{vid.lower().replace('_', '-')}",
             "video_id": vid, "duration_s": len(frames), "interval_s": 1, "cell_size_m": cell_m,
-            "models": {"counter": f"p2pnet-vgg16 x{args.scale} th{args.threshold}",
+            "models": {"counter": f"p2pnet-vgg16 x{scale} th{threshold} avg{len(offsets)}",
                        "flow": "none", "predictor": "none"},
             "prediction": {"history_s": 30, "horizon_s": 60},
             "cells": cells,
