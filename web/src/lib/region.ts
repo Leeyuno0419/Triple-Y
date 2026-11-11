@@ -5,8 +5,14 @@ import { cellValue, pairCells, type ViewMode } from './model';
 
 export interface ZoneSummary {
   meta: Meta;
-  /** 추정 인원(명) = Σ 밀도 × 보행 가능 면적. 값이 있는 셀이 없으면 null */
+  /**
+   * 구역 인원(명). 현재 관측 모드에서 프레임에 count(규격 v0.2, 이유노가 5장 평균으로 센 값)가 있으면 그 값을 쓰고,
+   * 없으면(v0.1 파일·실시간 등) 셀의 Σ 밀도 × 보행 가능 면적으로 계산한다. 예측 모드는 예측 인원이 파일에 없어 항상 계산한다.
+   * 값이 있는 셀이 없고 count 도 없으면 null.
+   */
   count: number | null;
+  /** count 의 출처: 'file' = 프레임의 count, 'cells' = 셀 합 계산, null = 값 없음 */
+  countSource: 'file' | 'cells' | null;
   /** 값이 있는 셀 수 (예측 모드에서 예측이 없으면 0) */
   observedCells: number;
   totalCells: number;
@@ -53,9 +59,14 @@ export function summarizeFrame(meta: Meta, frame: Frame | undefined, mode: ViewM
     }
   }
 
+  // 파일의 구역 인원은 현재 관측에만 있다. 예측 모드는 셀 합으로 계산한다.
+  const fileCount = mode === 'now' && frame?.count != null && Number.isFinite(frame.count) ? frame.count : null;
+  const count = fileCount ?? (observedCells > 0 ? people : null);
+
   return {
     meta,
-    count: observedCells > 0 ? people : null,
+    count,
+    countSource: fileCount !== null ? 'file' : count !== null ? 'cells' : null,
     observedCells,
     totalCells: meta.cells.length,
     meanDensity: observedCells > 0 && area > 0 ? people / area : null,

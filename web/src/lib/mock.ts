@@ -1,4 +1,4 @@
-import type { CellMeta, CellState, Frame, Meta, Timeline } from '../types/timeline';
+import { SCHEMA_VERSION, type CellMeta, type CellState, type Frame, type Meta, type Timeline } from '../types/timeline';
 
 /**
  * 개발용 mock timeline (규격 v0.1): 인파 덩어리가 6×10 셀 구역을 동쪽으로 일정 속도로 이동한다. 1초 간격.
@@ -55,16 +55,18 @@ function makeFrame(meta: Meta, t: number): Frame {
     const d = densityAt(t, cm.row, cm.col);
     const pred = t >= HISTORY_S - 1 ? densityAt(t + HORIZON_S, cm.row, cm.col) : null;
     return d > 0
-      ? { cell_id: cm.cell_id, density: d, vx: round(SPEED_CELLS_PER_S * CELL_M, 2), vy: 0, speed_var: SPEED_VAR, pressure: round(d * SPEED_VAR, 4), density_pred_60s: pred }
-      : { cell_id: cm.cell_id, density: 0, vx: null, vy: null, speed_var: null, pressure: 0, density_pred_60s: pred };
+      ? { cell_id: cm.cell_id, density: d, vx: round(SPEED_CELLS_PER_S * CELL_M, 2), vy: 0, speed_var: SPEED_VAR, pressure: round(d * SPEED_VAR, 4), counterflow: null, density_pred_60s: pred }
+      : { cell_id: cm.cell_id, density: 0, vx: null, vy: null, speed_var: null, pressure: 0, counterflow: null, density_pred_60s: pred };
   });
-  return { t, inflow_ratio: round(Math.min(0.1 + 0.002 * t, 0.4), 4), cells };
+  // 구역 인원 = 셀 인원(밀도 × 보행 면적)의 합
+  const count = round(cells.reduce((sum, c, i) => sum + c.density * meta.cells[i].walkable_area_m2, 0), 2);
+  return { t, inflow_ratio: round(Math.min(0.1 + 0.002 * t, 0.4), 4), count, cells };
 }
 
 export function makeMockTimeline(durationS = 150): Timeline {
   const meta = makeMeta(durationS);
   return {
-    schema_version: '0.1',
+    schema_version: SCHEMA_VERSION,
     meta,
     frames: Array.from({ length: durationS }, (_, t) => makeFrame(meta, t)),
   };
