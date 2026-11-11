@@ -1,66 +1,82 @@
-"""셀 통계를 timeline.json 흐름 필드로 바꾼다.
+"""셀 흐름 통계를 timeline.json 프레임 셀 레코드에 채운다.
 
-필드 이름은 기획 2.2 후보이며 팀 합의 전이다. 이름은 FIELDS 한 곳에서만
-정해서, 합의 후 바꿀 때 이 상수만 고친다.
-셀·구역 집계값만 담고 픽셀 흐름장·좌표는 담지 않는다.
+기준은 docs/timeline-spec.md v0.1이다. 인원 추정 모듈이 만든 프레임
+셀 레코드(cell_id·density·density_pred_60s 등)를 받아 흐름 필드
+vx·vy(m/s)·speed_var(m²/s²)·pressure(1/s²)만 채운다.
+역류 비율·신뢰도는 파일에 쓰지 않는다. 신뢰도는 낮은 셀을 비우는 데만
+쓴다. 셀·구역 집계값만 담고 픽셀 흐름장·좌표는 담지 않는다.
 """
 from __future__ import annotations
 
 import math
+import numbers
 
 import numpy as np
 
-# 내부 키 -> timeline.json 셀 레코드 필드 이름 (합의 전 후보)
-# (가정) D3 팀 결정 전 임시: flow_estimator는 셀마다 넣지 않고
-# 파일 최상위에 run_flow(S11)가 한 번 쓴다.
-FIELDS: dict[str, str] = {
-    "cell_id": "cell_id",
-    "vx": "flow_vx",                    # m/s
-    "vy": "flow_vy",                    # m/s
-    "instability": "flow_instability",  # m²/s²
-    "pressure": "flow_pressure",        # 1/s²
-    "counterflow": "flow_counterflow",  # 0~1
-    "quality": "flow_quality",          # 유효 픽셀 수 (개)
-}
 
-
-def _num(x: float) -> float | None:
-    """NaN·무한대는 None(JSON null)으로 바꾼다."""
-    x = float(x)
-    return x if math.isfinite(x) else None
-
-
-def build_flow_cells(
-    cell_ids: list[str],
+def fill_flow_fields(
+    frame_cells: list[dict],
     mean_v: np.ndarray,
-    instability: np.ndarray,
-    pressure: np.ndarray,
-    counterflow: np.ndarray,
+    speed_var: np.ndarray,
     quality: np.ndarray,
     min_quality: int,
-) -> list[dict[str, object]]:
-    """한 시점의 셀 흐름 레코드 목록을 만든다.
+) -> list[dict]:
+    """한 프레임의 셀 레코드에 흐름 필드를 채운 새 레코드 목록을 만든다.
 
-    mean_v는 (n, 2) 셀 평균 지면 속도 [m/s], 나머지는 (n,) 셀 값이다.
-    단위는 바꾸지 않고 그대로 담는다. 유효 픽셀 수가 min_quality보다
-    적은 셀은 흐름 값을 모두 None(null)으로 비우고 신뢰도만 남긴다.
-    quality는 정수 개수(가정)이며 잘라내기 전 값으로 기준과 비교한다.
-    셀 수와 배열 길이가 다르면 ValueError를 낸다.
+    frame_cells는 meta.cells와 같은 순서라 i번째 레코드가 배열의 i번째
+    값과 짝이다. mean_v는 (n, 2) 셀 평균 지면 속도 [m/s], speed_var는
+    (n,) 속도 분산 [m²/s²], quality는 (n,) 유효 픽셀 수다. 리스트도 받는다.
+    vx·vy는 소수 2자리, speed_var·pressure는 4자리로 round()한다
+    (정확히 반이면 짝수 쪽: 0.125 → 0.12). -0.0은 0.0으로 쓰고, 음수
+    분산은 0으로 자른다. pressure는 저장값으로 계산한다:
+    round(round(density, 2) × 저장된 speed_var, 4). 그래서 파일을 읽는
+    쪽이 ρ×Var를 다시 계산해도 같은 값이 나온다 (4.3 × 0.006 = 0.0258).
+    소수 2자리 density가 0이면 사람이 없는 셀이라 vx·vy·speed_var는
+    None, pressure는 0이다. 유효 픽셀 수가 min_quality보다 적으면
+    vx·vy·speed_var·pressure가 None이다. NaN·무한대는 필드별로 None이다:
+    속도는 (vx, vy) 한 벡터라 한 성분이라도 유한하지 않으면 둘 다 None,
+    speed_var가 유한하지 않으면 speed_var와 pressure가 None이다
+    (불안정 창이 덜 찬 첫 구간에도 속도는 쓴다).
+    입력 레코드는 바꾸지 않고, 다른 키는 그대로 복사한다.
+    density가 0 이상 유한한 숫자가 아니거나 배열 모양이 셀 수와 맞지
+    않으면 ValueError를 낸다.
     """
-    n = len(cell_ids)
-    per_cell = (instability, pressure, counterflow, quality)
-    if mean_v.shape != (n, 2) or any(len(a) != n for a in per_cell):
-        raise ValueError("셀 배열 길이가 cell_ids와 다르다")
-    cells = []
-    for i, cid in enumerate(cell_ids):
-        ok = bool(quality[i] >= min_quality)
-        cells.append({
-            FIELDS["cell_id"]: cid,
-            FIELDS["vx"]: _num(mean_v[i, 0]) if ok else None,
-            FIELDS["vy"]: _num(mean_v[i, 1]) if ok else None,
-            FIELDS["instability"]: _num(instability[i]) if ok else None,
-            FIELDS["pressure"]: _num(pressure[i]) if ok else None,
-            FIELDS["counterflow"]: _num(counterflow[i]) if ok else None,
-            FIELDS["quality"]: int(quality[i]),
-        })
-    return cells
+    n = len(frame_cells)
+    mean_v = np.asarray(mean_v, dtype=float)
+    speed_var = np.asarray(speed_var, dtype=float)
+    quality = np.asarray(quality)
+    if (
+        mean_v.shape != (n, 2)
+        or speed_var.shape != (n,)
+        or quality.shape != (n,)
+    ):
+        raise ValueError("셀 배열 모양이 frame_cells 수와 맞지 않다")
+    out = []
+    for i, cell in enumerate(frame_cells):
+        new = dict(cell)
+        density = cell["density"]
+        if not (
+            isinstance(density, numbers.Real)
+            and math.isfinite(density) and density >= 0
+        ):
+            raise ValueError(f"density가 0 이상 숫자가 아니다: {density!r}")
+        rho = round(float(density), 2)
+        if rho == 0:
+            new.update(vx=None, vy=None, speed_var=None, pressure=0)
+            out.append(new)
+            continue
+        new.update(vx=None, vy=None, speed_var=None, pressure=None)
+        if quality[i] < min_quality:
+            out.append(new)
+            continue
+        vx, vy = float(mean_v[i, 0]), float(mean_v[i, 1])
+        sv = float(speed_var[i])
+        if math.isfinite(vx) and math.isfinite(vy):
+            # + 0.0은 반올림으로 생긴 -0.0을 0.0으로 바꾼다
+            new["vx"] = round(vx, 2) + 0.0
+            new["vy"] = round(vy, 2) + 0.0
+        if math.isfinite(sv):
+            new["speed_var"] = round(max(sv, 0.0), 4)
+            new["pressure"] = round(rho * new["speed_var"], 4)
+        out.append(new)
+    return out
