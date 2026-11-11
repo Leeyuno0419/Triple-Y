@@ -4,7 +4,8 @@
 #   CPU: pip install torch==2.14.1 torchvision==0.29.1 --index-url https://download.pytorch.org/whl/cpu
 #   GPU 서버: 서버 CUDA 버전에 맞는 PyTorch 인덱스 URL을 쓴다.
 numpy==2.4.6
+pytest==9.2.0
+torchvision==0.29.1
 opencv-python==5.0.0.93
 torch==2.14.1
-torchvision==0.29.1
-pytest==9.2.0
+PyYAML==6.0.3
