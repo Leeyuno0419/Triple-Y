@@ -1,74 +1,59 @@
 import numpy as np
 import pytest
 
+from predict_helpers import blob_series
 from src.predict.config import PredictConfig
 from src.predict.evaluate import evaluate, format_table
-from src.predict.schema import Bounds, Frame, Timeline, ZoneFrame, ZoneMeta, shift_iso
 
-T0 = "2026-11-10T09:00:00+09:00"
-ROWS, COLS = 5, 20
+CFG = PredictConfig(flow_decay_tau_s=0.0)
 
 
-def _blob(center, sigma=1.5, peak=2.0):
-    x = np.arange(COLS)
-    return np.tile(peak * np.exp(-((x - center) ** 2) / (2 * sigma ** 2)), (ROWS, 1))
+def _by_name(rows):
+    return {r.predictor: r for r in rows}
 
 
-def _timeline(n=4, step_s=10.0, speed=0.1, start=3.0, view_cols_first=None):
-    """덩어리가 동쪽으로 speed 칸/초로 이동하는 합성 데이터.
-    view_cols_first 를 주면 첫 프레임만 왼쪽 그 열 수까지만 화각 안이다."""
-    meta = ZoneMeta("Z01", "test", Bounds(37.0, 127.0, 37.001, 127.001), ROWS, COLS, 10.0)
-    frames = []
-    for k in range(n):
-        dens = _blob(start + speed * step_s * k)
-        vis = np.ones((ROWS, COLS), bool)
-        if k == 0 and view_cols_first is not None:
-            vis[:, view_cols_first:] = False
-        dens = np.where(vis, dens, np.nan)
-        u = np.where(vis, speed, np.nan)
-        v = np.where(vis, 0.0, np.nan)
-        frames.append(Frame(shift_iso(T0, step_s * k), "observed", [ZoneFrame("Z01", dens, u, v, count=1.0)]))
-    return Timeline("0.1", [meta], frames)
+def test_flow_beats_persistence_on_moving_blob(make_timeline):
+    tl = make_timeline(blob_series(100), vx=0.2, vy=0.0)        # 0.1 셀/초로 이동, 속도 정보 있음
+    rows = _by_name(evaluate(tl, CFG))
+    assert rows["persistence"].skill == pytest.approx(0.0)
+    assert rows["flow"].skill is not None and rows["flow"].skill > 0.5
+    assert rows["flow"].rmse < rows["persistence"].rmse
+    assert rows["flow"].mae < rows["persistence"].mae
 
 
-CFG = dict(flow_decay_tau_s=0.0, prior_mode="constant")
+def test_frame_count_excludes_last_horizon_and_initial_history(make_timeline):
+    tl = make_timeline(blob_series(100), vx=0.2, vy=0.0)
+    r = evaluate(tl, CFG, ["persistence"])[0]
+    assert r.n_frames == 100 - 30 - 60 + 1                      # t = 29 .. 39
+    assert r.n_cells == r.n_frames * 3 * 20
 
 
-def test_model_beats_persistence_on_moving_blob():
-    cfg = PredictConfig(horizons_s=[10.0, 20.0], **CFG)
-    rows = evaluate(_timeline(), cfg, [10.0, 20.0])
-    assert [r.horizon_s for r in rows] == [10.0, 20.0]
-    for r in rows:
-        assert r.skill is not None and r.skill > 0.5      # 이동을 따라가므로 정지 가정보다 훨씬 낫다
-        assert r.rmse < r.persist_rmse
-        assert r.count_rel_err <= r.persist_count_rel_err + 1e-9   # 덩어리가 격자 안에 있어 합은 둘 다 같다
-    assert rows[0].n_samples == 3 and rows[1].n_samples == 2   # 4프레임: +10s 3쌍, +20s 2쌍
+def test_perfect_persistence_gives_no_skill(make_timeline):
+    tl = make_timeline(np.full((100, 2, 2), 1.5))
+    rows = _by_name(evaluate(tl, CFG))
+    assert rows["persistence"].rmse == 0.0 and rows["persistence"].skill is None
+    assert rows["linear"].rmse == pytest.approx(0.0, abs=1e-9)  # 변화가 없으면 직선도 평평
 
 
-def test_horizon_without_truth_is_omitted():
-    rows = evaluate(_timeline(), PredictConfig(horizons_s=[10.0], **CFG), [10.0, 300.0])
-    assert [r.horizon_s for r in rows] == [10.0]
+def test_linear_wins_on_steady_trend(make_timeline):
+    dens = np.stack([np.full((2, 2), 1.0 + 0.01 * t) for t in range(100)])
+    rows = _by_name(evaluate(make_timeline(dens), CFG))
+    assert rows["linear"].rmse == pytest.approx(0.0, abs=1e-9)
+    assert rows["persistence"].rmse > 0.5                       # 60초 × 0.01 = 0.6 만큼 틀린다
 
 
-def test_outside_view_cells_are_scored_separately():
-    # 첫 프레임은 왼쪽 12열만 보이고, 이후 프레임은 전체가 보인다 → 화각 밖→안 셀이 생긴다
-    tl = _timeline(view_cols_first=12, start=9.0)
-    cfg = PredictConfig(horizons_s=[20.0], **CFG)
-    r = evaluate(tl, cfg, [20.0])[0]
-    assert r.outside_n_cells > 0
-    assert r.outside_mae is not None and r.outside_persist_mae is not None
-
-
-def test_needs_two_observed_frames_and_sorted_time():
+def test_too_short_timeline_is_rejected(make_timeline):
+    tl = make_timeline(blob_series(89), vx=0.2, vy=0.0)         # history 30 + horizon 60 = 90 미만
     with pytest.raises(ValueError):
-        evaluate(_timeline(n=1), PredictConfig(**CFG), [10.0])
-    tl = _timeline()
-    tl.frames.reverse()
+        evaluate(tl, CFG)
+    evaluate(make_timeline(blob_series(90), vx=0.2, vy=0.0), CFG)   # 90 이면 평가 가능
+
+
+def test_only_one_second_interval_supported(make_timeline):
     with pytest.raises(ValueError):
-        evaluate(tl, PredictConfig(**CFG), [10.0])
+        evaluate(make_timeline(blob_series(100), interval_s=2), CFG)
 
 
-def test_format_table_renders_rows():
-    rows = evaluate(_timeline(), PredictConfig(horizons_s=[10.0], **CFG), [10.0])
-    text = format_table(rows)
-    assert "10s" in text and "RMSE" in text
+def test_format_table_renders_rows(make_timeline):
+    text = format_table(evaluate(make_timeline(blob_series(100), vx=0.2, vy=0.0), CFG))
+    assert "RMSE" in text and "persistence" in text and "flow" in text
