@@ -1,13 +1,13 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
-import { ChartIcon, HomeIcon, MapIcon } from './Icons';
+import { ChartIcon, GridIcon, HomeIcon } from './Icons';
 import { LiveClock } from './LiveClock';
 
-export type ViewId = 'home' | 'map' | 'analysis';
+export type ViewId = 'home' | 'monitor' | 'analysis';
 
 const TABS: { id: ViewId; label: string; icon: ReactNode }[] = [
   { id: 'home', label: '메인 대시보드', icon: <HomeIcon size={16} /> },
-  { id: 'map', label: '실시간 지도', icon: <MapIcon size={16} /> },
-  { id: 'analysis', label: '구역별 분석 데이터', icon: <ChartIcon size={16} /> },
+  { id: 'monitor', label: '실시간 모니터', icon: <GridIcon size={16} /> },
+  { id: 'analysis', label: '구역 분석 데이터', icon: <ChartIcon size={16} /> },
 ];
 
 interface Props {
