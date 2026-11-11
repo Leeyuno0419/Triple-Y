@@ -7,6 +7,16 @@ export const KAKAO_JS_KEY: string = import.meta.env.VITE_KAKAO_JS_KEY ?? '';
 export const TIMELINE_URL: string = import.meta.env.VITE_TIMELINE_URL ?? '/timeline.json';
 export const USE_MOCK: boolean = (import.meta.env.VITE_USE_MOCK ?? 'true') !== 'false';
 
+/** 영상 폴더 URL. 영상 파일은 `${VIDEO_BASE_URL}/${meta.video_id}.mp4` 로 찾는다 (docs/api-spec.md 6절). 원본 영상은 git 에 올리지 않는다. */
+export const VIDEO_BASE_URL: string = import.meta.env.VITE_VIDEO_BASE_URL ?? '/videos';
+
+/**
+ * 디버그 모드: 주소에 `?debug=grid` 를 붙이면(예: http://localhost:5173/?debug=grid#/monitor) 영상 위에 셀 번호·모서리 좌표·정렬 점검 표시를 얹는다.
+ * 셀 격자가 영상 바닥과 맞는지, 영상과 타임라인의 짝이 맞는지 볼 때 쓴다. 화면을 불러올 때 한 번만 읽으므로 바꾸면 새로고침한다.
+ */
+export const DEBUG_GRID: boolean =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'grid';
+
 /** 실시간 WebSocket 주소 (예: ws://localhost:8080/ws/zones). 비우면 실시간 연결을 하지 않는다. */
 export const WS_URL: string = import.meta.env.VITE_WS_URL ?? '';
 

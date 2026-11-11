@@ -57,14 +57,33 @@ export const UNOBSERVED = {
 };
 
 export const CELL_STYLE = {
-  fillOpacity: 0.55,
+  /**
+   * 채움 투명도는 밀도에 비례해 짙어진다 (색은 단계, 농도는 연속값).
+   * density = emptyDensity 초과일 때 minFillOpacity 에서 시작해, saturateDensity(명/m²) 이상이면 maxFillOpacity 에 닿는다.
+   * 곡선은 (density / saturateDensity) ^ opacityGamma 이고, gamma < 1 이면 낮은 밀도에서 더 빨리 짙어져 1~2명/m² 도 구분된다.
+   * saturateDensity 를 정상 단계 상한(3)으로 둔 이유: 주의 이상은 색이 바뀌므로 농도는 거기서 최대로 둔다.
+   */
+  minFillOpacity: 0.18,
+  maxFillOpacity: 0.7,
+  saturateDensity: 3,
+  opacityGamma: 0.6,
   unobservedFillOpacity: 0.25,
+  /** 격자선: 은은한 반투명 흰색 1px (영상 위 SVG 는 vector-effect 로 화면 크기와 무관하게 이 두께 유지) */
   strokeWeight: 1,
   strokeColor: '#ffffff',
-  strokeOpacity: 0.5,
+  strokeOpacity: 0.4,
   /** 밀도가 이 값 이하인 셀은 거의 투명하게 처리해 지도가 가려지지 않게 한다 */
   emptyDensity: 0.02,
   emptyFillOpacity: 0.08,
+};
+
+/**
+ * 영상 위 히트맵 투명도. 셀 채움 투명도(cellStyle 의 opacity)에 곱해 영상이 비쳐 보이게 한다.
+ * 영상이 없을 때(어두운 배경)는 셀이 잘 보이도록 placeholderBoost 만큼 더한다.
+ */
+export const HEATMAP_OVERLAY = {
+  opacityScale: 0.8,
+  placeholderBoost: 0.25,
 };
 
 /**
