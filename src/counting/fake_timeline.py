@@ -51,20 +51,24 @@ def make_fake_timeline(h: np.ndarray, walkable_px: list[list[float]], img_size: 
         walking = crowd * (1 - _ramp(t, PEAK_S - 20, PEAK_S + 30))  # 모이는 동안만 걷는다
         dens = base + PEAK_DENSITY * crowd * near + rng.normal(0, 0.05, len(cells))
         dens = np.round(np.clip(dens, 0, None), 2)
+        dens[dens < 0.05] = 0.0
         states = []
         for i, c in enumerate(cells):
             d = float(dens[i])
-            if d < 0.05:
+            if d == 0:
                 states.append({"cell_id": c["cell_id"], "density": 0.0, "vx": None, "vy": None,
-                               "speed_var": None, "pressure": 0.0, "density_pred_60s": None})
+                               "speed_var": None, "pressure": 0.0, "counterflow": None,
+                               "density_pred_60s": None})
                 continue
             v = to_gather[i] / max(dist[i], 1e-6) * WALK_SPEED * walking * min(1.0, dist[i] / 3)
             var = 0.003 + 0.04 * crowd * near[i]   # 군집 안쪽일수록 움직임이 제각각
             states.append({"cell_id": c["cell_id"], "density": d,
                            "vx": round(float(v[0]), 2), "vy": round(float(v[1]), 2),
                            "speed_var": round(var, 4), "pressure": round(d * var, 4),
-                           "density_pred_60s": None})
-        frames.append({"t": t, "inflow_ratio": round(0.1 + 0.5 * walking, 4), "cells": states})
+                           "counterflow": round(0.3 * crowd * near[i], 4), "density_pred_60s": None})
+        count = float((dens * np.array([c["walkable_area_m2"] for c in cells])).sum())
+        frames.append({"t": t, "inflow_ratio": round(0.1 + 0.5 * walking, 4),
+                       "count": round(count, 2), "cells": states})
 
     vid = video_id.lower().replace("_", "-")
     timeline = {

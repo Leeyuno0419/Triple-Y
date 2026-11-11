@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from src.counting.cells import build_cells
+from src.counting.cells import build_cells, cell_index_map
 from src.counting.fake_timeline import make_fake_timeline
 
 # 100px = 1m 인 위에서 내려다본 카메라 (영상 1000×800 → 지면 10m×8m)
@@ -52,6 +52,25 @@ def test_fake_timeline_is_reproducible() -> None:
     a = make_fake_timeline(H_TOP, FULL, SIZE, "T", duration_s=5, seed=1)
     b = make_fake_timeline(H_TOP, FULL, SIZE, "T", duration_s=5, seed=1)
     assert a == b
+
+
+def test_cell_index_map_marks_cells_and_outside() -> None:
+    """번호표는 셀 안 픽셀에 셀 번호를, 셀 밖에 -1을 적는다."""
+    cells = build_cells(H_TOP, [[0, 0], [500, 0], [500, 800], [0, 800]], SIZE)
+    idx = cell_index_map(cells, SIZE)
+    assert idx.shape == (800, 1000)
+    first = next(i for i, c in enumerate(cells) if c["cell_id"] == "c-0000")
+    assert idx[50, 50] == first                       # 0~2m 셀 안
+    assert idx[400, 900] == -1                         # 셀이 없는 오른쪽 (5m 밖)
+    assert set(np.unique(idx)) == set(range(len(cells))) | {-1}
+
+
+def test_fake_timeline_has_v02_fields() -> None:
+    """v0.2 필드: 프레임에 구역 인원 count, 셀에 counterflow."""
+    tl = make_fake_timeline(H_TOP, FULL, SIZE, "T", duration_s=3)
+    fr = tl["frames"][0]
+    assert isinstance(fr["count"], float)
+    assert all("counterflow" in c for c in fr["cells"])
 
 
 def test_too_large_grid_raises() -> None:

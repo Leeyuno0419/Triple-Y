@@ -20,6 +20,20 @@ def image_to_ground(h: np.ndarray, pts: np.ndarray) -> np.ndarray:
     return cv2.perspectiveTransform(np.asarray(pts, float).reshape(-1, 1, 2), h).reshape(-1, 2)
 
 
+def cell_index_map(cells: list[dict[str, object]], img_size: tuple[int, int]) -> np.ndarray:
+    """픽셀마다 셀 번호(meta.cells 순서, 0부터)를 적은 (세로, 가로) 배열. 셀 밖은 -1.
+
+    흐름 모듈이 픽셀 속도를 셀로 모을 때 쓴다(규격 v0.2 8절). image_polygon을 채워 그리므로
+    셀 경계 픽셀은 나중 셀 번호가 될 수 있다. 셀 면적에 비해 무시할 만하다.
+    """
+    w, h = img_size
+    index = np.full((h, w), -1, np.int32)
+    for i, c in enumerate(cells):
+        poly = np.round(np.array(c["image_polygon"]) * [w, h]).astype(np.int32)
+        cv2.fillPoly(index, [poly], i)
+    return index
+
+
 def build_cells(h: np.ndarray, walkable_px: list[list[float]], img_size: tuple[int, int],
                 cell_m: float = 2.0, min_area_m2: float = 1.0, samples: int = 20,
                 origin_m: tuple[float, float] | None = None) -> list[dict[str, object]]:
