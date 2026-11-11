@@ -46,9 +46,10 @@ def build_cell_index(
 def _polygon_points(cell: dict) -> np.ndarray:
     """셀의 image_polygon을 검사해 (4, 2) 정규화 좌표로 돌려준다.
 
-    꼭짓점 4개, 좌표 0~1(허용 1e-6), 그리고 이웃 변의 외적이 모두 양수
-    (y가 아래로 커지는 화면에서 시계 방향 TL, TR, BR, BL인 볼록 사각형)
-    여야 한다. 꼬인 사각형·겹친 꼭짓점·반시계 순서는 ValueError다.
+    꼭짓점 4개, 좌표 0~1(허용 1e-6), 그리고 이웃 변의 외적이 모두 같은
+    부호(볼록 사각형)여야 한다. 꼬인 사각형·겹친 꼭짓점은 ValueError다.
+    회전 방향은 따지지 않는다. 꼭짓점은 바닥 순서로 오므로 바닥 y축이
+    영상 위쪽을 향하는 카메라(E04_039)에서는 화면 반시계가 된다.
     W, H > 0 배율은 외적 부호를 바꾸지 않아 정규화 좌표로 검사한다.
     """
     pts = np.asarray(cell["image_polygon"], dtype=np.float64)
@@ -67,10 +68,10 @@ def _polygon_points(cell: dict) -> np.ndarray:
     turn = e[:, 0] * np.roll(e, -1, axis=0)[:, 1] - (
         e[:, 1] * np.roll(e, -1, axis=0)[:, 0]
     )
-    if not np.all(turn > 0):
+    if not (np.all(turn > 0) or np.all(turn < 0)):
         raise ValueError(
-            f"{cell.get('cell_id')} image_polygon은 TL, TR, BR, BL 순서"
-            "(화면 시계 방향)의 볼록 사각형이어야 한다"
+            f"{cell.get('cell_id')} image_polygon은 꼭짓점 순서가 맞는 "
+            "볼록 사각형이어야 한다"
         )
     return pts
 
@@ -80,11 +81,11 @@ def cell_homographies(
 ) -> np.ndarray:
     """셀마다 영상 px → 지면 m 호모그래피 (n, 3, 3)를 만든다 (영상당 한 번).
 
-    (가정) [토론] 셀 다각형 꼭짓점 순서는 TL, TR, BR, BL이고, 지면 정사각형
+    셀 다각형 꼭짓점 4개는 차례로 지면 정사각형
     (col·s, row·s), ((col+1)·s, row·s), ((col+1)·s, (row+1)·s),
-    (col·s, (row+1)·s)에 대응한다 (s = cell_size_m). 그래서 지면 x는 col,
-    y는 row 방향이며 셀끼리 축이 같다. 이 대응은 timeline-spec v0.1에
-    적혀 있지 않아 이유노 님과 합의가 필요하다.
+    (col·s, (row+1)·s)에 대응한다 (s = cell_size_m). src/counting/cells.py
+    build_cells가 이 순서로 만든다. 그래서 지면 x는 col, y는 row 방향이며
+    셀끼리 축이 같다. 영상에서의 회전 방향은 카메라에 따라 다르다.
     다각형 픽셀 좌표는 반올림 없이 (x·W, y·H)를 쓴다.
     같은 (row, col)이 두 번 나오면 ValueError다.
     """

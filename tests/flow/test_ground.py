@@ -292,8 +292,6 @@ _BAD_ORDER_POLYS = {
     "bowtie": [[0, 0], [0.5, 0], [0, 1], [0.5, 1]],
     # TL과 TR이 같아 넓이가 있는 사각형이 아니다
     "duplicate": [[0, 0], [0, 0], [0.5, 1], [0, 1]],
-    # TL, BL, BR, TR 순서 (화면에서 반시계 방향)
-    "counter_clockwise": [[0, 0], [0, 1], [0.5, 1], [0.5, 0]],
 }
 
 
@@ -301,8 +299,8 @@ _BAD_ORDER_POLYS = {
 def test_non_convex_or_wrongly_ordered_polygon_is_rejected_by_index(
     name: str,
 ) -> None:
-    """볼록 사각형이 아니거나 TL, TR, BR, BL(화면 시계 방향)이 아니면
-    build_cell_index가 ValueError를 낸다."""
+    """꼬였거나 넓이가 없는 사각형이면 build_cell_index가 ValueError를
+    낸다."""
     cells = [_cell(0, 0, _BAD_ORDER_POLYS[name])]
 
     with pytest.raises(ValueError):
@@ -318,6 +316,48 @@ def test_non_convex_or_wrongly_ordered_polygon_is_rejected_by_homographies(
 
     with pytest.raises(ValueError):
         cell_homographies(cells, (10, 20), 2.0)
+
+
+def test_counter_clockwise_polygon_maps_corners_in_ground_order() -> None:
+    """바닥 y축이 영상 위쪽을 향하면 꼭짓점이 화면에서 반시계가 된다.
+
+    src/counting/cells.py는 꼭짓점을 바닥 순서 (0,0)→(s,0)→(s,s)→(0,s)로
+    내므로 영상에서 BL, BR, TR, TL이다. 이 순서도 받아야 하며 첫 꼭짓점이
+    지면 (col·s, row·s)로 간다.
+    """
+    poly = [[0, 1], [0.5, 1], [0.5, 0], [0, 0]]
+    cells = [_cell(1, 2, poly)]
+
+    idx = build_cell_index(cells, (10, 20))
+    hs = cell_homographies(cells, (10, 20), 2.0)
+
+    assert (idx == 0).sum() == 11 * 10  # 열 x=0~10, 행 y=0~9
+    for (x, y), g in zip(poly, [[4, 2], [6, 2], [6, 4], [4, 4]]):
+        q = hs[0] @ np.array([x * 20, y * 10, 1.0])
+        np.testing.assert_allclose(q[:2] / q[2], g, atol=1e-9)
+
+
+def test_real_e04_039_cells_are_accepted() -> None:
+    """이유노 님 셀 생성기(build_cells)로 만든 E04_039 실제 셀을
+    번호표와 호모그래피가 모두 받고, 번호표는 cell_index_map과 같다."""
+    import json
+    from pathlib import Path
+
+    from src.counting.cells import build_cells, cell_index_map
+
+    cfg = json.loads(
+        Path("infra/homography/E04_039.json").read_text(encoding="utf-8")
+    )
+    cells = build_cells(
+        np.array(cfg["H_img_to_ground"]), cfg["walkable_polygon_px"],
+        (1920, 1080), origin_m=cfg["cell_origin_m"],
+    )
+
+    idx = build_cell_index(cells, (1080, 1920))
+    hs = cell_homographies(cells, (1080, 1920), 2.0)
+
+    assert len(cells) > 0 and hs.shape == (len(cells), 3, 3)
+    np.testing.assert_array_equal(idx, cell_index_map(cells, (1920, 1080)))
 
 
 def test_duplicate_row_col_is_rejected() -> None:
