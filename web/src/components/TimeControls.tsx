@@ -1,22 +1,23 @@
+import { fmtClock } from '../lib/format';
+import type { ViewMode } from '../lib/model';
 import type { Frame } from '../types/timeline';
 
 interface Props {
   frames: Frame[];
   index: number;
   playing: boolean;
+  /** 지금 보여 주는 값: 관측 / 60초 뒤 예측 */
+  mode: ViewMode;
+  /** 예측 시점(초). 배지에 표시 */
+  horizonS: number;
   onIndexChange: (index: number) => void;
   onTogglePlay: () => void;
-  /** 해외 가상 시뮬레이션 데이터인가 (배지를 '가상'으로 표시) */
-  simulated?: boolean;
 }
 
-const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-
-export function TimeControls({ frames, index, playing, onIndexChange, onTogglePlay, simulated = false }: Props) {
+export function TimeControls({ frames, index, playing, mode, horizonS, onIndexChange, onTogglePlay }: Props) {
   const frame = frames[index];
   if (!frame) return null;
-  const predicted = frame.kind === 'predicted';
+  const predicted = mode === 'pred';
 
   return (
     <div className="time-controls">
@@ -34,10 +35,8 @@ export function TimeControls({ frames, index, playing, onIndexChange, onTogglePl
         aria-label="시간 이동"
       />
       <div className="time-label">
-        <span>{fmtTime(frame.t)}</span>
-        <span className={`badge ${simulated ? 'sim' : predicted ? 'pred' : 'obs'}`}>
-          {simulated ? '가상' : predicted ? `예측 +${frame.horizon_s ?? '?'}s` : '관측'}
-        </span>
+        <span>{fmtClock(frame.t)}</span>
+        <span className={`badge ${predicted ? 'pred' : 'obs'}`}>{predicted ? `예측 +${horizonS}s` : '관측'}</span>
       </div>
     </div>
   );

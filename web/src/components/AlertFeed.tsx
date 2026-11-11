@@ -1,7 +1,6 @@
 import type { AlertItem, AlertKind } from '../lib/alerts';
+import { fmtClock } from '../lib/format';
 import { AlertIcon, BellIcon, PulseIcon } from './Icons';
-
-const time = (iso: string) => new Date(iso).toLocaleTimeString('ko-KR', { hour12: false });
 
 const KIND: Record<AlertKind, { tag: string; cls: string }> = {
   raise: { tag: '상승', cls: 'raise' },
@@ -17,7 +16,7 @@ function message(a: AlertItem): string {
 }
 
 /** 최근 알림 피드. 프레임 이력에서 파생한 알림이다(lib/alerts.ts 주석 참고). */
-export function AlertFeed({ alerts, onSelect }: { alerts: AlertItem[]; onSelect: (zoneId: string) => void }) {
+export function AlertFeed({ alerts, onSelect }: { alerts: AlertItem[]; onSelect?: () => void }) {
   if (alerts.length === 0) {
     return (
       <div className="alert-empty">
@@ -32,17 +31,17 @@ export function AlertFeed({ alerts, onSelect }: { alerts: AlertItem[]; onSelect:
         const k = KIND[a.kind];
         return (
           <li key={a.id}>
-            <button type="button" className="alert-item" onClick={() => onSelect(a.zoneId)}>
+            <button type="button" className="alert-item" onClick={onSelect}>
               <span className={`alert-ico ${k.cls}`} style={{ background: a.level.soft.bg, color: a.level.soft.ink }}>
                 {a.kind === 'forecast' ? <PulseIcon size={16} /> : <AlertIcon size={16} />}
               </span>
               <span className="alert-main">
                 <strong>
-                  {a.zoneName} <em className={`alert-tag ${k.cls}`}>{k.tag}</em>
+                  {a.level.label} 단계 <em className={`alert-tag ${k.cls}`}>{k.tag}</em>
                 </strong>
                 <small>{message(a)}</small>
               </span>
-              <time dateTime={a.t}>{time(a.t)}</time>
+              <time>{fmtClock(a.t)}</time>
             </button>
           </li>
         );

@@ -1,47 +1,47 @@
 """예측 모듈 설정 로더 (config.yaml → PredictConfig)."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Tuple, Union
 
 import yaml
 
 DEFAULT_CONFIG_PATH = Path(__file__).with_name("config.yaml")
 
+# 사용할 수 있는 예측기 이름 (model.py 의 PREDICTORS 와 같은 키)
+PREDICTOR_NAMES: Tuple[str, ...] = ("persistence", "linear", "flow")
+
 
 @dataclass(frozen=True)
 class PredictConfig:
-    horizons_s: List[float] = field(default_factory=lambda: [30.0, 60.0, 120.0, 300.0])
+    """60초 예측 설정. 값은 config.yaml 에서만 조정한다."""
+
+    predictor: str = "persistence"
+    history_s: int = 30          # 예측 입력 기간(초). meta.prediction.history_s 로 저장
+    horizon_s: int = 60          # 예측 시점(초). meta.prediction.horizon_s 로 저장
+    # flow 예측기 전용
     step_s: float = 5.0
     cfl_max: float = 0.5
     scheme: str = "tvd"
     flow_decay_tau_s: float = 120.0
-    outside_flow_decay: float = 0.9
-    outside_flow_max_iters: int = 50
-    prior_mode: str = "extend"
-    prior_density: float = 0.0
-    extend_decay: float = 0.8
-    extend_max_cells: int = 3
     max_speed_cells_per_s: float = 3.0
 
     def __post_init__(self) -> None:
+        if self.predictor not in PREDICTOR_NAMES:
+            raise ValueError("predictor 는 {} 중 하나여야 한다: {!r}".format(PREDICTOR_NAMES, self.predictor))
+        if self.history_s < 2:
+            raise ValueError("history_s 는 2 이상이어야 한다 (직선 추세에 2점 필요)")
+        if self.horizon_s < 1:
+            raise ValueError("horizon_s 는 1 이상이어야 한다")
         if self.step_s <= 0:
             raise ValueError("step_s 는 0보다 커야 한다")
         if not 0 < self.cfl_max <= 1:
             raise ValueError("cfl_max 는 (0, 1] 범위여야 한다")
         if self.scheme not in ("tvd", "upwind"):
             raise ValueError("scheme 은 'tvd' 또는 'upwind' 여야 한다: {!r}".format(self.scheme))
-        if self.prior_mode not in ("extend", "constant"):
-            raise ValueError("prior_mode 는 'extend' 또는 'constant' 여야 한다: {!r}".format(self.prior_mode))
-        if not 0 <= self.extend_decay <= 1:
-            raise ValueError("extend_decay 는 [0, 1] 범위여야 한다")
-        if self.extend_max_cells < 0:
-            raise ValueError("extend_max_cells 는 0 이상이어야 한다")
-        if self.prior_density < 0:
-            raise ValueError("prior_density 는 0 이상이어야 한다")
-        if not self.horizons_s or any(h <= 0 for h in self.horizons_s):
-            raise ValueError("horizons_s 는 양수 리스트여야 한다")
+        if self.max_speed_cells_per_s <= 0:
+            raise ValueError("max_speed_cells_per_s 는 0보다 커야 한다")
 
 
 def load_config(path: Optional[Union[str, Path]] = None) -> PredictConfig:

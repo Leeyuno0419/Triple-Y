@@ -49,9 +49,9 @@ export const RISK_MIN_LEVEL_INDEX = 2;
 /** 막대 그래프에서 밀도 100% 로 보는 값(명/m²). 가장 높은 임계값 + 1 */
 export const DENSITY_BAR_MAX = (DENSITY_LEVELS[DENSITY_LEVELS.length - 2]?.max ?? 5) + 1;
 
-/** 화각 밖(미관측) 셀 */
+/** 값이 없는 셀 (null: 예측 입력이 모자라 예측이 없거나 측정하지 못한 셀) */
 export const UNOBSERVED = {
-  label: '화각 밖',
+  label: '값 없음',
   color: '#98a2b3',
   soft: { bg: '#f1f5f9', ink: '#475569', dot: '#cbd5e1' },
 };

@@ -1,17 +1,11 @@
-# 화각 밖 예측(흐름 외삽) 설정. 코드에 하드코딩하지 말고 여기서만 조정한다.
-horizons_s: [30, 60, 120, 300]   # 예측 시점(초). 마지막 관측 프레임 기준
+# 60초 예측 설정 (docs/timeline-spec.md). 코드에 하드코딩하지 말고 여기서만 조정한다.
+predictor: persistence           # persistence(현재값 유지) | linear(직선 추세) | flow(흐름 이류)
+history_s: 30                    # 예측 입력 기간(초). 최근 이 길이의 밀도 기록만 쓴다 (t 이후 값은 쓰지 않음)
+horizon_s: 60                    # 예측 시점(초)
 
+# flow 예측기 전용
 step_s: 5.0                      # 시간 적분 간격(초)
 cfl_max: 0.5                     # 한 서브스텝에서 이동 가능한 최대 셀 수 (<=0.5 권장, 안정성)
 scheme: tvd                      # 이류 방식: tvd(2차, 번짐 적음) | upwind(1차, 비교/롤백용)
-
 flow_decay_tau_s: 120.0          # 흐름 속도 시간 감쇠 상수(초). 0 이하면 감쇠 없음
-outside_flow_decay: 0.9          # 화각 밖 셀로 흐름을 번질 때 셀 한 칸당 감쇠율
-outside_flow_max_iters: 50       # 화각 밖 흐름 채우기 최대 반복 횟수
-
-# 화각 밖 셀의 초기 밀도
-prior_mode: extend               # extend: 화각 경계 밀도를 바깥으로 연장 | constant: prior_density 로 고정
-extend_decay: 0.3                # extend: 경계에서 한 칸 멀어질 때마다 곱하는 감쇠율 (0~1)
-extend_max_cells: 3              # extend: 연장 최대 거리(셀). 이보다 먼 셀은 prior_density
-prior_density: 0.0               # constant 의 값 / extend 에서 연장이 닿지 않는 셀의 값 (명/m²)
 max_speed_cells_per_s: 3.0       # 입력 흐름 속도 클리핑(이상치 방지)
