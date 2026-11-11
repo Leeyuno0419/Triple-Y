@@ -43,6 +43,16 @@ const baseStroke = {
 };
 
 /**
+ * 밀도(명/m²) → 채움 투명도. 비어 있는 셀은 거의 투명, 그 위로는 밀도에 비례해 짙어지다 saturateDensity 에서 최대 (설정: CELL_STYLE).
+ */
+export function fillOpacityOf(density: number): number {
+  const { emptyDensity, emptyFillOpacity, minFillOpacity, maxFillOpacity, saturateDensity, opacityGamma } = CELL_STYLE;
+  if (density <= emptyDensity) return emptyFillOpacity;
+  const t = Math.min(density / saturateDensity, 1) ** opacityGamma;
+  return minFillOpacity + (maxFillOpacity - minFillOpacity) * t;
+}
+
+/**
  * 셀 밀도(null=화각 밖) → 지도에 칠할 색/투명도/테두리.
  * predicted=true 면 같은 등급 색을 반투명 + 점선 테두리로 그려 측정값과 구분한다.
  */
@@ -59,7 +69,7 @@ export function cellStyle(density: number | null, predicted = false): CellStyle 
   }
   const level = levelOf(density);
   const empty = density <= CELL_STYLE.emptyDensity;
-  const opacity = empty ? CELL_STYLE.emptyFillOpacity : CELL_STYLE.fillOpacity;
+  const opacity = fillOpacityOf(density);
 
   // 거의 비어 있는 셀은 점선을 그리지 않는다 (격자 전체가 점선으로 뒤덮이는 것 방지)
   if (!predicted || empty) {

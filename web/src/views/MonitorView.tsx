@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CellHeatmap } from '../components/CellHeatmap';
+import { CellHeatmap, type VideoStatus } from '../components/CellHeatmap';
 import { ChevronIcon } from '../components/Icons';
 import { HotCellList } from '../components/HotCellList';
 import { Legend } from '../components/Legend';
@@ -32,6 +32,14 @@ interface Props {
   /** 선택한 셀의 cell_id */
   selectedCellId: string | null;
   onCellSelect: (cellId: string | null) => void;
+  /** 영상 주소 (없으면 영상 없이 셀만 표시) */
+  videoSrc?: string;
+  /** 영상을 재생해야 하는가 (사용자가 재생 중이거나, 실시간에서 최신 프레임을 따라가는 중) */
+  videoPlaying: boolean;
+  /** 재생 중 영상 시각(초)이 바뀔 때 — 영상이 시간의 기준 */
+  onVideoTime: (sec: number) => void;
+  onVideoStatus: (status: VideoStatus) => void;
+  onVideoEnded: () => void;
 }
 
 /**
@@ -150,7 +158,19 @@ export function MonitorView(p: Props) {
         </button>
         {p.error && <div className="map-error" role="alert">데이터를 불러오지 못했습니다: {p.error}</div>}
         {p.hasData && meta && (
-          <CellHeatmap meta={meta} frame={frame} mode={mode} selectedCellId={p.selectedCellId} onCellSelect={p.onCellSelect} />
+          <CellHeatmap
+            meta={meta}
+            frame={frame}
+            mode={mode}
+            selectedCellId={p.selectedCellId}
+            onCellSelect={p.onCellSelect}
+            videoSrc={p.videoSrc}
+            t={frame?.t ?? 0}
+            playing={p.videoPlaying}
+            onVideoTime={p.onVideoTime}
+            onVideoStatus={p.onVideoStatus}
+            onVideoEnded={p.onVideoEnded}
+          />
         )}
         {summary && <RegionPanel summary={summary} cell={cellInfo} mode={mode} onClose={closeCell} />}
       </div>

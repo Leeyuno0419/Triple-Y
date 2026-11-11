@@ -853,20 +853,36 @@ h1, h2, h3, p { margin: 0; }
 .sim-note { margin: -2px 0 0; font-size: 0.7rem; color: var(--muted); }
 
 /* ---------------- 영상 위 셀 히트맵 (모니터 뷰) ----------------
-   16:9 스테이지 위에 meta.cells[].image_polygon(0~1 좌표)을 그린다. 영상이 연결되면 .hm-stage 안 SVG 아래에 <video> 를 둔다. */
+   .stage-container 안에 <video> 와 <svg> 를 같은 크기로 겹친다. SVG 는 viewBox="0 0 1 1" + preserveAspectRatio="none" 이라
+   meta.cells[].image_polygon(영상 가로·세로 0~1 좌표)을 변환 없이 쓴다. 컨테이너 비율(--stage-aspect)은 영상의 실제 크기에서 가져온다(기본 16:9). */
 .hm-wrap {
   position: absolute; inset: 0; display: grid; place-items: center; padding: var(--gap);
   container-type: size; background: var(--bg);
 }
-.hm-stage {
-  position: relative; width: min(100cqw, calc(100cqh * 16 / 9)); aspect-ratio: 16 / 9;
-  border-radius: var(--r); overflow: hidden; background: linear-gradient(135deg, #263248, #1a2233);
+.stage-container {
+  position: relative; overflow: hidden;
+  width: min(100cqw, calc(100cqh * var(--stage-aspect, 1.7778))); aspect-ratio: var(--stage-aspect, 1.7778);
+  border-radius: var(--r); background: linear-gradient(135deg, #263248, #1a2233);
   box-shadow: var(--shadow-sm);
 }
-.hm-note { position: absolute; left: 12px; bottom: 8px; z-index: 1; margin: 0; font-size: 0.7rem; color: rgba(255, 255, 255, 0.55); pointer-events: none; }
-.hm-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.hm-cell { cursor: pointer; vector-effect: non-scaling-stroke; outline: none; transition: fill-opacity 0.2s ease; }
-.hm-cell:hover { fill-opacity: 0.85; }
-.hm-cell.selected, .hm-cell:focus-visible { stroke: #ffffff; stroke-width: 3; stroke-opacity: 1; stroke-dasharray: none; }
-.hm-cell.severe { animation: severe-blink 1.2s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .hm-cell.severe { animation: none; } }
+/* object-fit: fill — 컨테이너 비율이 영상 비율과 같으므로 잘리지 않고, 0~1 좌표와 영상 화면이 1:1 로 대응한다 (cover 는 비율이 조금만 달라도 영상이 잘려 셀이 어긋난다) */
+.stage-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; display: block; background: #000; }
+.hm-note { position: absolute; left: 12px; bottom: 8px; z-index: 1; margin: 0; font-size: 0.7rem; color: rgba(255, 255, 255, 0.7); pointer-events: none; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+/* SVG 는 영상 클릭을 막지 않고(빈 곳 통과), 셀만 클릭을 받는다 */
+.stage-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+/* 테두리: viewBox 가 0~1 이고 가로·세로가 다르게 늘어나므로 stroke-width: 0.002 같은 값은 방향마다 굵기가 달라진다 → 화면 픽셀 기준 1px 로 고정 */
+.heatmap-cell { pointer-events: auto; cursor: pointer; vector-effect: non-scaling-stroke; outline: none; transition: fill-opacity 0.2s ease; }
+.heatmap-grid { pointer-events: none; vector-effect: non-scaling-stroke; }
+.stage-container[data-debug] .heatmap-grid { stroke: #ffe600; stroke-opacity: 0.9; }
+/* 디버그(?debug=grid): 셀 번호·모서리 좌표·점검 표시. SVG 안 글자는 가로·세로가 다르게 늘어나 찌그러지므로 HTML 로 얹는다 */
+.dbg-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; font-family: ui-monospace, Consolas, monospace; }
+.dbg-cell { position: absolute; transform: translate(-50%, -50%); padding: 1px 5px; border-radius: 4px; background: rgba(0, 0, 0, 0.55); color: #ffe600; font-size: 0.78rem; font-weight: 700; }
+.dbg-pt { position: absolute; width: 0; height: 0; }
+.dbg-pt i { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 0 1px #fff; }
+.dbg-pt b { position: absolute; left: 6px; top: 3px; white-space: nowrap; font-size: 0.62rem; font-weight: 600; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000; }
+.dbg-pt b.up { top: -16px; }
+.dbg-hud { position: absolute; left: 8px; top: 8px; margin: 0; padding: 6px 9px; border-radius: 6px; background: rgba(0, 0, 0, 0.7); color: #fff; font-size: 0.66rem; line-height: 1.5; white-space: pre; max-width: calc(100% - 16px); overflow: hidden; }
+.heatmap-cell:hover { fill-opacity: 0.7; }
+.heatmap-cell.selected, .heatmap-cell:focus-visible { stroke: #ffffff; stroke-width: 3px; stroke-opacity: 1; stroke-dasharray: none; }
+.heatmap-cell.severe { animation: severe-blink 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .heatmap-cell.severe { animation: none; } }

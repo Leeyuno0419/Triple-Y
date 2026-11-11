@@ -8,3 +8,9 @@ dev-dist
 
 # 개발용 샘플 timeline (python -m src.predict.run 으로 생성, 커밋/배포 금지)
 public/timeline.json
+
+# 로컬 테스트용 영상·가짜 데이터 (원본 영상은 저장소에 올리지 않는다, data/ 도 git 제외)
+public/videos/*
+!public/videos/.gitkeep
+public/data/*
+!public/data/.gitkeep

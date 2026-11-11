@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_NAME_EN, LIVE, WS_URL } from './config/app';
 import { AppHeader, type ViewId } from './components/AppHeader';
+import type { VideoStatus } from './components/CellHeatmap';
 import { deriveAlerts } from './lib/alerts';
 import { buildDashboard, futurePeaks, peakSeries } from './lib/dashboard';
 import type { StatusInfo } from './lib/format';
@@ -8,6 +9,7 @@ import { applyLiveMessage, type LiveMessage } from './lib/liveFeed';
 import type { ViewMode } from './lib/model';
 import { loadTimeline, type LoadResult } from './lib/timeline';
 import { useLiveFeed, type LiveStatus } from './lib/useLiveFeed';
+import { frameIndexAtTime, videoUrl } from './lib/video';
 import { AnalysisView } from './views/AnalysisView';
 import { HomeView } from './views/HomeView';
 import { MonitorView } from './views/MonitorView';
@@ -35,6 +37,8 @@ export default function App() {
   const [mode, setMode] = useState<ViewMode>('now'); // 히트맵에 보여 줄 값: 현재 관측 / 60초 뒤 예측
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [view, setView] = useState<ViewId>(parseHash);
+  // 영상 상태: 'ready' 이면 재생 중 영상이 시간의 기준이고, 아니면(영상 없음·실패) 1초 타이머로 재생한다
+  const [videoState, setVideoState] = useState<VideoStatus>('none');
   const liveReceived = useRef(false); // 실시간 데이터가 한 번이라도 왔는가
   const following = useRef(true); // 슬라이더가 "현재(마지막 프레임)"에 있어 새 프레임을 따라가는가
 
@@ -77,9 +81,9 @@ export default function App() {
     if (data?.source === 'live' && following.current) setIndex(Math.max(lastIndex, 0));
   }, [data?.source, lastIndex, frames.length]);
 
-  // 재생: 끝에 닿으면 정지
+  // 재생(타이머): 영상이 없거나 열 수 없을 때만 쓴다. 끝에 닿으면 정지
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || videoState === 'ready') return;
     const id = setInterval(() => {
       setIndex((i) => {
         if (i >= frames.length - 1) {
@@ -90,7 +94,22 @@ export default function App() {
       });
     }, PLAY_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [playing, frames.length]);
+  }, [playing, videoState, frames.length]);
+
+  // 재생(영상 기준): 영상 시각에 해당하는 프레임을 보여 준다
+  const videoId = meta?.video_id;
+  const videoSrc = videoId ? videoUrl(videoId) : undefined;
+  const onVideoTime = useCallback(
+    (sec: number) => {
+      const i = frameIndexAtTime(frames, sec);
+      following.current = i >= frames.length - 1;
+      setIndex(i);
+    },
+    [frames],
+  );
+  const onVideoEnded = useCallback(() => setPlaying(false), []);
+  // 영상은 사용자가 재생 중이거나, 실시간에서 최신 프레임을 따라가는 중일 때 재생한다
+  const videoPlaying = playing || (data?.source === 'live' && index >= lastIndex);
 
   // ---- 화면 전환: state 로 분기하고, URL 해시(#/monitor 등)와 동기화해 뒤로가기·새로고침을 지원한다 ----
   const go = useCallback((next: ViewId) => {
@@ -188,6 +207,11 @@ export default function App() {
               onTogglePlay={() => setPlaying((p) => !p)}
               selectedCellId={selectedCellId}
               onCellSelect={setSelectedCellId}
+              videoSrc={videoSrc}
+              videoPlaying={videoPlaying}
+              onVideoTime={onVideoTime}
+              onVideoStatus={setVideoState}
+              onVideoEnded={onVideoEnded}
             />
           </section>
         )}
