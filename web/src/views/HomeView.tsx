@@ -1,86 +1,77 @@
 import { AlertFeed } from '../components/AlertFeed';
-import { GradeDistribution } from '../components/GradeDistribution';
 import { GradeBadge } from '../components/GradeBadge';
-import { AlertIcon, ArrowRightIcon, BellIcon, EyeIcon, LayersIcon, PulseIcon, UsersIcon } from '../components/Icons';
+import { GradeDistribution } from '../components/GradeDistribution';
+import { HotCellList } from '../components/HotCellList';
+import { AlertIcon, ArrowRightIcon, BellIcon, EyeIcon, PulseIcon, UsersIcon } from '../components/Icons';
 import { KpiCard } from '../components/KpiCard';
 import { Sparkline } from '../components/Sparkline';
-import { ZoneRankList } from '../components/ZoneRankList';
 import type { AlertItem } from '../lib/alerts';
 import type { Dashboard } from '../lib/dashboard';
-import type { StatusInfo } from '../lib/format';
-import { matchZone } from '../lib/search';
-import type { Frame } from '../types/timeline';
+import { fmtClock, type StatusInfo } from '../lib/format';
+import type { Frame, Meta } from '../types/timeline';
 
 interface Props {
-  /** 가장 최근 관측 프레임 */
+  meta: Meta | undefined;
+  /** 가장 최근 프레임 */
   frame: Frame | undefined;
-  dash: Dashboard;
+  /** 가장 최근 프레임의 관측 기준 요약 */
+  dash: Dashboard | null;
+  /** 가장 최근 프레임의 60초 뒤 예측 기준 요약 */
+  dashPred: Dashboard | null;
   alerts: AlertItem[];
+  /** 프레임별 최대 밀도 + 미래 예측(있으면 뒤에 붙음) */
   peakValues: number[];
-  lastObservedIndex: number;
-  predictedFrom: number;
+  lastIndex: number;
+  /** peakValues 에서 예측만 있는 구간이 시작되는 인덱스 (없으면 -1) */
+  futureFrom: number;
   hasData: boolean;
   /** 맨 위 간결한 상태 표시 */
   status: StatusInfo;
-  onOpenMap: () => void;
-  /** 구역을 골라 지도 뷰로 이동 */
-  onOpenZone: (zoneId: string) => void;
-  /** 검색으로 걸린 구역 필터 (빈 문자열이면 전체) */
-  query: string;
+  onOpenMonitor: () => void;
+  /** 셀을 골라 모니터 뷰로 이동 */
+  onOpenCell: (cellId: string) => void;
 }
 
-/** 시작 화면: 전체 현황 요약 → 순위/알림 → 추이/분포, 그리고 지도 바로가기 */
+const fmt = (v: number | null, d = 2) => (v === null ? '-' : v.toFixed(d));
+
+/** 시작 화면: 현재 상태 요약 → 고밀도 셀/알림 → 추이/분포, 그리고 모니터 바로가기 */
 export function HomeView(p: Props) {
-  const { dash, frame } = p;
-  const total = dash.zones.length;
-  const peakSoft = dash.peak?.level.soft;
+  const { dash, dashPred, frame, meta } = p;
+  const s = dash?.summary;
+  const sp = dashPred?.summary;
+  const peakSoft = s?.level?.soft;
 
   return (
     <div className="view-scroll home">
       <section className="hero">
         <div>
-          <h2>전체 현황</h2>
+          <h2>현재 상황</h2>
           <p>
             <span className={`frame-chip ${p.status.kind}`}>{frame ? p.status.text : '데이터 대기 중'}</span>
-            <span className="hero-note">가장 최근 관측 기준</span>
+            <span className="hero-note">
+              {frame && meta ? `${meta.zone_id} · ${meta.camera_id} · ${fmtClock(frame.t)} 기준` : '가장 최근 프레임 기준'}
+            </span>
           </p>
         </div>
-        <button type="button" className="cta" onClick={p.onOpenMap}>
-          <span>실시간 인파 지도 보기</span>
+        <button type="button" className="cta" onClick={p.onOpenMonitor}>
+          <span>실시간 모니터 보기</span>
           <ArrowRightIcon size={18} />
         </button>
       </section>
 
       <section className="kpi-row" aria-label="주요 통계">
         <KpiCard
-          icon={<LayersIcon />}
-          label="총 감지 구역"
-          tone="teal"
-          value={String(total)}
-          unit="구역"
-          sub={`관측 중 ${total - dash.unobservedZones}곳`}
-        />
-        <KpiCard
           icon={<AlertIcon />}
-          label="위험·경고 구역"
-          tone={dash.riskZones > 0 ? 'coral' : 'sage'}
-          accent={dash.riskZones > 0}
-          value={String(dash.riskZones)}
-          unit={`/ ${total}구역`}
-          sub={dash.severeZones > 0 ? `심각 ${dash.severeZones}곳 포함` : '경고 이상 구역'}
-        />
-        <KpiCard
-          icon={<PulseIcon />}
-          label="최고 밀도 지역"
+          label="현재 최대 밀도"
           tone="grade"
           accent
           chipStyle={peakSoft ? { background: peakSoft.bg, color: peakSoft.ink } : undefined}
-          value={dash.peak ? dash.peak.density.toFixed(2) : '-'}
+          value={fmt(s?.maxDensity ?? null)}
           unit="명/m²"
           sub={
-            dash.peak ? (
+            s?.maxCell ? (
               <>
-                <GradeBadge level={dash.peak.level} /> <span className="ellipsis">{dash.peak.zone.name}</span>
+                <GradeBadge level={s.level} /> <span className="ellipsis">{s.maxCell.row + 1}행 {s.maxCell.col + 1}열</span>
               </>
             ) : (
               '관측 없음'
@@ -89,21 +80,37 @@ export function HomeView(p: Props) {
         />
         <KpiCard
           icon={<UsersIcon />}
-          label="총 인원"
+          label="추정 인원"
           tone="sky"
-          value={dash.totalCount === null ? '-' : Math.round(dash.totalCount).toLocaleString()}
+          value={s?.count == null ? '-' : Math.round(s.count).toLocaleString()}
           unit="명"
-          sub={`관측 범위 ${dash.totalCells ? Math.round((dash.observedCells / dash.totalCells) * 100) : 0}%`}
+          sub={s ? `값이 있는 셀 ${s.observedCells}/${s.totalCells}칸` : undefined}
+        />
+        <KpiCard
+          icon={<PulseIcon />}
+          label={`${meta?.prediction.horizon_s ?? 60}초 뒤 예측`}
+          tone="teal"
+          value={fmt(sp?.maxDensity ?? null)}
+          unit="명/m²"
+          sub={sp?.level ? <><GradeBadge level={sp.level} predicted /> <span className="ellipsis">최대 밀도 기준</span></> : '예측 입력 부족 (최근 30초 필요)'}
+        />
+        <KpiCard
+          icon={<EyeIcon />}
+          label="경계 유입 비율"
+          tone="sage"
+          value={s?.inflowRatio == null ? '-' : String(Math.round(s.inflowRatio * 100))}
+          unit="%"
+          sub="화각 경계에서 안쪽으로 향하는 흐름"
         />
       </section>
 
       <div className="home-grid">
-        <section className="card" aria-label="구역별 위험도 순위">
+        <section className="card" aria-label="고밀도 셀">
           <div className="card-title">
-            <h3>구역별 위험도 순위</h3>
-            <small>{p.query ? `검색: ${p.query}` : '최대 밀도 기준 · 눌러서 지도로 이동'}</small>
+            <h3>고밀도 셀 TOP {dash?.hotCells.length || ''}</h3>
+            <small>눌러서 모니터에서 보기</small>
           </div>
-          <ZoneRankList zones={dash.zones.filter((s) => matchZone(s.zone, p.query))} onSelect={p.onOpenZone} />
+          <HotCellList cells={dash?.hotCells ?? []} onSelect={p.onOpenCell} />
         </section>
 
         <section className="card" aria-label="최근 알림">
@@ -113,26 +120,26 @@ export function HomeView(p: Props) {
             </h3>
             <small>단계 변화 기준</small>
           </div>
-          <AlertFeed alerts={p.alerts} onSelect={p.onOpenZone} />
+          <AlertFeed alerts={p.alerts} onSelect={p.onOpenMonitor} />
         </section>
       </div>
 
       <div className="home-grid even">
-        <section className="card" aria-label="최고 밀도 추이">
+        <section className="card" aria-label="최대 밀도 추이">
           <div className="card-title">
-            <h3>최고 밀도 추이</h3>
+            <h3>최대 밀도 추이</h3>
             <small>점선 = 예측</small>
           </div>
-          <Sparkline values={p.peakValues} current={p.lastObservedIndex} predictedFrom={p.predictedFrom} label="프레임별 최고 밀도" />
+          <Sparkline values={p.peakValues} current={p.lastIndex} predictedFrom={p.futureFrom} label="프레임별 최대 밀도" />
         </section>
-        <section className="card" aria-label="구역 등급 분포">
+        <section className="card" aria-label="셀 등급 분포">
           <div className="card-title">
-            <h3>구역 등급 분포</h3>
+            <h3>셀 등급 분포</h3>
             <small>
-              <EyeIcon size={12} /> {total}구역
+              <EyeIcon size={12} /> {s?.totalCells ?? 0}칸 · 경고 이상 {dash?.riskCells ?? 0}칸
             </small>
           </div>
-          <GradeDistribution dash={dash} />
+          {s && <GradeDistribution summary={s} />}
         </section>
       </div>
 
