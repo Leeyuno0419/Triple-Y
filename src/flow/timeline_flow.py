@@ -25,14 +25,15 @@ def fill_flow_fields(
 
     frame_cells는 meta.cells와 같은 순서라 i번째 레코드가 배열의 i번째
     값과 짝이다. mean_v는 (n, 2) 셀 평균 지면 속도 [m/s], speed_var는
-    (n,) 속도 분산 [m²/s²], quality는 (n,) 유효 픽셀 수다. 리스트도 받는다.
+    (n,) 속도 분산 [m²/s²], quality는 (n,) 유효 표본(머리) 수다. 리스트도
+    받는다.
     vx·vy는 소수 2자리, speed_var·pressure는 4자리로 round()한다
     (정확히 반이면 짝수 쪽: 0.125 → 0.12). -0.0은 0.0으로 쓰고, 음수
     분산은 0으로 자른다. pressure는 저장값으로 계산한다:
     round(round(density, 2) × 저장된 speed_var, 4). 그래서 파일을 읽는
     쪽이 ρ×Var를 다시 계산해도 같은 값이 나온다 (4.3 × 0.006 = 0.0258).
     소수 2자리 density가 0이면 사람이 없는 셀이라 vx·vy·speed_var는
-    None, pressure는 0이다. 유효 픽셀 수가 min_quality보다 적으면
+    None, pressure는 0이다. 유효 표본 수가 min_quality보다 적으면
     vx·vy·speed_var·pressure가 None이다. NaN·무한대는 필드별로 None이다:
     속도는 (vx, vy) 한 벡터라 한 성분이라도 유한하지 않으면 둘 다 None,
     speed_var가 유한하지 않으면 speed_var와 pressure가 None이다

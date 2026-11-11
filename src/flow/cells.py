@@ -1,4 +1,4 @@
-"""픽셀 속도를 셀 통계로 줄인다. 흐름장은 저장하지 않는다."""
+"""표본(머리) 속도를 셀 통계로 줄인다. 흐름장은 저장하지 않는다."""
 from __future__ import annotations
 
 import warnings
@@ -12,8 +12,8 @@ class CellFlow:
     """한 시점의 셀 통계. 흐름장은 담지 않는다."""
 
     mean_v: np.ndarray  # (n_cells, 2) 셀 평균 지면 속도 V_c [m/s], 빈 셀은 NaN
-    count: np.ndarray   # (n_cells,) 유효 픽셀 수 Q_c
-    counterflow: np.ndarray  # (n_cells,) 역방향 픽셀 비율 B_c [0~1], 빈 셀은 NaN
+    count: np.ndarray   # (n_cells,) 유효 표본 수 Q_c
+    counterflow: np.ndarray  # (n_cells,) 역방향 표본 비율 B_c [0~1], 빈 셀은 NaN
 
 
 def reduce_to_cells(
@@ -22,14 +22,14 @@ def reduce_to_cells(
     n_cells: int,
     min_speed: float = 0.05,
 ) -> CellFlow:
-    """픽셀 속도 (N, 2) 또는 (H, W, 2)를 셀 번호 (N,) 또는 (H, W)별로 모아 셀 통계를 만든다.
+    """표본 속도 (N, 2) 또는 (H, W, 2)를 셀 번호 (N,) 또는 (H, W)별로 모아 셀 통계를 만든다.
 
-    셀 번호 -1(보행 불가·격자 밖) 픽셀은 버린다.
+    셀 번호 -1(보행 불가·격자 밖) 표본은 버린다.
     역방향 비율은 셀 평균과 내적이 음수이고 속력이 min_speed(m/s, 가정) 이상인
-    픽셀의 비율이다. 분모는 유효 픽셀 수 Q_c다.
+    표본의 비율이다. 분모는 유효 표본 수 Q_c다.
     (가정) 주 흐름이 없는 셀은 NaN. 팀 결정 대기.
     셀 평균 속력이 min_speed보다 작으면 주 흐름이 없다고 본다.
-    속도가 NaN·inf인 픽셀도 버린다.
+    속도가 NaN·inf인 표본도 버린다.
     """
     cell_ids = np.asarray(cell_ids).astype(np.int64)
     vel = np.asarray(vel, dtype=np.float64)

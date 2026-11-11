@@ -216,13 +216,13 @@ def test_mismatched_shapes_raise_value_error(
         )
 
 
-def test_fewer_moving_border_pixels_than_min_pixels_gives_none() -> None:
-    """움직이는 경계 픽셀 2개: min_pixels 3이면 None, 2이면 1/2 = 0.5."""
+def test_fewer_moving_border_samples_than_min_samples_gives_none() -> None:
+    """움직이는 경계 표본 2개: min_samples 3이면 None, 2이면 1/2 = 0.5."""
     is_b, inward = border_setup()
     cell_ids = np.array([0, 0, 2])
     vel = np.array([[0.5, 0.0], [-0.5, 0.0], [1.0, 0.0]])
-    assert inflow_ratio(cell_ids, vel, is_b, inward, min_pixels=3) is None
-    assert inflow_ratio(cell_ids, vel, is_b, inward, min_pixels=2) == 0.5
+    assert inflow_ratio(cell_ids, vel, is_b, inward, min_samples=3) is None
+    assert inflow_ratio(cell_ids, vel, is_b, inward, min_samples=2) == 0.5
 
 
 def test_cell_id_below_minus_one_raises_value_error() -> None:
