@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { GradeBadge } from '../components/GradeBadge';
 import { CHART_COLORS } from '../config/density';
 import { EyeIcon, PulseIcon, UsersIcon, AlertIcon } from '../components/Icons';
-import { KpiCard } from '../components/KpiCard';
 import { TrendChart } from '../components/TrendChart';
 import { hotCellsFor, predictedPeakSeries, zoneSeries, type Dashboard } from '../lib/dashboard';
 import { fmtClock } from '../lib/format';
@@ -22,7 +21,7 @@ const MAX_HISTORY_ROWS = 12;
 const CELL_ROWS = 10;
 const fmt = (v: number | null | undefined, d = 2) => (v === null || v === undefined ? '-' : v.toFixed(d));
 
-/** 구역 분석: 지표 카드, 밀도 추이(관측 + 예측), 프레임 기록 표, 셀 상세 표 */
+/** 구역 분석(심층 분석·리포트): 한 줄 지표 띠, 큰 밀도 추이 그래프(관측 + 예측), 프레임 기록 표, 셀 상세 표 */
 export function AnalysisView({ meta, frames, index, dash }: Props) {
   const horizon = meta?.prediction.horizon_s ?? 60;
   const series = useMemo(() => (meta ? zoneSeries(meta, frames) : []), [meta, frames]);
@@ -48,37 +47,36 @@ export function AnalysisView({ meta, frames, index, dash }: Props) {
 
   return (
     <div className="view-scroll analysis">
-      <section className="hero">
+      {/* 헤더와 지표를 한 줄 띠로 합쳐 세로 공간을 아끼고, 그래프와 표에 높이를 넘긴다 (메인 대시보드의 큰 지표 카드와 구분) */}
+      <section className="hero analysis-head">
         <div>
           <h2>구역 분석 데이터</h2>
-          <p className="hero-note">{meta.zone_id} · {meta.camera_id} · 영상 {meta.video_id} · 프레임별 인원·밀도 변화와 {horizon}초 예측</p>
+          <p className="hero-note">
+            {meta.zone_id} · {meta.camera_id} · 영상 {meta.video_id} · 프레임별 인원·밀도 변화와 {horizon}초 예측
+            {dash ? ` · ${dash.summary.observedCells}/${dash.summary.totalCells}칸 관측` : ''}
+          </p>
         </div>
+        <dl className="stat-strip" aria-label="지표 (모니터에서 선택한 시점 기준)" title="모니터에서 선택한 시점 기준">
+          <div>
+            <dt><UsersIcon size={13} />추정 인원</dt>
+            <dd>{cur?.count == null ? '-' : Math.round(cur.count).toLocaleString()}<small>명</small></dd>
+          </div>
+          <div>
+            <dt><PulseIcon size={13} />평균 밀도</dt>
+            <dd>{fmt(cur?.meanDensity ?? null)}<small>명/m²</small></dd>
+          </div>
+          <div>
+            <dt><AlertIcon size={13} />최대 밀도</dt>
+            <dd className="accent">{fmt(cur?.maxDensity ?? null)}<small>명/m²</small><GradeBadge level={cur?.level ?? null} /></dd>
+          </div>
+          <div>
+            <dt><EyeIcon size={13} />경계 유입 비율</dt>
+            <dd>{cur?.inflowRatio == null ? '-' : String(Math.round(cur.inflowRatio * 100))}<small>%</small></dd>
+          </div>
+        </dl>
       </section>
 
-      <section className="kpi-row" aria-label="지표">
-        <KpiCard icon={<UsersIcon />} label="추정 인원" tone="sky" value={cur?.count == null ? '-' : Math.round(cur.count).toLocaleString()} unit="명" sub="선택한 시점 기준" />
-        <KpiCard icon={<PulseIcon />} label="평균 밀도" tone="sky" value={fmt(cur?.meanDensity ?? null)} unit="명/m²" sub="면적 가중 평균" />
-        <KpiCard
-          icon={<AlertIcon />}
-          label="최대 밀도"
-          tone="grade"
-          accent
-          chipStyle={cur?.level ? { background: cur.level.soft.bg, color: cur.level.soft.ink } : undefined}
-          value={fmt(cur?.maxDensity ?? null)}
-          unit="명/m²"
-          sub={<GradeBadge level={cur?.level ?? null} />}
-        />
-        <KpiCard
-          icon={<EyeIcon />}
-          label="경계 유입 비율"
-          tone="teal"
-          value={cur?.inflowRatio == null ? '-' : String(Math.round(cur.inflowRatio * 100))}
-          unit="%"
-          sub={dash ? `${dash.summary.observedCells}/${dash.summary.totalCells}칸 관측` : undefined}
-        />
-      </section>
-
-      <section className="card" aria-label="밀도 추이">
+      <section className="card chart-main" aria-label="밀도 추이">
         <div className="card-title">
           <h3>밀도 추이</h3>
           <small>세로선 = 모니터에서 보고 있는 시점 · 점선 = {horizon}초 뒤 예측(예측 대상 시각에 표시)</small>
@@ -95,7 +93,7 @@ export function AnalysisView({ meta, frames, index, dash }: Props) {
         />
       </section>
 
-      <div className="home-grid">
+      <div className="home-grid even">
         <section className="card" aria-label="프레임 기록">
           <div className="card-title">
             <h3>프레임 기록</h3>
@@ -104,7 +102,7 @@ export function AnalysisView({ meta, frames, index, dash }: Props) {
           <div className="table-wrap">
             <table className="data-table">
               <thead>
-                <tr><th>시각</th><th className="num">인원</th><th className="num">평균</th><th className="num">최대</th><th>단계</th><th className="num">{horizon}초 뒤</th></tr>
+                <tr><th>시각</th><th className="num">인원(명)</th><th className="num">평균(명/m²)</th><th className="num">최대(명/m²)</th><th>단계</th><th className="num">{horizon}초 뒤(명/m²)</th></tr>
               </thead>
               <tbody>
                 {rows.map(({ s, i, f, pred }) => (
@@ -130,7 +128,7 @@ export function AnalysisView({ meta, frames, index, dash }: Props) {
           <div className="table-wrap">
             <table className="data-table">
               <thead>
-                <tr><th>셀</th><th className="num">밀도</th><th>단계</th><th className="num">속도 m/s</th><th className="num">P</th><th className="num">{horizon}초 뒤</th></tr>
+                <tr><th>셀</th><th className="num">밀도(명/m²)</th><th>단계</th><th className="num">속도(m/s)</th><th className="num">P(1/s²)</th><th className="num">{horizon}초 뒤(명/m²)</th></tr>
               </thead>
               <tbody>
                 {cells.map((c) => {

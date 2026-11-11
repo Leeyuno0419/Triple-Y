@@ -588,8 +588,31 @@ h1, h2, h3, p { margin: 0; }
 .view-scroll.home,
 .view-scroll.analysis { display: grid; align-content: stretch; }
 .view-scroll.home { grid-template-rows: auto auto minmax(190px, 1.5fr) minmax(150px, 1fr); }
-.view-scroll.analysis { grid-template-rows: auto auto minmax(210px, 1.3fr) minmax(150px, 1fr); }
+.view-scroll.analysis { grid-template-rows: auto minmax(240px, 1.45fr) minmax(190px, 1fr); }   /* 한 줄 헤더 / 큰 추이 그래프 / 표 두 개 */
 .view-scroll > * { min-height: 0; }
+
+/* ---------------- 구역 분석(심층 분석·리포트): 한 줄 지표 띠 + 큰 그래프 + 정돈된 표 (메인 대시보드와 겹치지 않게 .analysis 안으로 한정) ---------------- */
+.analysis .analysis-head { padding: 12px 20px; flex-wrap: wrap; gap: 8px 24px; }
+.analysis .analysis-head h2 { font-size: 1.1rem; }
+.analysis .analysis-head .hero-note { margin-top: 3px; }
+.stat-strip { display: flex; align-items: stretch; flex-wrap: wrap; margin: 0 0 0 auto; }
+.stat-strip > div { display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 0; padding: 0 22px; border-left: 1px solid var(--line); }
+.stat-strip > div:last-child { padding-right: 0; }
+.stat-strip dt { display: flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.stat-strip dt svg { flex: none; color: var(--faint); }
+.stat-strip dd { display: flex; align-items: center; gap: 5px; margin: 0; font-size: 1.3rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stat-strip dd small { font-size: 0.7rem; font-weight: 500; color: var(--faint); letter-spacing: 0; }
+.stat-strip dd.accent { color: var(--accent); }
+.stat-strip dd .gbadge, .stat-strip dd [class*="badge"] { font-size: 0.68rem; letter-spacing: 0; }
+/* 그래프가 이 화면의 주인공: 제목을 키우고 다른 카드보다 높이를 더 가져간다 */
+.analysis .chart-main .card-title h3 { font-size: 1rem; }
+.analysis .chart-main .card-title { margin-bottom: 8px; }
+/* 표: 머리글 고정, 촘촘한 행, 행에 올리면 강조 */
+.analysis .data-table th { position: sticky; top: 0; z-index: 1; padding: 7px 10px; background: var(--card); font-size: 0.68rem; letter-spacing: 0.01em; }
+.analysis .data-table td { padding: 6px 10px; }
+.analysis .data-table td:first-child { font-weight: 600; }
+.analysis .data-table tbody tr:hover td { background: var(--soft); }
+.analysis .data-table tbody tr.current:hover td { background: var(--accent-soft); }
 
 /* 카드: 제목은 고정, 본문이 남는 높이를 차지 (유연하게 늘고 줄어듦) */
 .card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -659,6 +682,8 @@ h1, h2, h3, p { margin: 0; }
   .view-scroll.home, .view-scroll.analysis { display: flex; flex-direction: column; }
   .view-scroll > *, .home-grid > .card { flex: none; }
   .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-strip { width: 100%; margin-left: 0; }
+  .stat-strip > div { flex: 1 1 45%; padding: 6px 0; border-left: 0; }
   .home-grid, .home-grid.even { grid-template-columns: minmax(0, 1fr); }
   .card > .zone-list, .card > .alert-feed, .card > .table-wrap, .card > .hot-list { flex: none; max-height: 320px; }
   .card > .spark { flex: none; height: 56px; }
