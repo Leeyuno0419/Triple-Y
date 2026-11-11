@@ -21,18 +21,23 @@ def image_to_ground(h: np.ndarray, pts: np.ndarray) -> np.ndarray:
 
 
 def build_cells(h: np.ndarray, walkable_px: list[list[float]], img_size: tuple[int, int],
-                cell_m: float = 2.0, min_area_m2: float = 1.0,
-                samples: int = 20) -> list[dict[str, object]]:
+                cell_m: float = 2.0, min_area_m2: float = 1.0, samples: int = 20,
+                origin_m: tuple[float, float] | None = None) -> list[dict[str, object]]:
     """보행 가능 영역을 덮는 셀 목록을 만든다.
 
     walkable_px는 영상 위 바닥 다각형, img_size는 (가로, 세로) 픽셀이다.
     보행 면적은 셀 안에 samples×samples 점을 찍어 다각형 안 비율로 구한다.
     면적이 min_area_m2보다 작은 자투리 셀은 뺀다. 몇 명만 있어도 밀도가 크게 튀기 때문이다.
+    origin_m은 격자 시작점(지면 m)이다. 없으면 바닥 영역을 덮도록 cell_m 배수로 내림한다.
+    영상 끝에 걸쳐 빠지는 셀이 생기면 시작점을 영상 끝에 맞춘다.
     """
     w, h_px = img_size
     poly = np.asarray(walkable_px, np.float32).reshape(-1, 1, 2)
     ground = image_to_ground(h, np.asarray(walkable_px, float))
-    x0, y0 = np.floor(ground.min(axis=0) / cell_m) * cell_m
+    if origin_m is None:
+        x0, y0 = np.floor(ground.min(axis=0) / cell_m) * cell_m
+    else:
+        x0, y0 = origin_m
     n_cols = int(np.ceil((ground[:, 0].max() - x0) / cell_m))
     n_rows = int(np.ceil((ground[:, 1].max() - y0) / cell_m))
     if n_rows > 100 or n_cols > 100:
