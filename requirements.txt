@@ -9,3 +9,4 @@ torchvision==0.29.1
 opencv-python==5.0.0.93
 torch==2.14.1
 PyYAML==6.0.3
+scipy  # ShanghaiTech .mat 라벨 읽기 (src/counting/eval_e1.py). numpy 버전에 맞는 빌드 사용

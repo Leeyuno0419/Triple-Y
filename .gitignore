@@ -43,3 +43,6 @@ web/build/
 *.log
 .env.*
 !.env.example
+
+# 외부 코드 (P2PNet 공식 저장소, 학술 용도)
+third_party/
