@@ -1,31 +1,30 @@
 import { DENSITY_LEVELS, UNOBSERVED } from '../config/density';
-import type { Dashboard } from '../lib/dashboard';
+import type { ZoneSummary } from '../lib/region';
 
-/** 단계별 구역 수 누적 막대 + 범례 */
-export function GradeDistribution({ dash }: { dash: Dashboard }) {
-  const total = Math.max(1, dash.zones.length);
+/** 단계별 셀 수 누적 막대 + 범례 */
+export function GradeDistribution({ summary }: { summary: ZoneSummary }) {
+  const total = Math.max(1, summary.totalCells);
+  const none = Math.max(0, summary.totalCells - summary.observedCells);
   return (
     <>
       <div
         className="dist-bar"
         role="img"
-        aria-label={DENSITY_LEVELS.map((l, i) => `${l.label} ${dash.zonesPerLevel[i]}곳`).join(', ')}
+        aria-label={DENSITY_LEVELS.map((l, i) => `${l.label} ${summary.levelCounts[i]}칸`).join(', ')}
       >
         {DENSITY_LEVELS.map((l, i) =>
-          dash.zonesPerLevel[i] > 0 ? (
-            <span key={l.label} style={{ width: `${(dash.zonesPerLevel[i] / total) * 100}%`, background: l.soft.dot }} />
+          summary.levelCounts[i] > 0 ? (
+            <span key={l.label} style={{ width: `${(summary.levelCounts[i] / total) * 100}%`, background: l.soft.dot }} />
           ) : null,
         )}
-        {dash.unobservedZones > 0 && (
-          <span style={{ width: `${(dash.unobservedZones / total) * 100}%`, background: UNOBSERVED.soft.dot }} />
-        )}
+        {none > 0 && <span style={{ width: `${(none / total) * 100}%`, background: UNOBSERVED.soft.dot }} />}
       </div>
       <ul className="dist-legend">
         {DENSITY_LEVELS.map((l, i) => (
           <li key={l.label}>
             <span className="swatch" style={{ background: l.soft.dot }} />
             {l.label}
-            <b>{dash.zonesPerLevel[i]}</b>
+            <b>{summary.levelCounts[i]}</b>
           </li>
         ))}
       </ul>

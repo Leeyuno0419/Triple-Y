@@ -22,7 +22,7 @@ export function Legend() {
         <span className="swatch" style={{ background: UNOBSERVED.color, opacity: 0.5 }} />
         {UNOBSERVED.label}
       </li>
-      <li title="예측 프레임은 같은 색을 반투명·점선으로 표시합니다">
+      <li title="60초 뒤 예측 값은 같은 색을 반투명·점선으로 표시합니다">
         <span className="swatch predicted" />
         예측
       </li>

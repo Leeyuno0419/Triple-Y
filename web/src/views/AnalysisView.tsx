@@ -1,49 +1,48 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { GradeBadge } from '../components/GradeBadge';
 import { CHART_COLORS } from '../config/density';
 import { EyeIcon, PulseIcon, UsersIcon, AlertIcon } from '../components/Icons';
 import { KpiCard } from '../components/KpiCard';
 import { TrendChart } from '../components/TrendChart';
-import { zoneSeries, type Dashboard } from '../lib/dashboard';
-import { matchZone } from '../lib/search';
-import type { Frame, ZoneMeta } from '../types/timeline';
+import { hotCellsFor, predictedPeakSeries, zoneSeries, type Dashboard } from '../lib/dashboard';
+import { fmtClock } from '../lib/format';
+import { levelOf } from '../lib/density';
+import type { Frame, Meta } from '../types/timeline';
 
 interface Props {
-  zones: ZoneMeta[];
+  meta: Meta | undefined;
   frames: Frame[];
-  /** 지도 뷰에서 보고 있는 프레임 위치 */
+  /** 모니터 뷰에서 보고 있는 프레임 위치 */
   index: number;
-  /** 지도 뷰의 현재 프레임 기준 요약 (구역 비교 표용) */
-  dash: Dashboard;
-  /** 앱에서 선택된 구역 (검색·다른 화면에서 고르면 따라간다) */
-  selectedZoneId: string | null;
-  /** 검색으로 걸린 구역 필터 (빈 문자열이면 전체) */
-  query: string;
+  /** 모니터 뷰의 현재 프레임 기준 요약 (관측 값) */
+  dash: Dashboard | null;
 }
 
 const MAX_HISTORY_ROWS = 12;
-const fmt = (v: number | null, d = 2) => (v === null ? '-' : v.toFixed(d));
-const hhmmss = (iso: string) => new Date(iso).toLocaleTimeString('ko-KR', { hour12: false });
+const CELL_ROWS = 10;
+const fmt = (v: number | null | undefined, d = 2) => (v === null || v === undefined ? '-' : v.toFixed(d));
 
-/** 구역별 분석: 구역 선택 → 지표 카드, 밀도 추이, 프레임 기록 표, 구역 비교 표 */
-export function AnalysisView({ zones, frames, index, dash, selectedZoneId, query }: Props) {
-  const [pickedId, setPickedId] = useState<string | null>(selectedZoneId);
-  useEffect(() => {
-    if (selectedZoneId) setPickedId(selectedZoneId);
-  }, [selectedZoneId]);
-
-  // 검색 필터: 구역 선택 알약과 구역 비교 표는 일치하는 구역만, 선택 구역도 그 안에서 고른다
-  const visibleZones = useMemo(() => zones.filter((z) => matchZone(z, query)), [zones, query]);
-  const zone = visibleZones.find((z) => z.zone_id === pickedId) ?? visibleZones[0] ?? zones[0];
-
-  const series = useMemo(() => (zone ? zoneSeries(zone, frames) : []), [zone, frames]);
-  const predictedFrom = useMemo(() => frames.findIndex((f) => f.kind === 'predicted'), [frames]);
+/** 구역 분석: 지표 카드, 밀도 추이(관측 + 예측), 프레임 기록 표, 셀 상세 표 */
+export function AnalysisView({ meta, frames, index, dash }: Props) {
+  const horizon = meta?.prediction.horizon_s ?? 60;
+  const series = useMemo(() => (meta ? zoneSeries(meta, frames) : []), [meta, frames]);
+  const predPeaks = useMemo(() => predictedPeakSeries(frames, horizon), [frames, horizon]);
   const cur = series[Math.min(index, series.length - 1)];
+  const frame = frames[index];
 
-  if (!zone) return <div className="view-scroll"><p className="empty center">분석할 구역 데이터가 없습니다.</p></div>;
+  const cells = useMemo(() => (meta ? hotCellsFor(meta, frame, 'now', null, CELL_ROWS) : []), [meta, frame]);
 
+  if (!meta || frames.length === 0) {
+    return <div className="view-scroll"><p className="empty center">분석할 데이터가 없습니다.</p></div>;
+  }
+
+  // 시간축: 관측 프레임 + 마지막 프레임 이후 horizon 초(예측만 있는 구간)
+  const n = frames.length;
+  const lastT = frames[n - 1].t;
+  const times = [...frames.map((f) => f.t), ...Array.from({ length: horizon }, (_, k) => lastT + 1 + k)];
+  const pad = <T,>(vals: T[]): Array<T | null> => [...vals, ...Array.from({ length: horizon }, () => null)];
   const rows = series
-    .map((s, i) => ({ s, i, f: frames[i] }))
+    .map((s, i) => ({ s, i, f: frames[i], pred: predPeaks[i + horizon] }))
     .slice(-MAX_HISTORY_ROWS)
     .reverse();
 
@@ -51,27 +50,14 @@ export function AnalysisView({ zones, frames, index, dash, selectedZoneId, query
     <div className="view-scroll analysis">
       <section className="hero">
         <div>
-          <h2>구역별 분석 데이터</h2>
-          <p className="hero-note">구역을 고르면 프레임별 인원·밀도 변화를 볼 수 있습니다.</p>
-        </div>
-        <div className="pill-group" role="group" aria-label="분석할 구역">
-          {visibleZones.map((z) => (
-            <button
-              key={z.zone_id}
-              type="button"
-              className={`pill${z.zone_id === zone.zone_id ? ' active' : ''}`}
-              aria-pressed={z.zone_id === zone.zone_id}
-              onClick={() => setPickedId(z.zone_id)}
-            >
-              {z.name}
-            </button>
-          ))}
+          <h2>구역 분석 데이터</h2>
+          <p className="hero-note">{meta.zone_id} · {meta.camera_id} · 영상 {meta.video_id} · 프레임별 인원·밀도 변화와 {horizon}초 예측</p>
         </div>
       </section>
 
-      <section className="kpi-row" aria-label={`${zone.name} 지표`}>
-        <KpiCard icon={<UsersIcon />} label="인원" tone="sky" value={cur?.count == null ? '-' : Math.round(cur.count).toLocaleString()} unit="명" sub="선택한 시점 기준" />
-        <KpiCard icon={<PulseIcon />} label="평균 밀도" tone="sky" value={fmt(cur?.meanDensity ?? null)} unit="명/m²" sub="관측된 칸의 평균" />
+      <section className="kpi-row" aria-label="지표">
+        <KpiCard icon={<UsersIcon />} label="추정 인원" tone="sky" value={cur?.count == null ? '-' : Math.round(cur.count).toLocaleString()} unit="명" sub="선택한 시점 기준" />
+        <KpiCard icon={<PulseIcon />} label="평균 밀도" tone="sky" value={fmt(cur?.meanDensity ?? null)} unit="명/m²" sub="면적 가중 평균" />
         <KpiCard
           icon={<AlertIcon />}
           label="최대 밀도"
@@ -80,30 +66,31 @@ export function AnalysisView({ zones, frames, index, dash, selectedZoneId, query
           chipStyle={cur?.level ? { background: cur.level.soft.bg, color: cur.level.soft.ink } : undefined}
           value={fmt(cur?.maxDensity ?? null)}
           unit="명/m²"
-          sub={<GradeBadge level={cur?.level ?? null} predicted={frames[index]?.kind === 'predicted'} />}
+          sub={<GradeBadge level={cur?.level ?? null} />}
         />
         <KpiCard
           icon={<EyeIcon />}
-          label="관측 범위"
+          label="경계 유입 비율"
           tone="teal"
-          value={cur && cur.totalCells ? String(Math.round((cur.observedCells / cur.totalCells) * 100)) : '-'}
+          value={cur?.inflowRatio == null ? '-' : String(Math.round(cur.inflowRatio * 100))}
           unit="%"
-          sub={cur ? `${cur.observedCells}/${cur.totalCells}칸` : undefined}
+          sub={dash ? `${dash.summary.observedCells}/${dash.summary.totalCells}칸 관측` : undefined}
         />
       </section>
 
       <section className="card" aria-label="밀도 추이">
         <div className="card-title">
-          <h3>밀도 추이 · {zone.name}</h3>
-          <small>세로선 = 지도에서 보고 있는 시점</small>
+          <h3>밀도 추이</h3>
+          <small>세로선 = 모니터에서 보고 있는 시점 · 점선 = {horizon}초 뒤 예측(예측 대상 시각에 표시)</small>
         </div>
         <TrendChart
-          times={frames.map((f) => f.t)}
-          predictedFrom={predictedFrom}
+          times={times}
+          futureFrom={n}
           current={index}
           series={[
-            { label: '최대 밀도', color: CHART_COLORS.max, values: series.map((s) => s.maxDensity ?? 0) },
-            { label: '평균 밀도', color: CHART_COLORS.mean, values: series.map((s) => s.meanDensity ?? 0) },
+            { label: '최대 밀도', color: CHART_COLORS.max, values: pad(series.map((s) => s.maxDensity ?? 0)) },
+            { label: '평균 밀도', color: CHART_COLORS.mean, values: pad(series.map((s) => s.meanDensity ?? 0)) },
+            { label: `${horizon}초 뒤 예측 최대`, color: CHART_COLORS.max, values: predPeaks, dashed: true },
           ]}
         />
       </section>
@@ -117,17 +104,17 @@ export function AnalysisView({ zones, frames, index, dash, selectedZoneId, query
           <div className="table-wrap">
             <table className="data-table">
               <thead>
-                <tr><th>시각</th><th>구분</th><th className="num">인원</th><th className="num">평균</th><th className="num">최대</th><th>단계</th></tr>
+                <tr><th>시각</th><th className="num">인원</th><th className="num">평균</th><th className="num">최대</th><th>단계</th><th className="num">{horizon}초 뒤</th></tr>
               </thead>
               <tbody>
-                {rows.map(({ s, i, f }) => (
-                  <tr key={f.t + f.kind + i} className={i === index ? 'current' : undefined}>
-                    <td>{hhmmss(f.t)}</td>
-                    <td>{f.kind === 'predicted' ? <span className="badge pred">예측 +{f.horizon_s ?? '?'}s</span> : <span className="badge obs">관측</span>}</td>
+                {rows.map(({ s, i, f, pred }) => (
+                  <tr key={f.t} className={i === index ? 'current' : undefined}>
+                    <td>{fmtClock(f.t)}</td>
                     <td className="num">{s.count == null ? '-' : Math.round(s.count).toLocaleString()}</td>
                     <td className="num">{fmt(s.meanDensity)}</td>
                     <td className="num">{fmt(s.maxDensity)}</td>
-                    <td><GradeBadge level={s.level} predicted={f.kind === 'predicted'} /></td>
+                    <td><GradeBadge level={s.level} /></td>
+                    <td className="num">{fmt(pred)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -135,26 +122,31 @@ export function AnalysisView({ zones, frames, index, dash, selectedZoneId, query
           </div>
         </section>
 
-        <section className="card" aria-label="구역 비교">
+        <section className="card" aria-label="셀 상세">
           <div className="card-title">
-            <h3>구역 비교</h3>
-            <small>선택한 시점 기준</small>
+            <h3>셀 상세 TOP {cells.length || ''}</h3>
+            <small>선택한 시점 · 밀도 내림차순</small>
           </div>
           <div className="table-wrap">
             <table className="data-table">
               <thead>
-                <tr><th>구역</th><th className="num">인원</th><th className="num">평균</th><th className="num">최대</th><th>단계</th></tr>
+                <tr><th>셀</th><th className="num">밀도</th><th>단계</th><th className="num">속도 m/s</th><th className="num">P</th><th className="num">{horizon}초 뒤</th></tr>
               </thead>
               <tbody>
-                {dash.zones.filter((s) => matchZone(s.zone, query)).map((s) => (
-                  <tr key={s.zone.zone_id} className={s.zone.zone_id === zone.zone_id ? 'current' : undefined}>
-                    <td>{s.zone.name}</td>
-                    <td className="num">{s.count == null ? '-' : Math.round(s.count).toLocaleString()}</td>
-                    <td className="num">{fmt(s.meanDensity)}</td>
-                    <td className="num">{fmt(s.maxDensity)}</td>
-                    <td><GradeBadge level={s.level} /></td>
-                  </tr>
-                ))}
+                {cells.map((c) => {
+                  const st = c.state;
+                  const speed = st.vx !== null && st.vy !== null ? Math.hypot(st.vx, st.vy) : null;
+                  return (
+                    <tr key={c.meta.cell_id}>
+                      <td>{c.meta.row + 1}행 {c.meta.col + 1}열</td>
+                      <td className="num">{fmt(c.value)}</td>
+                      <td><GradeBadge level={levelOf(c.value)} /></td>
+                      <td className="num">{fmt(speed)}</td>
+                      <td className="num">{fmt(st.pressure, 4)}</td>
+                      <td className="num">{fmt(st.density_pred_60s)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

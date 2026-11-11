@@ -26,9 +26,6 @@ from typing import Any, Dict, List, Optional, Tuple
 SCHEMA_VERSION: str = "0.1"
 SCHEMA_MAJOR: str = SCHEMA_VERSION.split(".")[0]
 
-# 예측 입력이 30초 미만이면(t < 29) density_pred_60s 는 null (spec 5절)
-PRED_MIN_T: int = 29
-
 # 저장 시 소수 자리수 (spec 4절 표)
 _DIGITS: Dict[str, int] = {
     "density": 2,
@@ -265,6 +262,11 @@ def validate_timeline(data: Any) -> Dict[str, Any]:
         raise ValueError("meta.duration_s({}) 와 frames 개수({}) 가 다릅니다."
                          .format(meta["duration_s"], len(data["frames"])))
 
+    hist = meta["prediction"].get("history_s") if isinstance(meta["prediction"], dict) else None
+    if not isinstance(hist, int) or isinstance(hist, bool) or hist < 1:
+        raise ValueError("meta.prediction.history_s 는 1 이상의 정수여야 합니다.")
+    pred_min_t = hist - 1
+
     ids: List[str] = []
     for c in meta["cells"]:
         cid = c.get("cell_id", "")
@@ -302,7 +304,8 @@ def validate_timeline(data: Any) -> Dict[str, Any]:
             for key in _CELL_KEYS[2:]:
                 if c[key] is not None and not _is_num(c[key]):
                     raise ValueError("t={} {}: {} 는 숫자 또는 null 입니다.".format(i, c["cell_id"], key))
-            if i < PRED_MIN_T and c["density_pred_60s"] is not None:
+            # 예측 입력이 history_s 초 미만이면(t < history_s - 1) null (spec 5절: 30초 → t < 29)
+            if i < pred_min_t and c["density_pred_60s"] is not None:
                 raise ValueError("t={} {}: t < {} 이면 density_pred_60s 는 null 입니다."
-                                 .format(i, c["cell_id"], PRED_MIN_T))
+                                 .format(i, c["cell_id"], pred_min_t))
     return data
