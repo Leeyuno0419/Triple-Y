@@ -98,9 +98,9 @@ def main() -> None:
     frames, rows = [], []
     for t in range(duration):
         dens = np.round(mean[t] / areas, 2)
-        frames.append({"t": t, "inflow_ratio": None, "cells": [
+        frames.append({"t": t, "inflow_ratio": None, "count": round(float(mean[t].sum()), 2), "cells": [
             {"cell_id": c["cell_id"], "density": float(d), "vx": None, "vy": None,
-             "speed_var": None, "pressure": None, "density_pred_60s": None}
+             "speed_var": None, "pressure": None, "counterflow": None, "density_pred_60s": None}
             for c, d in zip(cells, dens)]})
         rows.append((t, round(float(mean[t].sum()), 2), round(float(frame_total[t] / used[t]), 2)))
 

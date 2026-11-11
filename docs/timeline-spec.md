@@ -1,6 +1,8 @@
-# timeline.json 규격 (초안 v0.1)
+# timeline.json 규격 (v0.2)
 
-상태: **확정 v0.1** (11-11). AI 모듈·서버·화면은 이 규격으로 주고받는다. 8절 미결 안건과 추가 필드는 v0.2에서 반영한다. 필드 이름과 값의 기준은 `docs/proposal.md` 3.3·3.4를 따른다.
+상태: **확정 v0.2** (11-11). AI 모듈·서버·화면은 이 규격으로 주고받는다. 필드 이름과 값의 기준은 `docs/proposal.md` 3.3·3.4를 따른다.
+
+v0.1 → v0.2 변경: `frames[].count`(구역 인원)와 `cells[].counterflow`(역방향 비율) 추가, `density` 계산 방식 명시(4절), 구역 설정 파일 형식(8절), 미결 안건 결정(9절). 추가만 했으므로 v0.1 파일을 읽는 코드는 그대로 동작한다.
 
 ## 1. 기본 원칙
 
@@ -22,7 +24,7 @@ data/processed/timeline/{video_id}.json
 
 ```json
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "meta": {
     "zone_id": "zone-e04-039",
     "camera_id": "cam-e04-039",
@@ -31,7 +33,7 @@ data/processed/timeline/{video_id}.json
     "interval_s": 1,
     "cell_size_m": 2,
     "models": {
-      "counter": "p2pnet-vgg16",
+      "counter": "p2pnet-vgg16 x0.25 th0.2 avg5",
       "flow": "farneback",
       "predictor": "persistence"
     },
@@ -57,6 +59,7 @@ data/processed/timeline/{video_id}.json
     {
       "t": 120,
       "inflow_ratio": 0.42,
+      "count": 13.8,
       "cells": [
         {
           "cell_id": "c-0412",
@@ -65,6 +68,7 @@ data/processed/timeline/{video_id}.json
           "vy": -0.05,
           "speed_var": 0.006,
           "pressure": 0.0258,
+          "counterflow": 0.12,
           "density_pred_60s": 4.6
         },
         {
@@ -74,6 +78,7 @@ data/processed/timeline/{video_id}.json
           "vy": null,
           "speed_var": null,
           "pressure": 0,
+          "counterflow": null,
           "density_pred_60s": 0.2
         }
       ]
@@ -110,7 +115,8 @@ data/processed/timeline/{video_id}.json
 | 필드 | 형식 | 단위 | 담당 | 설명 |
 |---|---|---|---|---|
 | `t` | 정수 | 초 | 이유노 | 영상 시작 뒤 경과 시간. 0부터 빠짐없이 증가 |
-| `inflow_ratio` | 숫자 또는 `null` | 0~1 | 조영준 | 화각 경계에서 안쪽으로 향하는 흐름 비율. 구역 전체 값 |
+| `inflow_ratio` | 숫자 또는 `null` | 0~1 | 조영준 | 화각 경계에서 안쪽으로 향하는 흐름 비율. 구역 전체 값. 4자리 |
+| `count` | 숫자 또는 `null` | 명 | 이유노 | 구역 인원 = 셀 인원의 합. 5장 평균이라 소수(2자리). 화면 표시와 유입 경보 보완(9절 6번)에 쓴다 |
 | `cells` | 배열 | | | `meta.cells`와 같은 순서로 모든 셀을 담는다 |
 
 ### `frames[].cells[]` (초별 셀 상태)
@@ -122,13 +128,17 @@ data/processed/timeline/{video_id}.json
 | `vx`, `vy` | V | 숫자 또는 `null` | m/s | 2자리 | 조영준 |
 | `speed_var` | Var(v) | 숫자 또는 `null` | m²/s² | 4자리 | 조영준 |
 | `pressure` | P | 숫자 또는 `null` | 1/s² | 4자리 | 조영준 |
+| `counterflow` | B | 숫자 또는 `null` | 0~1 | 4자리 | 조영준 |
 | `density_pred_60s` | ρ(t+60) | 숫자 또는 `null` | 명/㎡ | 2자리 | 나예린 |
+
+- `density`: 초 `t`의 앞뒤 0.4초 안 5장(t−0.4, −0.2, 0, +0.2, +0.4초)의 셀 인원 평균 ÷ 보행 면적. 장마다 가려지는 사람이 달라 생기는 들쭉날쭉함을 줄인 값이며 E2로 검증했다(판정용 상대오차 17.7%). 이보다 긴 평활이 필요하면 쓰는 쪽(흐름·서버)에서 한다.
+- `counterflow`: 셀 평균 흐름과 반대 방향으로 움직이는 픽셀 비율. 불안정 판정(API 명세 4.3)에 쓴다. 주 흐름이 없는 셀은 `null`.
 
 ## 5. 값 규칙
 
 | 상황 | 처리 |
 |---|---|
-| 셀에 사람이 없다 | `density`와 `pressure`는 0, `vx`·`vy`·`speed_var`는 `null` |
+| 셀에 사람이 없다 | `density`와 `pressure`는 0, `vx`·`vy`·`speed_var`·`counterflow`는 `null` |
 | 예측 입력이 30초 미만이다 (`t` < 29) | `density_pred_60s`는 `null` |
 | 영상 마지막 60초다 | 예측값은 저장한다. E6 오차 계산에서만 뺀다 |
 | 아직 만들지 않은 값이다 | 필드를 지우지 않고 `null`로 둔다 |
@@ -141,7 +151,7 @@ data/processed/timeline/{video_id}.json
 | 시점 | 채우는 값 | 나머지 |
 |---|---|---|
 | 11-09~ | 모든 필드 (가짜 타임라인) | |
-| G1 (11-13) | `meta`, `t`, `density` | `null` |
+| G1 (11-13) | `meta`, `t`, `density`, `count` | `null` |
 | G2 (11-18) | 모든 필드 | |
 
 규격은 단계가 바뀌어도 그대로다. 그래서 서버와 화면은 처음부터 `null`을 처리해야 한다.
@@ -155,15 +165,33 @@ data/processed/timeline/{video_id}.json
 | 머리 좌표 | 개인정보 규칙 | 저장 안 함 |
 | 영상 파일 | 원본은 저장소에 두지 않는다 | 시연 PC |
 
-## 8. 11-09에 정할 것
+## 8. 구역 설정 파일 (`infra/homography/{video_id}.json`)
 
-| 번호 | 안건 | 초안의 선택 | 담당 |
+AI 모듈이 같이 쓰는 영상별 설정이다. 이유노가 만들고 git에 올린다. 영상 프레임은 넣지 않는다.
+
+| 키 | 내용 | 쓰는 곳 |
+|---|---|---|
+| `H_img_to_ground` | 영상 픽셀 → 바닥 좌표(m) 3×3 행렬. 바닥에 닿은 점(발, 노면)용 | 셀 생성 |
+| `head_plane.H_head_img_to_ground` | 머리 높이 평면용 행렬. 머리 점·머리 주변 픽셀을 바닥 위치(m)로 바꾼다. 바닥 행렬을 머리에 쓰면 이 카메라에서 2.4m 밀린다 | 인원 세기, **흐름 속도(m/s)** |
+| `walkable_polygon_px` | 보행 가능 영역 (영상 픽셀 다각형) | 셀 생성 |
+| `cell_origin_m` | 셀 격자 시작점 (바닥 m) | 셀 생성 |
+| `counter` | P2PNet 축소 배율·판정 기준·평균 장수 (E2로 정함) | 인원 세기 |
+| `scale_assumption`, `scale_checks` | 배율 근거와 검증값 | 기록 |
+
+- 셀 목록은 `timeline.json`의 `meta.cells`가 기준이다. 픽셀 → 셀 번호표는 `meta.cells[].image_polygon`을 채워 그려 만든다(`src/counting/cells.py`의 `cell_index_map`). 셀 밖·보행 불가 픽셀은 −1이다.
+- 행렬 두 개는 모두 영상 원본 크기(가로·세로 픽셀) 기준이다.
+
+## 9. 결정 사항 (11-11)
+
+v0.1의 미결 안건 8개를 정했다. 규격 밖 결정(서버 일정, 구역 등급 등)은 `docs/decisions-2026-11-11.md`에 있다.
+
+| 번호 | 안건 | 결정 | 담당 |
 |---|---|---|---|
-| 1 | 경계 유입 표현. 기획서에 `유입량`과 `흐름 비율`이 섞여 있고, 3.4는 셀 상태에 넣었다 | 구역 전체의 비율로 저장 | 조영준, 나예린 |
-| 2 | 비율의 약점. 경계에 사람이 적으면 몇 명만 들어와도 값이 크게 튄다 | 판정에서 보완할지 결정 | 조영준 |
-| 3 | `density`가 원시값 ρ인지 평활값 ρ*인지. 상세 문서는 P에 ρ*를 쓴다 | 평활값 하나만 저장 | 이유노, 조영준 |
-| 4 | 흐름에 머리 점이 필요한지. 상세 문서는 머리 점 주변 픽셀만 쓰고, 기획서 3.4의 입력은 `프레임 쌍 + ρ`다 | 분석 중 메모리로만 넘기고 저장 안 함 | 이유노, 조영준 |
-| 5 | 구역 ID. 영상마다 장소와 격자가 다르다 | 영상별로 `zone_id`를 따로 둔다 | 이유노 |
-| 6 | 서버 → 화면 메시지. `meta`는 접속 때 1번, `frames`는 1초마다 등급을 붙여 보낸다 | 별도 API 명세로 정한다 | 조영준, 나예린 |
-| 7 | 영상과 타임라인의 시간 맞춤. 재생이 밀리면 히트맵이 어긋난다 | 서버가 보낸 `t`에 맞춰 화면이 영상 위치를 보정 | 조영준, 나예린 |
-| 8 | 예측을 셀별로 할지 구역별로 할지. 셀별 값은 변동이 커서 오차가 커질 수 있다 | 셀별 (기획서 3.4) | 나예린 |
+| 1 | 경계 유입 표현 | 구역 전체의 비율 `inflow_ratio` 하나로 저장 | 조영준 |
+| 2 | 비율의 약점 (경계에 사람이 적으면 튐) | 서버에서 보완: 최근 5초 평균 + 구역 인원 `count`가 3명 미만이면 유입 경보를 켜지 않음 | 조영준 |
+| 3 | `density`가 원시값인지 평활값인지 | 1초 앞뒤 0.4초 5장 평균을 `density` 하나로 저장 (4절) | 이유노 |
+| 4 | 흐름에 머리 점이 필요한지 | 저장하지 않는다. 흐름은 머리 점 주변 픽셀만 쓰고, 통합 분석 스크립트가 같은 프로세스 안에서 메모리로 넘긴다 | 이유노, 조영준 |
+| 5 | 구역 ID | 영상별로 둔다 (`zone-e04-039`) | 이유노 |
+| 6 | 서버 → 화면 메시지 | `docs/api-spec.md` v0.1로 정함 (`hello`, `zone_state`, `alert`) | 조영준, 나예린 |
+| 7 | 영상과 타임라인 시간 맞춤 | `docs/api-spec.md` 6절: 1초 넘게 어긋나면 화면이 영상 위치를 `t`로 맞춤 | 나예린 |
+| 8 | 예측 단위 | 셀별과 구역별(구역 인원)을 모두 계산해 E6에서 비교한다. 파일에는 셀별 `density_pred_60s`만 저장 | 나예린 |
