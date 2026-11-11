@@ -39,7 +39,13 @@
   --brand-pink: #e5779a;
   --brand-orange: #eba25f;
   --brand-green: #55c2a2;
-  --brand-gradient: linear-gradient(90deg, var(--brand-pink) 0%, var(--brand-orange) 52%, var(--brand-green) 100%);   /* 영문 제목 · 활성 탭 글씨/아이콘 */
+  --brand-gradient: linear-gradient(90deg, var(--brand-pink) 0%, var(--brand-orange) 52%, var(--brand-green) 100%);   /* 탭 hover 글씨/아이콘 (파스텔) */
+  /* 헤더 영문 제목 전용: 로고(public/icons/triple-y-logo.png)에서 뽑은 선명한 색. 로고처럼 크림슨 → 오렌지 → 그린 → 민트 */
+  --logo-red: #ea2b41;
+  --logo-orange: #f9870a;
+  --logo-green: #38cf68;
+  --logo-teal: #1fb98f;
+  --title-gradient: linear-gradient(90deg, var(--logo-red) 0%, var(--logo-orange) 42%, var(--logo-green) 76%, var(--logo-teal) 100%);
   --r: 12px;
   --r-lg: 16px;
   --gap: 12px;
@@ -96,11 +102,11 @@ h1, h2, h3, p { margin: 0; }
 .live-clock { font-size: 0.74rem; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap; }
 .live-clock b { font-weight: 600; color: var(--ink); }
 .brand-logo { display: block; flex: none; height: 24px; width: auto; }   /* 투명 배경 PNG */
-/* 영문 제목: 로고의 핑크 → 오렌지 → 민트를 톤다운한 그라데이션 텍스트 */
+/* 영문 제목: 로고와 같은 선명한 크림슨 → 오렌지 → 그린 그라데이션을 글자에만 채운다 (background-clip: text) */
 .nav-title {
-  margin: 0; min-width: 0; font-size: 0.98rem; font-weight: 700; letter-spacing: -0.01em;
+  margin: 0; min-width: 0; font-size: 0.98rem; font-weight: 800; letter-spacing: -0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  background: var(--brand-gradient);
+  background: var(--title-gradient);
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; color: transparent;
 }
