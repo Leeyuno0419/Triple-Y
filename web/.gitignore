@@ -1,0 +1,10 @@
+node_modules
+dist
+dev-dist
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+
+# 개발용 샘플 timeline (python -m src.predict.run 으로 생성, 커밋/배포 금지)
+public/timeline.json
