@@ -70,7 +70,23 @@ Triple Y/
 ## 코드 컨벤션
 - PEP 8 준수. 함수·변수는 `snake_case`, 클래스는 `PascalCase`.
 - 모든 함수에 타입힌트를 쓰고, 기능 설명 docstring(한국어)을 붙인다.
-- `server/`(Java)·`web/`(JavaScript) 규칙은 각 담당자가 개발을 시작할 때 정해 이 절에 추가한다.
+- `web/`(JavaScript) 규칙은 담당자가 개발을 시작할 때 정해 이 절에 추가한다.
+
+### `server/` (Java)
+| 항목 | 규칙 |
+|---|---|
+| 버전 | Java 21, Spring Boot 4.1.2, Gradle 9.8.2 wrapper (Groovy). 라이브러리 버전은 Boot 의존성 관리에 맡기고 직접 적지 않는다 |
+| 형식 | 공백 4칸(yml 2칸), 줄 120자, LF. `server/.editorconfig`를 따른다 |
+| 이름 | 클래스 `PascalCase`, 메서드·필드 `camelCase`, 상수 `UPPER_SNAKE`, 패키지 소문자 한 단어 |
+| 주석 | 공개 클래스·메서드에 한국어 Javadoc. 식별자는 영어 |
+| 주입 | 생성자 주입만. Lombok은 `@RequiredArgsConstructor`, `@Slf4j`만 쓴다 |
+| DTO | `record`. 상태가 있는 클래스는 `final`로 두고 스레드 규칙을 Javadoc에 적는다 |
+| null | 없을 수 있는 숫자는 `Double`. `Optional`은 반환형에만 쓴다 |
+| JSON | 키는 `snake_case` (전역 `SNAKE_CASE`). Jackson 3: `tools.jackson.databind.*`, 어노테이션은 `com.fasterxml.jackson.annotation.*` |
+| 설정 | 기준값·시간·경로는 `application.yml`의 `crowdsight.*`와 `CrowdsightProperties` 한 곳에만 둔다 |
+| 시간 | `Clock`을 주입한다. `Instant.now()`, `System.currentTimeMillis()` 금지. 경과 시간만 `System.nanoTime()` |
+| 예외·로그 | unchecked 예외 + 한국어 메시지. SLF4J, 한국어 메시지, `zone=`·`t=` 키 |
+| 테스트 | JUnit Jupiter 6 + AssertJ. 단위 `XxxTest`, 통합 `XxxIntegrationTest`. 메서드는 영어 camelCase + `@DisplayName("한국어")` |
 
 ## 데이터·AI 규칙
 - 비밀키·API 키는 `.env`에만 두고 코드에 직접 쓰지 않는다. `.env`, `data/`는 git에 올리지 않는다.

@@ -32,6 +32,7 @@ Thumbs.db
 server/build/
 server/.gradle/
 server/out/
+server/logs/
 *.class
 
 # 화면 (React)
