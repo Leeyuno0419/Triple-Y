@@ -41,4 +41,13 @@ class TimelineStartupIntegrationTest {
                 .rootCause()
                 .hasMessageContaining("crowdsight.replay.interval-ms");
     }
+
+    @Test
+    @DisplayName("밀도 기준 순서가 틀리면 시작하지 않는다")
+    void failsOnUnorderedDensityThresholds() {
+        assertThatThrownBy(() -> run("--crowdsight.timeline-dir=src/test/resources/timeline",
+                "--crowdsight.timeline-files=valid_v02.json", "--crowdsight.grade.density.alert=3.0"))
+                .rootCause()
+                .hasMessageContaining("caution < alert < critical");
+    }
 }

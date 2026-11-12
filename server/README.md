@@ -52,7 +52,7 @@ python -m src.predict.run --input data/processed/timeline/fake_E04_039.json `
 ./gradlew bootRun --args='--crowdsight.timeline-files=fake_E04_039.json --logging.level.com.tripley.crowdsight.replay=DEBUG'
 ```
 - 예측 파일은 `--crowdsight.timeline-files=fake_E04_039.pred.json`으로 지정한다.
-- DEBUG를 켜면 `재생 zone=zone-e04-039 t=…`가 1초마다 찍힌다.
+- DEBUG를 켜면 `재생 zone=zone-e04-039 t=… grade=… max_density=…`가 1초마다 찍힌다. 시작 로그 `판정 대상 셀=n/m`으로 2㎡ 기준에 빠진 셀 수를 확인한다.
 - 끝낼 때는 Ctrl+C. 8080이 남아 있으면 `netstat -ano | findstr :8080`으로 PID를 찾아 `taskkill /PID <pid> /F`.
 - 테스트(`gradlew build`)는 `src/test/resources/timeline/valid_v02.json`을 쓰므로 실제 데이터가 필요 없다.
 
