@@ -29,7 +29,7 @@ class ReplaySchedulerIntegrationTest {
     @DisplayName("설정한 fixture 구역을 등록한다")
     void loadsFixtureZone() {
         assertThat(registry.all()).hasSize(1);
-        ZonePlayer player = registry.all().get(0);
+        ZonePlayer player = registry.all().get(0).player();
         assertThat(player.zoneId()).isEqualTo("zone-test");
         assertThat(player.timeline().source().isAbsolute()).isTrue();
         assertThat(player.timeline().source().toString()).endsWith("valid_v02.json");
@@ -39,7 +39,7 @@ class ReplaySchedulerIntegrationTest {
     @DisplayName("컨텍스트가 뜨면 재생이 저절로 시작된다")
     void advancesOnSchedule() {
         assertThat(scheduler.isRunning()).isTrue();
-        ZonePlayer player = registry.all().get(0);
+        ZonePlayer player = registry.all().get(0).player();
         Set<Integer> seen = ConcurrentHashMap.newKeySet();
 
         await().pollInterval(Duration.ofMillis(10)).atMost(Duration.ofSeconds(2)).until(() -> {

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import com.tripley.crowdsight.config.CrowdsightProperties;
+import com.tripley.crowdsight.config.TestProperties;
 
 @SpringBootTest(properties = {
         "crowdsight.timeline-dir=src/test/resources/timeline",
@@ -30,4 +31,9 @@ class CrowdsightServerApplicationIntegrationTest {
         assertThat(props.replay().loop()).isTrue();
     }
 
+    @Test
+    @DisplayName("application.yml의 등급 기본값을 읽는다")
+    void bindsDefaultGradeSettings() {
+        assertThat(props.grade()).isEqualTo(TestProperties.GRADE);
+    }
 }

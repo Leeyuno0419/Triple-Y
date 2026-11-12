@@ -21,11 +21,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import com.tripley.crowdsight.config.TestProperties;
+import com.tripley.crowdsight.grade.ZoneGrader;
 
 class ReplaySchedulerTest {
 
     private ThreadPoolTaskScheduler scheduler;
     private ReplayScheduler replay;
+
+    /** 셀 없는 판정기로 감싼다. mock 플레이어에는 timeline이 없고 timelineOf의 셀도 비어 있다. */
+    private static ZoneRuntime runtime(ZonePlayer player) {
+        return new ZoneRuntime(player, new ZoneGrader(List.of(), TestProperties.GRADE));
+    }
 
     @BeforeEach
     void setUp() {
@@ -49,9 +55,9 @@ class ReplaySchedulerTest {
         ZonePlayer a = mock(ZonePlayer.class);
         when(a.tick()).thenThrow(new IllegalStateException("시험"));
         when(a.zoneId()).thenReturn("zone-a");
-        ZonePlayer b = new ZonePlayer(timelineOf(5), true);
+        ZoneRuntime b = runtime(new ZonePlayer(timelineOf(5), true));
         ZoneRegistry registry = mock(ZoneRegistry.class);
-        when(registry.all()).thenReturn(List.of(a, b));
+        when(registry.all()).thenReturn(List.of(runtime(a), b));
         replay = new ReplayScheduler(registry, scheduler, TestProperties.replay(1000, true));
 
         assertThatCode(() -> {
@@ -59,7 +65,7 @@ class ReplaySchedulerTest {
             replay.tickAll();
         }).doesNotThrowAnyException();
 
-        assertThat(b.snapshot().t()).isEqualTo(1);
+        assertThat(b.player().snapshot().t()).isEqualTo(1);
         verify(a, times(2)).tick();
     }
 
@@ -74,7 +80,7 @@ class ReplaySchedulerTest {
         });
         when(player.pollStateChange()).thenReturn(Optional.empty());
         ZoneRegistry registry = mock(ZoneRegistry.class);
-        when(registry.all()).thenReturn(List.of(player));
+        when(registry.all()).thenReturn(List.of(runtime(player)));
         replay = new ReplayScheduler(registry, scheduler, TestProperties.replay(20, true));
 
         replay.start();
