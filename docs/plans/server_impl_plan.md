@@ -55,8 +55,8 @@ com.tripley.crowdsight
 ├─ config/    CrowdsightProperties, WebSocketConfig, ClockConfig, ReplaySchedulerConfig, CorsConfig
 ├─ timeline/  ZoneTimeline, Meta, CellMeta, Models, Prediction, Frame, CellState,
 │             TimelineLoader, TimelineValidator, InvalidTimelineException
-├─ replay/    ZonePlayer, PlaybackState, PlaybackSnapshot, Tick, ZoneRuntime, ZoneRegistry, ReplayScheduler
-├─ grade/     Grade, GradeRule, GradeSettings, GradeHysteresis, ZoneGrader, CellEvaluation, ZoneEvaluation,
+├─ replay/    ZonePlayer, PlaybackState, PlaybackSnapshot, Tick, ZoneStep, ZoneRuntime, ZoneRegistry, ReplayScheduler
+├─ grade/     Grade, DensityThresholds, GradeRule, GradeSettings, GradeHysteresis, ZoneGrader, CellEvaluation, ZoneEvaluation,
 │             InstabilityTracker, InflowMonitor                              (Spring 의존 없음)
 ├─ alert/     Alert, AlertReason, AlertDetector, AlertIdGenerator, AlertStore, AlertLogWriter, AlertController
 ├─ ws/        ZoneWebSocketHandler, ZoneSessions, MessageFactory, FrameTimestamps,
@@ -70,9 +70,10 @@ com.tripley.crowdsight
 ```text
 ReplayScheduler.tickAll()                                ← scheduleAtFixedRate(interval-ms)
   └─ for each ZoneRuntime (구역마다 try/catch)
-       ZonePlayer.tick()        → Tick(frame, discontinuity) 또는 없음(일시정지·끝)
-       discontinuity이면 ZoneGrader.reset(), AlertDetector.reset()
-       ZoneGrader.evaluate(frame) → ZoneEvaluation                         (S2, S4)
+       ZoneRuntime.tick()       → ZoneStep(tick, evaluation) 또는 없음(일시정지·끝)
+         ZonePlayer.tick()      → Tick(frame, discontinuity, wrapped)
+         discontinuity이면 ZoneGrader.reset() (S5부터 AlertDetector.reset()도)
+         ZoneGrader.evaluate(frame) → ZoneEvaluation                       (S2, S4)
        AlertDetector.detect(eval) → List<Alert>                           (S5)
        MessageFactory → [playback?] → zone_state → alert…                 (S3, S5)
        ZoneSessions.broadcast(zoneId, json)  JSON 문자열은 한 번만 만든다
@@ -187,37 +188,13 @@ public class ReplayScheduler implements SmartLifecycle {
     public void start(); public void stop(); public boolean isRunning();
 }
 ```
-- `ReplaySchedulerConfig`: `ThreadPoolTaskScheduler` poolSize 2 (재생 1, ping 1), 이름 `replay-`.
+- `ReplaySchedulerConfig`: `ThreadPoolTaskScheduler` poolSize S1 1, S3 2 (재생 1, ping 1), 이름 `replay-`.
+- 서버 추가 검증 규칙 (`schema.py`·`validate.ts`보다 엄격, S1 계획 4.3절): `schema_version` 문자열만, `zone_id`·`camera_id`·`video_id` 비지 않은 문자열, `interval_s` == 1, `cell_size_m` > 0, `models` 객체, `duration_s`·`horizon_s`·`row`·`col`·`t`는 JSON 정수만(1.0 거부), `frames` 1개 이상.
 - S1에서 `tickAll`은 `zone=... t=...` DEBUG 로그만.
 
 fixture: `server/src/test/resources/timeline/valid_v02.json` 하나. 오류 사례는 테스트 안에서 `ObjectNode`로 고친다. `zone_id` "zone-test", `duration_s` 5, `history_s` 2, 셀 `c-0000`(4.0), `c-0001`(4.0), `c-0102`(1.5). `schema_version` "0.2"이므로 모든 프레임에 `count`, 모든 셀에 `counterflow` 키를 넣는다(값 null 가능).
 
-| 테스트 | 입력 | 기대 |
-|---|---|---|
-| `TimelineLoaderTest.loadsValidV02` | fixture | zoneId "zone-test", 셀 3, 프레임 5, `frames[2].cells[1].vx()` null, `frames[0].count()` 6.5 |
-| `loadsV01WithoutCountAndCounterflow` | 두 키 삭제, "0.1" | 통과, 둘 다 null |
-| `rejectsMissingCountV02` | "0.2", `frames[1]`의 `count` 키 삭제 | `count 필드가 없습니다` |
-| `rejectsMissingCounterflowV02` | "0.2", t=1 `c-0000`의 `counterflow` 키 삭제 | `counterflow 필드가 없습니다` |
-| `loadsV02WithNullCountAndCounterflow` | "0.2", t=1 `count`·`counterflow` null | 통과, 둘 다 null |
-| `rejectsCounterflowOutOfRange` | t=1 `c-0000` `counterflow` 1.2 | `counterflow` |
-| `rejectsNegativeCount` | t=1 `count` −1 | `count` |
-| `ignoresUnknownKeys` | `meta.foo`=1 | 통과, `metaJson`에 `foo` |
-| `rejectsMajorVersion` | "1.0" | 메시지에 `schema_version` |
-| `rejectsDurationMismatch` | `duration_s` 6 | `duration_s(6)` |
-| `rejectsGapInT` | `frames[3].t`=4 | `frames[3].t` |
-| `rejectsCellOrder` | t=2 셀 0·1 교환 | `t=2` |
-| `rejectsNullDensity` | t=1 `c-0000` density null | `density` |
-| `rejectsMissingVxKey` | `vx` 키 삭제 | `vx 필드가 없습니다` |
-| `rejectsEarlyPrediction` | t=0 pred 1.0 | `t < 1` |
-| `rejectsInflowOutOfRange` | 1.2 | `inflow_ratio` |
-| `rejectsCellIdRowMismatch` | `c-0102`에 col 3 | `row/col` |
-| `rejectsInterval2` | `interval_s` 2 | `interval_s` |
-| `rejectsDuplicateZone` | 같은 파일 2번 | `zone_id` 중복 |
-| `ZonePlayerTest.loops` | duration 3, loop, tick 7 | t [0,1,2,0,1,2,0], 4번째 wrapped·discontinuity, 1번째 discontinuity |
-| `ZonePlayerTest.endsWithoutLoop` | loop=false, tick 5 | 4·5번째 빈 값, ENDED, `pollStateChange()` 1번만 |
-| `ReplaySchedulerTest.survivesZoneException` | A 예외, B 정상, `tickAll()` 2번 | B 2번 진행 |
-| `ReplaySchedulerTest.ticksOnSchedule` | `interval-ms`=20 | Awaitility 2초 안 tick ≥ 5 |
-| `CrowdsightPropertiesTest` | `interval-ms`=0 | 바인딩 예외 |
+테스트 상세는 `docs/plans/server_s1_timeline_replay_plan.md` 6장.
 
 ### S2. 등급 판정 (`feat/server-grade`)
 ```java
@@ -227,9 +204,9 @@ public enum Grade {
     public Grade lower();                  // 한 단계 아래. NORMAL은 그대로
     public static Grade max(Grade a, Grade b);
 }
-public record DensityThresholds(double caution, double alert, double critical) {}  // caution < alert < critical
-public record GradeSettings(DensityThresholds density, int upSeconds, int downSeconds,
-                            double minWalkableAreaM2, double pressure, int instabilitySeconds) {}
+public record DensityThresholds(double caution, double alert, double critical) {}  // 0 < caution < alert < critical
+public record GradeSettings(DensityThresholds density, int upSeconds, int downSeconds, double minWalkableAreaM2) {}
+// 불안정 설정(pressure·seconds)은 S4가 crowdsight.instability.* 별도 record로 추가
 
 public final class GradeRule {
     /** 밀도 → 조건 등급. 기준값 이상이면 그 등급 (3.0 → CAUTION). */
@@ -252,16 +229,25 @@ public final class GradeHysteresis {
 }
 ```
 - `ArrayDeque<Grade> recent`, 최대 `max(up, down)`. `lastN(n)`은 크기 ≥ n일 때만. 올림 먼저, 안 올렸을 때만 내림. 올린 뒤 기록 비우지 않음.
+- 올림·내림은 동시에 참일 수 없다 (둘 다 최신 관측을 포함). 현재와 같은 등급의 관측은 올림·내림 연속을 모두 끊는다.
+- `CrowdsightProperties.grade`는 `GradeSettings`를 직접 바인딩한다. 검사는 `DensityThresholds`(0 < caution < alert < critical)·`GradeSettings`(초 ≥ 1, 면적 ≥ 0)가 한다.
 ```java
-public record CellEvaluation(String cellId, Grade grade, Grade gradePred60s, boolean unstable,
-                             boolean eligible, CellState state) {}
-public record ZoneEvaluation(int t, Grade zoneGrade, Double maxDensity, List<CellEvaluation> cells,
-                             Double inflowRatio, Double count, boolean inflowAlert /* S4 전까지 false */,
-                             Double inflowAvg /* S4 */) {}
+public record CellEvaluation(String cellId, Grade grade, Grade gradePred60s, boolean eligible,
+                             CellState state) {}                       // unstable은 S4
+public record ZoneEvaluation(int t, Grade zoneGrade, Double maxDensity, List<CellEvaluation> cells) {}
+// inflowRatio·count는 S3가 Tick.frame()에서 읽고, inflowAlert·inflowAvg는 S4에서 더한다
 public final class ZoneGrader {
     public ZoneGrader(List<CellMeta> cells, GradeSettings settings);
-    public ZoneEvaluation evaluate(Frame frame);
+    public int eligibleCount();
+    public ZoneEvaluation evaluate(Frame frame);   // 셀 수·ID를 갱신 전에 검사, 다르면 IllegalArgumentException
     public void reset();
+}
+public record ZoneStep(Tick tick, ZoneEvaluation evaluation) {}
+public final class ZoneRuntime {
+    public ZoneRuntime(ZonePlayer player, ZoneGrader grader);
+    public String zoneId();
+    public ZonePlayer player();
+    public Optional<ZoneStep> tick();             // discontinuity면 grader.reset() 뒤 evaluate
 }
 ```
 - 판정 대상(`eligible`) = `walkable_area_m2 >= 2.0` (결정 4). 구역 등급 = 대상 셀 히스테리시스 등급 최댓값, 없으면 NORMAL. `maxDensity` = 대상 셀 최대 밀도, 없으면 null.
@@ -289,6 +275,8 @@ public final class ZoneGrader {
 | `noEligibleCells` | 모두 1.5㎡ | 구역 N, max null |
 | `orderPreserved` | 셀 3 | meta 순서 |
 | `ZoneRuntimeTest.resetOnWrap` | duration 3, 매 초 4.5, loop | t1 A, t2 A, (반복) t0 N, t1 A |
+
+상세는 `docs/plans/server_s2_grade_plan.md` 6장.
 
 ### S3. WebSocket `hello`, `zone_state` (`feat/server-ws-zone-state`)
 ```java
@@ -386,6 +374,7 @@ public record InflowStatus(Double average, boolean on) {}
 - 끄는 연속에는 평균 null·`count < 3`·`count` null인 초도 포함 (가정). `counterflow`는 판정에 안 씀 `[토론]` (흐름 모듈이 쓰지 않아 실제 파일은 늘 null).
 - `pressure` null(셀 머리 부족, 흐름 창이 덜 찬 첫 구간)은 불안정 연속을 끊는다. 규칙은 유지하고 실제 데이터의 끊김 빈도를 E5 때 확인한다 `[토론]`.
 - `CrowdsightProperties`: `1 ≤ min-samples ≤ window-seconds` 검사.
+- `ZoneGrader` 생성자에 불안정 설정을 추가하고, `CellEvaluation.unstable`·`ZoneEvaluation.inflowAvg`·`inflowAlert`를 더한다.
 
 | 테스트 | 입력 | 기대 |
 |---|---|---|
@@ -481,9 +470,9 @@ server:
   port: 8080
 
 crowdsight:
-  timeline-dir: ../data/processed/timeline   # bootRun 작업 폴더가 server/. 환경변수 CROWDSIGHT_TIMELINE_DIR로 바꿈
+  timeline-dir: ../data/processed/timeline   # bootRun 작업 폴더가 server/. 환경변수 CROWDSIGHT_TIMELINEDIR로 바꿈
   timeline-files: [E04_039.json]
-  time-zone: Asia/Seoul
+  time-zone: Asia/Seoul                      # (S3)
   replay:
     interval-ms: 1000
     loop: true
@@ -508,7 +497,7 @@ crowdsight:
   alert-log: logs/alerts.jsonl               # server/logs/, git 제외
   cors-origin-patterns: ["http://localhost:*", "http://127.0.0.1:*"]
 ```
-- `CrowdsightProperties`: `@ConfigurationProperties("crowdsight")` 중첩 record, compact constructor 검사 (`caution < alert < critical`, 초 ≥ 1, `interval-ms` > 0, `1 ≤ inflow.min-samples ≤ inflow.window-seconds`). validation 스타터 안 씀.
+- `CrowdsightProperties`: `@ConfigurationProperties("crowdsight")` 중첩 record, compact constructor 검사 (`DensityThresholds`(0 < caution < alert < critical), 초 ≥ 1, `interval-ms` > 0, `1 ≤ inflow.min-samples ≤ inflow.window-seconds`). validation 스타터 안 씀. `timeline-dir`은 `String`(PathEditor 회피).
 - 시작 시 타임라인 폴더 절대 경로 INFO. 파일 없으면 경로 넣어 시작 실패.
 - 테스트는 `@SpringBootTest(properties = ...)`. `src/test/resources/application.yml`은 만들지 않음.
 
@@ -517,7 +506,7 @@ crowdsight:
 |---|---|
 | 재생 시계 | `scheduleAtFixedRate(Duration.ofMillis(interval))`. 주기 작업은 자기와 겹치지 않아 판정 상태는 스레드 1개 |
 | 테스트 시간 | `tickAll()`·`ZoneRuntime.tick()` 직접 호출, `Clock.fixed`. 실제 스케줄러는 20 ms 테스트 1개 |
-| 예외 | `ScheduledExecutorService`는 예외 한 번에 이후 실행을 멈춤 → 구역마다 try/catch |
+| 예외 | Spring `ThreadPoolTaskScheduler`는 반복 작업 예외를 로그 후 계속한다(jar 확인). 구역마다 try/catch는 같은 tick의 다른 구역을 지키기 위해서다 |
 | 세션 | `ConcurrentHashMap<String, Set<WebSocketSession>>` + 데코레이터. JSON은 tick당 한 번 |
 | 느린 화면 | Tomcat 전송 제한 2초를 넘으면 그 세션만 닫고, 재접속 시 hello로 복구 (결정 1). 최악은 그 tick +2초 |
 | ping | 두 번째 스레드, 30초 |
@@ -527,7 +516,7 @@ crowdsight:
 ## 6. null 처리
 | 필드 | 서버 처리 |
 |---|---|
-| `density` | null이면 파일 거부. 히스테리시스는 null 관측 건너뛰기(방어용) `[토론]` |
+| `density` | null이면 파일 거부. 히스테리시스는 null 관측 건너뛰기(방어용), `max_density` 계산에서도 뺀다 `[토론]` |
 | `pressure` | null이면 불안정 연속 0. 흐름 출력은 셀 머리 수가 적으면 null이라 연속이 끊길 수 있다. 빈도는 E5 때 확인 `[토론]` |
 | `density_pred_60s` | null이면 `grade_pred_60s` null |
 | `vx`, `vy`, `speed_var`, `counterflow` | 판정 안 씀, null 그대로 전달 (`counterflow`는 흐름 모듈이 쓰지 않아 실제 파일에서 늘 null) |
@@ -572,7 +561,7 @@ crowdsight:
 | 위험 | 대응 |
 |---|---|
 | Boot 4·Jackson 3 예제 부족 | jar로 확인한 API만, import 규칙 |
-| 스케줄러가 예외 한 번에 멈춤 | 구역별 try/catch + 테스트 |
+| 구역 하나의 예외가 같은 tick의 다른 구역을 막음 | 구역별 try/catch + `survivesZoneException` |
 | 상대 경로가 실행 위치마다 다름 | 절대 경로 로그, 없으면 시작 실패, 환경변수 |
 | 화면이 11-13까지 새 형식 못 받음 | S3를 11-12에, 출력 예시 전달 |
 | 실제 E04_039 타임라인 늦음 | `fake_timeline.py` 파일 지정 |
@@ -580,6 +569,7 @@ crowdsight:
 | 불안정이 INSTABILITY(t2)와 GRADE_UP/CRITICAL(t3) 둘 다 만듦 | 명세대로 둘 다, 줄일지 `[토론]` |
 | E8에 히스테리시스 지연 포함 여부 | 밀도 +1초, 불안정 +3초, 넣어도 5초 이내. 측정 기준 이유노와 |
 | 작업 폴더에 flow 수정분 | S0은 `server/`·`.gitignore`만 stage |
+| `Executor` 빈 → `applicationTaskExecutor` 생략 | `ThreadPoolTaskScheduler` 빈이 `Executor`라 Boot가 만들지 않는다. 지금은 `@Async`·MVC 비동기가 없어 영향 없음. 쓰게 되면 `spring.task.execution.mode: force` 또는 전용 실행기 |
 
 ### 가정
 - 서버 시작 시 모든 구역 t=0부터 재생. 재생 상태는 구역당 하나.
