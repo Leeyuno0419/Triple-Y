@@ -7,4 +7,10 @@ spring:
 server:
   port: 8080
 
-# crowdsight.* 설정은 그 값을 읽는 클래스와 같은 PR에서 추가한다 (S1: timeline·replay, S3: ws·cors ...)
+# crowdsight.* 설정은 그 값을 읽는 클래스와 같은 PR에서 추가한다 (S2: grade, S3: time-zone·ws·cors ...)
+crowdsight:
+  timeline-dir: ../data/processed/timeline   # 작업 폴더(bootRun·test는 server/) 기준. 시작 로그에 절대 경로가 찍힌다
+  timeline-files: [E04_039.json]             # 파일당 구역 1개. 가짜는 --crowdsight.timeline-files=fake_E04_039.json
+  replay:
+    interval-ms: 1000                        # 1초 = 타임라인 1칸 (interval_s 1)
+    loop: true                               # 끝에서 처음으로 (E8 30분 반복)
