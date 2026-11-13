@@ -247,14 +247,42 @@ class ZoneSessionsTest {
                     }
                 });
 
-                fresh.join("zone-test", raw, "hello");
-                joined.set(true);
+                try {
+                    fresh.join("zone-test", raw, "hello");
+                } finally {
+                    joined.set(true);                       // join이 던져도 leave 스레드를 끝낸다
+                }
                 leaving.get(2, TimeUnit.SECONDS);
 
                 assertThat(fresh.sessionCount()).as("반복 %d", i).isZero();
             }
         } finally {
             closer.shutdownNow();
+        }
+    }
+
+    @Test
+    @DisplayName("join의 열림 검사 직전에 leave가 끼어도 끊김 로그는 한 번이다")
+    void leaveBetweenAddAndOpenCheckLogsOnce() {
+        WebSocketSession a = session("a");
+        doAnswer(invocation -> {
+            sessions.leave(a);                          // J2 뒤·J3 판정 앞에 leave 전체가 들어간다
+            return false;
+        }).when(a).isOpen();
+        Logger logger = (Logger) LoggerFactory.getLogger(ZoneSessions.class);
+        ListAppender<ILoggingEvent> logs = new ListAppender<>();
+        logs.start();
+        logger.addAppender(logs);
+        try {
+            sessions.join("zone-test", a, "hello");
+
+            assertThat(logs.list)
+                    .filteredOn(e -> e.getLevel() == Level.INFO
+                            && e.getFormattedMessage().startsWith("화면 접속 끊김"))
+                    .hasSize(1);
+            assertThat(sessions.sessionCount()).isZero();
+        } finally {
+            logger.detachAppender(logs);
         }
     }
 

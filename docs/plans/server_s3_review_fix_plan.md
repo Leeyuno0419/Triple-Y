@@ -235,3 +235,126 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 | `drop`에서 `leave`가 먼저 뺀 세션은 닫지 않는다 | `leave`는 닫힘·전송 오류 때만 불린다. 그 세션은 Tomcat이 닫는 중이다 |
 | `ListAppender`가 logback 구현에 의존한다 | Boot 기본 로깅이 logback이다. 로깅 구현을 바꾸면 이 테스트도 고친다 |
 | `final` 빈에 나중에 AOP가 붙으면 CGLIB 프록시가 실패한다 | 지금은 AOP가 없다. 붙일 때 `final`을 다시 검토한다 |
+
+## 2차 리뷰 반영 (2026-11-13)
+
+| 항목 | 내용 |
+|---|---|
+| 기준 | PR #47 2차 리뷰 2건 (minor 1, nit 1), HEAD `6a2be4c` |
+| 대상 | `server/src/main/java/com/tripley/crowdsight/ws/ZoneSessions.java`, `server/src/test/java/com/tripley/crowdsight/ws/ZoneSessionsTest.java` |
+| 범위 | (A) 경쟁 테스트의 `leave` 스레드가 `join` 예외 때 끝나지 않는 문제, (B) `join` J3 분기에서 "화면 접속 끊김" INFO가 두 번 나는 문제. **동작·메시지·설정 변경 없음** |
+
+### 7.0 확인한 사실 (코드로 확인)
+- `ZoneSessionsTest.leaveRacingJoinLeavesNoSession` (236-259행): `leave` 루프는 `while (!joined.get())`만 본다. `joined.set(true)`(251)는 `fresh.join(...)`(250) 다음 줄이다. `join`이 던지면 `joined`가 영영 거짓이다. 루프는 인터럽트를 보지 않아 `closer.shutdownNow()`(257)로 멈추지 않는다. `newSingleThreadExecutor`의 스레드는 데몬이 아니다. 매 반복 `raw.getId()` 호출이 mock 호출 목록에 쌓인다.
+- `join`이 던질 수 있는 곳: `TestProperties`·mock 설정 실수, 뒤에 `join`을 고치다 생긴 버그. 지금 Green에서는 안 생긴다. 실패할 때만 드러나는 문제다.
+- `join`(52-74행)에서 raw의 `isOpen()`을 부르는 곳은 67행(J3) 하나다. `setBlockingSendTimeout`은 `getId()`·`getClass()`만, 데코레이터 `sendMessage`는 raw `sendMessage`만 부른다. `leave`·`sessionCount`도 `isOpen()`을 부르지 않는다. 그래서 `isOpen()` 답 안에서 `leave`를 부르면 **J2 뒤·J3 판정 앞**에 `leave` 전체가 들어간다(결정적).
+- 지금 코드에서 그 순서면: `leave`가 두 맵에서 빼고 "끊김" INFO → J3 분기가 `targets.remove`·`bySessionId.remove(id, member)`(둘 다 false) 뒤 또 "끊김" INFO. **2줄**.
+- `leave`는 `bySessionId.remove(id)`로 Member를 얻었을 때만 로그를 남긴다(78-87행).
+
+### 7.1 결정
+| # | 항목 | 결정 | 이유 |
+|---|---|---|---|
+| A | 경쟁 테스트 스레드 | `fresh.join(...)`을 `try { } finally { joined.set(true); }`로 감싼다. 루프 조건의 인터럽트 검사는 넣지 않는다 | 멈추지 않는 원인은 `joined`가 안 켜지는 경로 하나다. `finally`가 그 경로를 막는다. `join`이 정상 반환하든 던지든 `leave` 루프가 끝난다. 한 곳만 바꾼다 |
+| B | J3 끊김 로그 | `targets.remove(session)`은 그대로 무조건 부른다. 로그 조건을 **`bySessionId.remove(raw.getId(), member)`가 참일 때**로 한다 | 아래 표. 리뷰 제안(`targets.remove` 결과)은 L이 J1과 J2 사이일 때 2줄이 남는다. `bySessionId`의 Member를 뺀 쪽이 로그를 남기면 `leave`와 같은 기준이라 모든 순서에서 1줄이다 |
+
+B의 순서 검토 (J1=`bySessionId.put`, J2=`targets.add`, J3=`isOpen` 판정, L=`leave` 전체. 두 맵 정리는 1장 표와 같다: J3 분기는 두 맵 제거를 계속 무조건 부른다):
+
+| L의 위치 | `leave` 로그 | J3 로그 (`targets.remove` 조건, 리뷰안) | J3 로그 (`bySessionId.remove` 조건, 채택) | 두 맵 |
+|---|---|---|---|---|
+| J1 앞 | 없음 (Member 없음) | 1 | 1 | 비움 |
+| J1과 J2 사이 | 1 | 1 → **2줄** | 0 → 1줄 | 비움 |
+| L의 두 remove가 J1 뒤·J2 뒤로 갈림 | 1 | 0 | 0 | 비움 |
+| J2 뒤, J3 앞 | 1 | 0 | 0 | 비움 |
+| 닫힘이 J3 뒤 | 나중 1 ("접속" 1 + "끊김" 1) | — | — | 나중 L이 비움 |
+
+### 7.2 코드 변경 — `ws/ZoneSessions.java` `join` (결정 B)
+Before (67-72행):
+```java
+        if (!raw.isOpen()) {     // 그 사이 끊김. leave가 bySessionId만 먼저 지웠을 수 있어 두 맵에서 직접 뺀다
+            targets.remove(session);
+            bySessionId.remove(raw.getId(), member);
+            log.info("화면 접속 끊김 zone={} session={} 접속자={}", zoneId, raw.getId(), sessionCount(zoneId));
+            return;
+        }
+```
+After:
+```java
+        if (!raw.isOpen()) {     // 그 사이 끊김. leave가 bySessionId만 먼저 지웠을 수 있어 두 맵에서 직접 뺀다
+            targets.remove(session);
+            if (bySessionId.remove(raw.getId(), member)) {     // Member를 뺀 쪽만 로그 (leave가 뺐으면 leave가 남겼다)
+                log.info("화면 접속 끊김 zone={} session={} 접속자={}", zoneId, raw.getId(), sessionCount(zoneId));
+            }
+            return;
+        }
+```
+
+### 7.3 테스트 변경 — `ZoneSessionsTest`
+(A) `leaveRacingJoinLeavesNoSession` 250-252행만 바꾼다:
+```java
+                try {
+                    fresh.join("zone-test", raw, "hello");
+                } finally {
+                    joined.set(true);                       // join이 던져도 leave 스레드를 끝낸다
+                }
+                leaving.get(2, TimeUnit.SECONDS);
+```
+- 새 테스트 없음. 확인: 이 테스트와 클래스 전체가 그대로 통과하고 `--rerun` 5번 연속 통과.
+
+(B) 새 테스트 `leaveBetweenAddAndOpenCheckLogsOnce` (`leaveRacingJoinLeavesNoSession` 바로 뒤):
+```java
+    @Test
+    @DisplayName("join의 열림 검사 직전에 leave가 끼어도 끊김 로그는 한 번이다")
+    void leaveBetweenAddAndOpenCheckLogsOnce() {
+        WebSocketSession a = session("a");
+        doAnswer(invocation -> {
+            sessions.leave(a);                          // J2 뒤·J3 판정 앞에 leave 전체가 들어간다
+            return false;
+        }).when(a).isOpen();
+        Logger logger = (Logger) LoggerFactory.getLogger(ZoneSessions.class);
+        ListAppender<ILoggingEvent> logs = new ListAppender<>();
+        logs.start();
+        logger.addAppender(logs);
+        try {
+            sessions.join("zone-test", a, "hello");
+
+            assertThat(logs.list)
+                    .filteredOn(e -> e.getLevel() == Level.INFO
+                            && e.getFormattedMessage().startsWith("화면 접속 끊김"))
+                    .hasSize(1);
+            assertThat(sessions.sessionCount()).isZero();
+        } finally {
+            logger.detachAppender(logs);
+        }
+    }
+```
+- import 추가 없음 (모두 이미 있다).
+- `session()`의 `when(isOpen()).thenReturn(true)`를 `doAnswer`가 덮는다. mock 세션이라 `setBlockingSendTimeout`이 WARN을 남기므로 INFO·메시지로 거른다.
+- Red: 지금 코드는 2줄. Green: 1줄. `sessionCount() == 0`은 지금도 통과한다(두 맵 정리는 1차에서 고쳤다).
+
+### 7.4 TDD 단계
+공통 명령은 4장과 같다. `bootRun`은 실행하지 않는다.
+
+| 단계 | 할 일 | `--tests` | 완료 조건 |
+|---|---|---|---|
+| 1 | 7.3(B) 테스트 추가 → Red(끊김 INFO 2줄) → 7.2 수정 → Green | `'com.tripley.crowdsight.ws.ZoneSessionsTest'` | 13메서드 통과 |
+| 2 | 7.3(A) 수정 | `'com.tripley.crowdsight.ws.ZoneSessionsTest'` | 13메서드 통과. `--rerun`으로 5번 연속 통과 |
+| 3 | 전체 실행 | 없음 (`./gradlew test --no-daemon`) | 모든 테스트 통과 |
+
+### 7.5 커밋
+```
+fix: S3 2차 리뷰 반영 (join 끊김 로그 중복·경쟁 테스트 스레드 종료)
+
+- join: 끊김 분기에서 bySessionId의 Member를 뺀 경우에만 로그를 남김
+- ZoneSessionsTest: join이 던져도 leave 루프가 끝나게 finally로 joined 설정
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+- stage 대상: 위 2개 파일과 이 계획 문서. `CLAUDE.local.md`는 stage하지 않는다.
+
+### 7.6 위험·가정
+| 위험 | 대응 |
+|---|---|
+| 답(answer) 안에서 같은 mock의 `getId()`를 부른다 | Mockito는 답 안의 다른 메서드 호출을 허용한다. 스텁된 `getId()`가 "a"를 준다 |
+| 나중에 `join`이 J3 앞에서 `isOpen()`을 더 부르면 7.3(B)가 다른 순서를 재현한다 | 그때 답에 "첫 호출에서만 leave" 조건을 넣는다. 지금은 J3 하나뿐이다(7.0) |
+| (A)의 루프는 여전히 인터럽트를 보지 않는다 | `joined`가 켜지지 않는 경로가 `finally`로 없어졌다. 인터럽트 검사는 쓰지 않는 방어라 넣지 않는다 |
+| 로그 조건이 `bySessionId` 결과에 의존한다 | `leave`도 같은 결과로 로그를 정한다. 두 곳의 기준이 같아 한쪽만 남긴다 |
