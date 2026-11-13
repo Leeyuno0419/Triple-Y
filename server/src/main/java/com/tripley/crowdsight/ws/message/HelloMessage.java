@@ -12,7 +12,7 @@ import tools.jackson.databind.JsonNode;
  * @param zoneId        구역 ID
  * @param meta          타임라인 meta 원본 트리 그대로 (모르는 키 포함)
  * @param playback      지금 재생 상태
- * @param thresholds    표시용 기준값. S3는 density만, S4가 pressure·inflow_ratio를 더한다
+ * @param thresholds    표시용 기준값 (density, pressure, inflow_ratio)
  * @param unackedAlerts 미확인 알림. S5 전까지 늘 빈 목록 (S5에서 List&lt;AlertMessage&gt;로 바꾼다)
  */
 public record HelloMessage(String type, String schemaVersion, String zoneId, JsonNode meta, PlaybackView playback,

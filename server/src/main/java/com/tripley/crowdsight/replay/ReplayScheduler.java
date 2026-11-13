@@ -78,9 +78,10 @@ public class ReplayScheduler implements SmartLifecycle {
         }
         if (step.isPresent()) {
             ZoneStep s = step.get();
-            log.debug("재생 zone={} t={} discontinuity={} wrapped={} grade={} max_density={}", zone.zoneId(),
-                    s.tick().frame().t(), s.tick().discontinuity(), s.tick().wrapped(),
-                    s.evaluation().zoneGrade(), s.evaluation().maxDensity());
+            log.debug("재생 zone={} t={} discontinuity={} wrapped={} grade={} max_density={} "
+                    + "inflow_avg={} inflow_alert={}", zone.zoneId(), s.tick().frame().t(), s.tick().discontinuity(),
+                    s.tick().wrapped(), s.evaluation().zoneGrade(), s.evaluation().maxDensity(),
+                    s.evaluation().inflowAvg(), s.evaluation().inflowAlert());
             broadcaster.zoneState(zone.zoneId(), s);
         }
     }

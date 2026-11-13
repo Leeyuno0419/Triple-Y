@@ -16,11 +16,12 @@ import lombok.extern.slf4j.Slf4j;
  * ping-interval-ms마다 모든 화면에 ping을 보낸다 (api-spec 3.5).
  * 재생과 같은 replayTaskScheduler(스레드 2개)의 두 번째 주기 작업이다.
  * SmartLifecycle 기본 phase라 웹 서버가 뜬 뒤 시작하고 닫을 때 먼저 멈춘다.
+ * 스레드 규칙: start·stop·isRunning은 Spring 생명주기 스레드, pingAll은 스케줄러 스레드가 부른다. future는 volatile이다.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class WsPingScheduler implements SmartLifecycle {
+public final class WsPingScheduler implements SmartLifecycle {
 
     private final ZoneSessions sessions;
     private final ThreadPoolTaskScheduler replayTaskScheduler;

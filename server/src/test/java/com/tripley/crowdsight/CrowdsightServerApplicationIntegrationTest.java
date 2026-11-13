@@ -44,6 +44,13 @@ class CrowdsightServerApplicationIntegrationTest {
     }
 
     @Test
+    @DisplayName("application.yml의 불안정·유입 기본값을 읽는다")
+    void bindsDefaultInstabilityInflowSettings() {
+        assertThat(props.instability()).isEqualTo(TestProperties.INSTABILITY);
+        assertThat(props.inflow()).isEqualTo(TestProperties.INFLOW);
+    }
+
+    @Test
     @DisplayName("application.yml의 ws·허용 출처·시간대 기본값을 읽는다")
     void bindsDefaultWsSettings() {
         assertThat(props.ws()).isEqualTo(TestProperties.WS);

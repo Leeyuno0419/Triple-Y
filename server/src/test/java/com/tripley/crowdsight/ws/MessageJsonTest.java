@@ -16,7 +16,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.tripley.crowdsight.config.TestProperties;
-import com.tripley.crowdsight.grade.ZoneGrader;
 import com.tripley.crowdsight.replay.ZonePlayer;
 import com.tripley.crowdsight.replay.ZoneRuntime;
 import com.tripley.crowdsight.timeline.ZoneTimeline;
@@ -51,7 +50,11 @@ class MessageJsonTest {
                 ]
               },
               "playback": { "state": "playing", "t": 2, "loop": true, "duration_s": 5 },
-              "thresholds": { "density": { "caution": 3.0, "alert": 4.0, "critical": 5.0 } },
+              "thresholds": {
+                "density": { "caution": 3.0, "alert": 4.0, "critical": 5.0 },
+                "pressure": 0.02,
+                "inflow_ratio": 0.6
+              },
               "unacked_alerts": []
             }
             """;
@@ -127,7 +130,8 @@ class MessageJsonTest {
                 "playback", "thresholds", "unacked_alerts");
         assertThat(root.get("playback").propertyNames())
                 .containsExactlyInAnyOrder("state", "t", "loop", "duration_s");
-        assertThat(root.get("thresholds").propertyNames()).containsExactly("density");
+        assertThat(root.get("thresholds").propertyNames())
+                .containsExactlyInAnyOrder("density", "pressure", "inflow_ratio");
         assertThat(root.get("thresholds").get("density").propertyNames())
                 .containsExactlyInAnyOrder("caution", "alert", "critical");
         assertThat(root.get("unacked_alerts").isArray()).isTrue();
@@ -148,8 +152,7 @@ class MessageJsonTest {
         ZoneTimeline base = timelineOf(5);
         ZoneTimeline withExtra = new ZoneTimeline(base.schemaVersion(), base.meta(), base.frames(),
                 MAPPER.readTree("{\"foo\":1,\"zone_id\":\"zone-test\"}"), base.source());
-        ZoneRuntime extra = new ZoneRuntime(new ZonePlayer(withExtra, true),
-                new ZoneGrader(List.of(), TestProperties.GRADE));
+        ZoneRuntime extra = new ZoneRuntime(new ZonePlayer(withExtra, true), TestProperties.grader(List.of()));
 
         assertThat(tree(messages.hello(extra)).get("meta").get("foo").asInt()).isEqualTo(1);
     }

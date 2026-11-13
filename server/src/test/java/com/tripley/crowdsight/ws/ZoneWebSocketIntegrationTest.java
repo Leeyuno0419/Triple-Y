@@ -140,6 +140,8 @@ class ZoneWebSocketIntegrationTest {
         assertThat(hello.get("playback").get("loop").asBoolean()).isTrue();
         assertThat(hello.get("playback").get("duration_s").asInt()).isEqualTo(5);
         assertThat(hello.get("thresholds").get("density").get("alert").asDouble()).isEqualTo(4.0);
+        assertThat(hello.get("thresholds").get("pressure").asDouble()).isEqualTo(0.02);
+        assertThat(hello.get("thresholds").get("inflow_ratio").asDouble()).isEqualTo(0.6);
         assertThat(hello.get("unacked_alerts").size()).isZero();
     }
 

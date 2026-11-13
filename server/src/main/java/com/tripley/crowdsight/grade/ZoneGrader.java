@@ -9,7 +9,9 @@ import com.tripley.crowdsight.timeline.CellState;
 import com.tripley.crowdsight.timeline.Frame;
 
 /**
- * 구역 1개의 셀 등급·구역 등급 판정 (api-spec 4.1~4.2). 셀마다 GradeHysteresis를 가진다.
+ * 구역 1개의 셀 등급·구역 등급·유입 경보 판정 (api-spec 4.1~4.4).
+ * 셀마다 GradeHysteresis·InstabilityTracker를, 구역에 InflowMonitor 1개를 가진다.
+ * 셀 관측 등급 = 불안정이면 CRITICAL, 아니면 밀도 등급. 여기에 히스테리시스를 적용한다.
  * 스레드 규칙: evaluate·reset은 재생 스레드 하나만 부른다. 잠금 없음.
  */
 public final class ZoneGrader {
@@ -17,30 +19,39 @@ public final class ZoneGrader {
     private final List<String> cellIds;
     private final boolean[] eligible;
     private final GradeHysteresis[] hysteresis;
+    private final InstabilityTracker[] trackers;
+    private final InflowMonitor inflow;
     private final DensityThresholds thresholds;
     private final int eligibleCount;
 
     /**
-     * @param cells    meta.cells (frame.cells와 같은 순서)
-     * @param settings 등급 설정
+     * @param cells       meta.cells (frame.cells와 같은 순서)
+     * @param grade       등급 설정
+     * @param instability 불안정 설정
+     * @param inflow      유입 경보 설정
      */
-    public ZoneGrader(List<CellMeta> cells, GradeSettings settings) {
+    public ZoneGrader(List<CellMeta> cells, GradeSettings grade, InstabilitySettings instability,
+                      InflowSettings inflow) {
         Objects.requireNonNull(cells, "cells");
-        Objects.requireNonNull(settings, "settings");
+        Objects.requireNonNull(grade, "grade");
+        Objects.requireNonNull(instability, "instability");
         int n = cells.size();
         this.cellIds = cells.stream().map(CellMeta::cellId).toList();
         this.eligible = new boolean[n];
         this.hysteresis = new GradeHysteresis[n];
+        this.trackers = new InstabilityTracker[n];
         int count = 0;
         for (int i = 0; i < n; i++) {
-            eligible[i] = cells.get(i).walkableAreaM2() >= settings.minWalkableAreaM2();
-            hysteresis[i] = new GradeHysteresis(settings.upSeconds(), settings.downSeconds());
+            eligible[i] = cells.get(i).walkableAreaM2() >= grade.minWalkableAreaM2();
+            hysteresis[i] = new GradeHysteresis(grade.upSeconds(), grade.downSeconds());
+            trackers[i] = new InstabilityTracker(instability);
             if (eligible[i]) {
                 count++;
             }
         }
         this.eligibleCount = count;
-        this.thresholds = settings.density();
+        this.thresholds = grade.density();
+        this.inflow = new InflowMonitor(inflow);   // null이면 InflowMonitor가 NPE
     }
 
     /** 판정 대상 셀 수 (등록 로그용). */
@@ -60,8 +71,8 @@ public final class ZoneGrader {
         for (int i = 0; i < states.size(); i++) {
             CellState state = states.get(i);
             Double density = state.density();
-            Grade observed = density == null ? null : GradeRule.ofDensity(density, thresholds);
-            Grade grade = hysteresis[i].update(observed);
+            boolean unstable = trackers[i].update(state.pressure());
+            Grade grade = hysteresis[i].update(observedGrade(density, unstable));
             if (eligible[i]) {
                 zoneGrade = Grade.max(zoneGrade, grade);
                 if (density != null && (maxDensity == null || density > maxDensity)) {
@@ -69,16 +80,29 @@ public final class ZoneGrader {
                 }
             }
             Grade predicted = GradeRule.ofPrediction(state.densityPred60s(), thresholds);
-            cells.add(new CellEvaluation(state.cellId(), grade, predicted, eligible[i], state));
+            cells.add(new CellEvaluation(state.cellId(), grade, predicted, eligible[i], unstable, state));
         }
-        return new ZoneEvaluation(frame.t(), zoneGrade, maxDensity, cells);
+        InflowStatus status = inflow.update(frame.inflowRatio(), frame.count());
+        return new ZoneEvaluation(frame.t(), zoneGrade, maxDensity, status.average(), status.on(), cells);
     }
 
-    /** 모든 셀을 NORMAL로 되돌리고 기록을 비운다 (첫 프레임·반복·이동). */
+    /** 모든 셀을 NORMAL로, 불안정 연속·유입 창·경보를 처음으로 되돌린다 (첫 프레임·반복·이동). */
     public void reset() {
         for (GradeHysteresis h : hysteresis) {
             h.reset();
         }
+        for (InstabilityTracker tracker : trackers) {
+            tracker.reset();
+        }
+        inflow.reset();
+    }
+
+    /** 셀 관측 등급. 불안정이면 CRITICAL, 아니면 밀도 등급. 밀도 null이면 null(그 초는 건너뜀, 결정 기록 4). */
+    private Grade observedGrade(Double density, boolean unstable) {
+        if (unstable) {
+            return Grade.CRITICAL;
+        }
+        return density == null ? null : GradeRule.ofDensity(density, thresholds);
     }
 
     private void requireSameCells(int t, List<CellState> states) {

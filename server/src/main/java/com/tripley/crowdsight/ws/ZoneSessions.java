@@ -60,10 +60,15 @@ public final class ZoneSessions {
             closeQuietly(session);
             return;
         }
-        bySessionId.put(raw.getId(), new Member(zoneId, session));
-        byZone.computeIfAbsent(zoneId, k -> ConcurrentHashMap.newKeySet()).add(session);
-        if (!raw.isOpen()) {
-            leave(raw);
+        Member member = new Member(zoneId, session);
+        bySessionId.put(raw.getId(), member);
+        Set<WebSocketSession> targets = byZone.computeIfAbsent(zoneId, k -> ConcurrentHashMap.newKeySet());
+        targets.add(session);
+        if (!raw.isOpen()) {     // 그 사이 끊김. leave가 bySessionId만 먼저 지웠을 수 있어 두 맵에서 직접 뺀다
+            targets.remove(session);
+            if (bySessionId.remove(raw.getId(), member)) {     // Member를 뺀 쪽만 로그 (leave가 뺐으면 leave가 남겼다)
+                log.info("화면 접속 끊김 zone={} session={} 접속자={}", zoneId, raw.getId(), sessionCount(zoneId));
+            }
             return;
         }
         log.info("화면 접속 zone={} session={} 접속자={}", zoneId, raw.getId(), sessionCount(zoneId));
@@ -128,10 +133,11 @@ public final class ZoneSessions {
         }
     }
 
+    /** 실패한 세션을 빼고 닫는다. 두 스레드(재생·ping)가 같이 불러도 뺀 스레드 하나만 로그를 남기고 닫는다. */
     private void drop(String zoneId, WebSocketSession session, Exception cause) {
         Set<WebSocketSession> targets = byZone.get(zoneId);
-        if (targets != null) {
-            targets.remove(session);
+        if (targets == null || !targets.remove(session)) {
+            return;     // 다른 스레드의 drop이나 leave가 이미 뺐다
         }
         bySessionId.remove(session.getId());
         log.warn("보내기 실패한 화면을 닫고 뺌 zone={} session={} 원인={}", zoneId, session.getId(), cause.toString());

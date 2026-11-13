@@ -7,7 +7,7 @@ spring:
 server:
   port: 8080
 
-# crowdsight.* 설정은 그 값을 읽는 클래스와 같은 PR에서 추가한다 (S4: instability·inflow, S6: alert-log)
+# crowdsight.* 설정은 그 값을 읽는 클래스와 같은 PR에서 추가한다 (S6: alert-log)
 crowdsight:
   timeline-dir: ../data/processed/timeline   # 작업 폴더(bootRun·test는 server/) 기준. 시작 로그에 절대 경로가 찍힌다
   timeline-files: [E04_039.json]             # 파일당 구역 1개. 가짜는 --crowdsight.timeline-files=fake_E04_039.json
@@ -20,6 +20,15 @@ crowdsight:
     up-seconds: 2                            # 최근 2개 관측이 모두 현재보다 높으면 올림 (가정)
     down-seconds: 10                         # 최근 10개 관측이 모두 현재보다 낮으면 한 단계 내림 (가정)
     min-walkable-area-m2: 2.0                # 구역 등급·max_density 판정 대상 셀 (결정 4)
+  instability:
+    pressure: 0.02                           # 군중 압력 기준(1/s²). 넘는 초가 이어지면 셀 심각 (가정, E5로 조정)
+    seconds: 3                               # 기준을 이 초만큼 연속 넘으면 불안정 (api-spec 4.3)
+  inflow:
+    ratio: 0.6                               # 5초 평균 inflow_ratio가 이 값을 넘으면 경보 조건 (가정)
+    window-seconds: 5                        # 평균 창(초). 시작·초기화 뒤 창이 다 차야 평균을 낸다 (결정 기록 8)
+    min-samples: 3                           # 창 안 non-null 값이 이 개수 이상일 때만 평균 (결정 기록 8, 가정)
+    off-seconds: 10                          # 켜진 뒤 조건이 이 초만큼 연속 거짓이면 끔 (가정)
+    min-count: 3                             # 구역 인원 count가 이보다 적으면 켜지 않음 (결정 6)
   ws:
     ping-interval-ms: 30000                  # 연결 확인 ping (api-spec 3.5)
     send-time-limit-ms: 2000                 # 메시지 하나 보내기가 이보다 오래 막히면 그 세션만 닫음 (결정 기록 1)

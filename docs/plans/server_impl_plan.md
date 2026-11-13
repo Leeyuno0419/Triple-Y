@@ -58,7 +58,8 @@ com.tripley.crowdsight
 ├─ replay/    ZonePlayer, PlaybackState, PlaybackSnapshot, Tick, ZoneStep, ZoneRuntime, ZoneRegistry, ReplayScheduler,
 │             ZoneBroadcaster
 ├─ grade/     Grade, DensityThresholds, GradeRule, GradeSettings, GradeHysteresis, ZoneGrader, CellEvaluation, ZoneEvaluation,
-│             InstabilityTracker, InflowMonitor                              (Spring 의존 없음)
+│             InstabilitySettings, InflowSettings, InstabilityTracker, InflowMonitor, InflowStatus
+│                                                                            (Spring 의존 없음)
 ├─ alert/     Alert, AlertReason, AlertDetector, AlertIdGenerator, AlertStore, AlertLogWriter, AlertController
 ├─ ws/        ZoneWebSocketHandler, ZoneSessions, MessageFactory, FrameTimestamps, WsZoneBroadcaster, WsPingScheduler,
 │             message/ (HelloMessage, PlaybackView, ThresholdsView, ZoneStateMessage, ZoneView, CellView, PlaybackMessage,
@@ -74,8 +75,8 @@ ReplayScheduler.tickAll()                                ← scheduleAtFixedRate
   └─ for each ZoneRuntime (구역마다 try/catch)
        ZoneRuntime.tick()       → ZoneStep(tick, evaluation) 또는 없음(일시정지·끝)
          ZonePlayer.tick()      → Tick(frame, discontinuity, wrapped)
-         discontinuity이면 ZoneGrader.reset() (S5부터 AlertDetector.reset()도)
-         ZoneGrader.evaluate(frame) → ZoneEvaluation                       (S2, S4)
+         discontinuity이면 ZoneGrader.reset()(히스테리시스·불안정·유입 모두) (S5부터 AlertDetector.reset()도)
+         ZoneGrader.evaluate(frame) → ZoneEvaluation  (S2, S4: 셀마다 InstabilityTracker, 구역 InflowMonitor)
        AlertDetector.detect(eval) → List<Alert>                           (S5)
        ZoneBroadcaster.playback/zoneState                                 (S3, S5에서 alert)
          구현 WsZoneBroadcaster: MessageFactory → JsonMapper 1번 → ZoneSessions.broadcast
@@ -208,7 +209,9 @@ public enum Grade {
 }
 public record DensityThresholds(double caution, double alert, double critical) {}  // 0 < caution < alert < critical
 public record GradeSettings(DensityThresholds density, int upSeconds, int downSeconds, double minWalkableAreaM2) {}
-// 불안정 설정(pressure·seconds)은 S4가 crowdsight.instability.* 별도 record로 추가
+public record InstabilitySettings(double pressure, int seconds) {}                       // S4
+public record InflowSettings(double ratio, int windowSeconds, int minSamples, int offSeconds,
+                             double minCount) {}                                          // S4
 
 public final class GradeRule {
     /** 밀도 → 조건 등급. 기준값 이상이면 그 등급 (3.0 → CAUTION). */
@@ -235,11 +238,13 @@ public final class GradeHysteresis {
 - `CrowdsightProperties.grade`는 `GradeSettings`를 직접 바인딩한다. 검사는 `DensityThresholds`(0 < caution < alert < critical)·`GradeSettings`(초 ≥ 1, 면적 ≥ 0)가 한다.
 ```java
 public record CellEvaluation(String cellId, Grade grade, Grade gradePred60s, boolean eligible,
-                             CellState state) {}                       // unstable은 S4
-public record ZoneEvaluation(int t, Grade zoneGrade, Double maxDensity, List<CellEvaluation> cells) {}
-// inflowRatio·count는 S3가 Tick.frame()에서 읽고, inflowAlert·inflowAvg는 S4에서 더한다
+                             boolean unstable /* S4 */, CellState state) {}
+public record ZoneEvaluation(int t, Grade zoneGrade, Double maxDensity, Double inflowAvg, boolean inflowAlert,
+                             List<CellEvaluation> cells) {}   // inflowAvg·inflowAlert는 S4
+// inflowRatio·count는 S3가 Tick.frame()에서 읽는다
 public final class ZoneGrader {
-    public ZoneGrader(List<CellMeta> cells, GradeSettings settings);
+    public ZoneGrader(List<CellMeta> cells, GradeSettings grade, InstabilitySettings instability,
+                      InflowSettings inflow);   // S4부터
     public int eligibleCount();
     public ZoneEvaluation evaluate(Frame frame);   // 셀 수·ID를 갱신 전에 검사, 다르면 IllegalArgumentException
     public void reset();
@@ -325,7 +330,8 @@ public record HelloMessage(String type, String schemaVersion, String zoneId, Jso
                            PlaybackView playback, ThresholdsView thresholds,
                            List<Object> unackedAlerts /* S3 빈 목록, S5에서 List<AlertMessage> */) {}
 public record PlaybackView(String state, int t, boolean loop, int durationS) {}   // "playing"|"paused"|"ended"
-public record ThresholdsView(DensityThresholds density) {}   // S4가 pressure·inflowRatio 추가
+public record ThresholdsView(DensityThresholds density, double pressure, double inflowRatio) {}
+// pressure·inflowRatio는 S4
 public record ZoneStateMessage(String type, String zoneId, int t, String frameTs, ZoneView zone, List<CellView> cells) {}
 public record ZoneView(Grade grade, Double maxDensity, Double inflowRatio, boolean inflowAlert, Double count) {}
 public record CellView(String cellId, Grade grade, Double density, Double vx, Double vy, Double speedVar,
@@ -367,7 +373,7 @@ public final class FrameTimestamps {
 ```java
 /** pressure가 기준을 seconds초 연속 넘으면 active. null이나 기준 이하면 연속 0. */
 public final class InstabilityTracker {
-    public InstabilityTracker(double pressureThreshold, int seconds);
+    public InstabilityTracker(InstabilitySettings settings);
     public boolean update(Double pressure);
     public void reset();
 }
@@ -379,18 +385,19 @@ public final class InstabilityTracker {
  * 켬: 조건이 참인 초. 끔: 켜진 뒤 조건이 offSeconds초 연속 거짓 (평균 null·count 부족·count null인 초도 거짓으로 센다).
  */
 public final class InflowMonitor {
-    public InflowMonitor(double ratio, int windowSeconds, int minSamples, int offSeconds, double minCount);
+    public InflowMonitor(InflowSettings settings);
     public InflowStatus update(Double inflowRatio, Double count);
     public void reset();                   // 창·연속·on 모두 비움 (반복·이동)
 }
 public record InflowStatus(Double average, boolean on) {}
 ```
-- 셀 관측 등급 = `max(ofDensity(density), unstable ? CRITICAL : NORMAL)`.
+- 셀 관측 등급 = `unstable ? CRITICAL : ofDensity(density)` (같은 결과, density null이면 null).
+- 불안정 비교는 초과(`>`)다. 기준과 같으면 연속 0. `unstable`·5초 평균은 `zone_state`로 보내지 않는다.
 - 5초 평균(결정 기록 8): 최근 5초 중 non-null 값이 3개(`min-samples`) 이상이면 그 평균, 아니면 null(조건 거짓). 창은 최근 5초 그대로이고 null도 한 칸을 차지한다.
 - 창이 다 찬 뒤에만 평균을 낸다(결정 기록 8): 시작·초기화(반복·이동) 뒤 t0~t3은 평균 null, 첫 평균은 t4. `inflow_ratio` null인 초도 관측 1초로 센다.
 - 끄는 연속에는 평균 null·`count < 3`·`count` null인 초도 포함 (가정). `counterflow`는 판정에 안 씀 `[토론]` (흐름 모듈이 쓰지 않아 실제 파일은 늘 null).
 - `pressure` null(셀 머리 부족, 흐름 창이 덜 찬 첫 구간)은 불안정 연속을 끊는다. 규칙은 유지하고 실제 데이터의 끊김 빈도를 E5 때 확인한다 `[토론]`.
-- `CrowdsightProperties`: `1 ≤ min-samples ≤ window-seconds` 검사.
+- `InflowSettings`가 `1 ≤ min-samples ≤ window-seconds`, `0 ≤ ratio < 1`, 초 ≥ 1, `min-count` ≥ 0을 검사. `InstabilitySettings`가 `pressure` > 0, `seconds` ≥ 1을 검사.
 - `ZoneGrader` 생성자에 불안정 설정을 추가하고, `CellEvaluation.unstable`·`ZoneEvaluation.inflowAvg`·`inflowAlert`를 더한다.
 - `ThresholdsView`에 `pressure`·`inflow_ratio`, `ZoneView.inflowAlert` 실제 값.
 
@@ -409,6 +416,11 @@ public record InflowStatus(Double average, boolean on) {}
 | `offAfter10s` | 0.8 × 5, 이후 0.1, count 5 | t4 켜짐, t5 평균 0.66 참, t6 0.52부터 거짓, t14 켜짐, t15 꺼짐 |
 | `nullAverageCountsTowardOff` | 0.8 × 5, 이후 null, count 5 | t4 켜짐, t5·t6 평균 0.8 참(값 4·3개), t7부터 평균 null(거짓), t15 켜짐, t16 꺼짐 |
 | `resetClears` | 0.7 × 5(t4 켜짐), reset, 0.7 × 5 | reset 뒤 처음 4초 평균 null·꺼짐, 5번째 초 평균 0.7 켜짐 |
+| `trueResetsOffStreak` | 0.8 × 25, count t0~t4 5, t5~t13 2, t14 5, t15~t24 2 | t13 켜짐, t14 켜짐(연속 0), t23 켜짐, t24 꺼짐 |
+| `ZoneGraderTest.instabilityReleaseUsesDownHysteresis` | 밀도 1.0, pressure t0~t3 0.03, t4~t13 0.0 | t4부터 `unstable` F, t12 CR, t13 A |
+| `ZoneRuntimeTest.resetsInflowOnWrap` | duration 5, inflow 0.8, count 5, loop, tick 10 | `inflowAlert` t4 T, 반복 t0 평균 null·F, 반복 t4 T |
+
+상세는 `docs/plans/server_s4_instability_inflow_plan.md` 6장.
 
 ### S5. 알림 (`feat/server-alert`)
 ```java
@@ -501,14 +513,14 @@ crowdsight:
     down-seconds: 10
     min-walkable-area-m2: 2.0                # 결정 4
   instability:
-    pressure: 0.02                           # 가정, E5 결과로 조정
-    seconds: 3
+    pressure: 0.02                           # 군중 압력 기준(1/s²). 넘는 초가 이어지면 셀 심각 (가정, E5로 조정)
+    seconds: 3                               # 기준을 이 초만큼 연속 넘으면 불안정 (api-spec 4.3)
   inflow:
-    ratio: 0.6
-    window-seconds: 5
-    min-samples: 3                           # 결정 기록 8, 5초 중 non-null 개수 하한 (가정)
-    off-seconds: 10
-    min-count: 3                             # 결정 6
+    ratio: 0.6                               # 5초 평균 inflow_ratio가 이 값을 넘으면 경보 조건 (가정)
+    window-seconds: 5                        # 평균 창(초). 시작·초기화 뒤 창이 다 차야 평균을 낸다 (결정 기록 8)
+    min-samples: 3                           # 창 안 non-null 값이 이 개수 이상일 때만 평균 (결정 기록 8, 가정)
+    off-seconds: 10                          # 켜진 뒤 조건이 이 초만큼 연속 거짓이면 끔 (가정)
+    min-count: 3                             # 구역 인원 count가 이보다 적으면 켜지 않음 (결정 6)
   ws:
     ping-interval-ms: 30000                  # 연결 확인 ping (api-spec 3.5)
     send-time-limit-ms: 2000                 # 메시지 하나 보내기가 이보다 오래 막히면 그 세션만 닫음 (결정 기록 1)
@@ -516,7 +528,7 @@ crowdsight:
   alert-log: logs/alerts.jsonl               # server/logs/, git 제외
   cors-origin-patterns: ["http://localhost:*", "http://127.0.0.1:*"]   # WS(S3)·REST(S6) 허용 출처 (결정 기록 2)
 ```
-- `CrowdsightProperties`: `@ConfigurationProperties("crowdsight")` 중첩 record, compact constructor 검사 (`DensityThresholds`(0 < caution < alert < critical), 초 ≥ 1, `interval-ms` > 0, `1 ≤ inflow.min-samples ≤ inflow.window-seconds`). validation 스타터 안 씀. `timeline-dir`은 `String`(PathEditor 회피).
+- `CrowdsightProperties`: `@ConfigurationProperties("crowdsight")` 중첩 record, compact constructor 검사 (`DensityThresholds`(0 < caution < alert < critical), 초 ≥ 1, `interval-ms` > 0, `1 ≤ inflow.min-samples ≤ inflow.window-seconds`(`InflowSettings`가 검사)). validation 스타터 안 씀. `timeline-dir`은 `String`(PathEditor 회피).
 - 시작 시 타임라인 폴더 절대 경로 INFO. 파일 없으면 경로 넣어 시작 실패.
 - 테스트는 `@SpringBootTest(properties = ...)`. `src/test/resources/application.yml`은 만들지 않음.
 
@@ -536,7 +548,7 @@ crowdsight:
 | 필드 | 서버 처리 |
 |---|---|
 | `density` | null이면 파일 거부. 히스테리시스는 null 관측 건너뛰기(방어용), `max_density` 계산에서도 뺀다 `[토론]` |
-| `pressure` | null이면 불안정 연속 0. 흐름 출력은 셀 머리 수가 적으면 null이라 연속이 끊길 수 있다. 빈도는 E5 때 확인 `[토론]` |
+| `pressure` | null이거나 기준 이하(같은 값 포함)이면 불안정 연속 0. 사람 없는 셀은 0이라 역시 끊는다. 흐름 출력은 셀 머리 수가 적으면 null이라 연속이 끊길 수 있다. 빈도는 E5 때 확인 `[토론]` |
 | `density_pred_60s` | null이면 `grade_pred_60s` null |
 | `vx`, `vy`, `speed_var`, `counterflow` | 판정 안 씀, null 그대로 전달 (`counterflow`는 흐름 모듈이 쓰지 않아 실제 파일에서 늘 null) |
 | `inflow_ratio` | 시작·초기화 뒤 5초 관측이 쌓이기 전(t0~t3)에는 평균 null. 그 뒤 최근 5초 중 non-null이 3개(`min-samples`) 이상이면 그 평균, 아니면 평균 null·조건 거짓 (결정 기록 8). 평균 null인 초도 끄는 연속에 센다. 원래 값은 그대로 전달 |

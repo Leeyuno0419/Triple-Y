@@ -44,7 +44,8 @@ public class ZoneRegistry {
     }
 
     private static ZoneRuntime register(ZoneTimeline timeline, CrowdsightProperties props) {
-        ZoneGrader grader = new ZoneGrader(timeline.meta().cells(), props.grade());
+        ZoneGrader grader = new ZoneGrader(timeline.meta().cells(), props.grade(), props.instability(),
+                props.inflow());
         int cells = timeline.meta().cells().size();
         double minArea = props.grade().minWalkableAreaM2();
         log.info("구역 등록 zone={} 길이={}초 반복={} 판정 대상 셀={}/{} (면적 ≥ {}㎡)", timeline.zoneId(),

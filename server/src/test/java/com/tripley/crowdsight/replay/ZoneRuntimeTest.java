@@ -1,6 +1,7 @@
 package com.tripley.crowdsight.replay;
 
 import static com.tripley.crowdsight.timeline.TimelineFixtures.timelineWithDensity;
+import static com.tripley.crowdsight.timeline.TimelineFixtures.timelineWithInflow;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
@@ -12,14 +13,12 @@ import org.junit.jupiter.api.Test;
 
 import com.tripley.crowdsight.config.TestProperties;
 import com.tripley.crowdsight.grade.Grade;
-import com.tripley.crowdsight.grade.ZoneGrader;
 import com.tripley.crowdsight.timeline.ZoneTimeline;
 
 class ZoneRuntimeTest {
 
     private static ZoneRuntime runtime(ZoneTimeline timeline, boolean loop) {
-        return new ZoneRuntime(new ZonePlayer(timeline, loop), new ZoneGrader(timeline.meta().cells(),
-                TestProperties.GRADE));
+        return new ZoneRuntime(new ZonePlayer(timeline, loop), TestProperties.grader(timeline.meta().cells()));
     }
 
     @Test
@@ -36,6 +35,22 @@ class ZoneRuntimeTest {
         assertThat(steps).extracting(s -> s.tick().discontinuity()).containsExactly(true, false, false, true, false);
         assertThat(steps).extracting(s -> s.evaluation().zoneGrade())
                 .containsExactly(Grade.NORMAL, Grade.ALERT, Grade.ALERT, Grade.NORMAL, Grade.ALERT);
+    }
+
+    @Test
+    @DisplayName("반복으로 처음에 돌아오면 유입 창과 경보도 초기화한다")
+    void resetsInflowOnWrap() {
+        ZoneRuntime runtime = runtime(timelineWithInflow(5, 0.8, 5.0), true);
+        List<ZoneStep> steps = new ArrayList<>();
+
+        for (int i = 0; i < 10; i++) {
+            steps.add(runtime.tick().orElseThrow());
+        }
+
+        assertThat(steps).extracting(s -> s.tick().frame().t()).containsExactly(0, 1, 2, 3, 4, 0, 1, 2, 3, 4);
+        assertThat(steps).extracting(s -> s.evaluation().inflowAlert())
+                .containsExactly(false, false, false, false, true, false, false, false, false, true);
+        assertThat(steps.get(5).evaluation().inflowAvg()).isNull();
     }
 
     @Test
