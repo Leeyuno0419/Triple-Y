@@ -23,11 +23,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.tomcat.websocket.Constants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -37,6 +39,10 @@ import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorato
 import com.tripley.crowdsight.config.CrowdsightProperties;
 import com.tripley.crowdsight.config.TestProperties;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import jakarta.websocket.Session;
 
 class ZoneSessionsTest {
@@ -163,6 +169,46 @@ class ZoneSessionsTest {
     }
 
     @Test
+    @DisplayName("ping과 재생이 같은 세션을 함께 버려도 WARN과 닫기는 한 번이다")
+    void pingAndReplayDropLogsOnce() throws Exception {
+        ZoneSessions limited = new ZoneSessions(TestProperties.ws(new CrowdsightProperties.Ws(30000, 50, 524288)));
+        WebSocketSession a = session("a");
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger calls = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (calls.incrementAndGet() == 2) {         // 첫 방송에서 멈췄다가 Tomcat 차단 제한처럼 실패한다
+                release.await(5, TimeUnit.SECONDS);
+                throw new IOException("차단 전송 제한 초과");
+            }
+            return null;
+        }).when(a).sendMessage(any());
+        limited.join("zone-test", a, "hello");
+        ConcurrentWebSocketSessionDecorator decorated =
+                (ConcurrentWebSocketSessionDecorator) limited.sessions("zone-test").get(0);
+        Logger logger = (Logger) LoggerFactory.getLogger(ZoneSessions.class);
+        ListAppender<ILoggingEvent> logs = new ListAppender<>();
+        logs.start();
+        logger.addAppender(logs);
+        ExecutorService replayThread = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> stuck = replayThread.submit(() -> limited.broadcast("zone-test", "zs"));
+            await().atMost(Duration.ofSeconds(2)).until(() -> decorated.getTimeSinceSendStarted() > 50);
+
+            limited.pingAll();                          // ping 스레드 drop
+            release.countDown();                        // 재생 스레드 drop
+            stuck.get(2, TimeUnit.SECONDS);
+
+            assertThat(logs.list).filteredOn(e -> e.getLevel() == Level.WARN).hasSize(1);
+            verify(a, times(1)).close(CloseStatus.SESSION_NOT_RELIABLE);
+            assertThat(limited.sessionCount()).isZero();
+        } finally {
+            release.countDown();
+            replayThread.shutdownNow();
+            logger.detachAppender(logs);
+        }
+    }
+
+    @Test
     @DisplayName("hello를 못 보내면 닫고 넣지 않는다")
     void helloFailureNotJoined() throws IOException {
         WebSocketSession a = session("a");
@@ -183,6 +229,33 @@ class ZoneSessionsTest {
         sessions.join("zone-test", a, "hello");
 
         assertThat(sessions.sessionCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("join 도중 다른 스레드가 leave해도 닫힌 세션이 남지 않는다")
+    void leaveRacingJoinLeavesNoSession() throws Exception {
+        ExecutorService closer = Executors.newSingleThreadExecutor();
+        try {
+            for (int i = 0; i < 2000; i++) {
+                ZoneSessions fresh = new ZoneSessions(TestProperties.ws(TestProperties.WS));
+                WebSocketSession raw = session("r" + i);
+                when(raw.isOpen()).thenReturn(false);       // afterConnectionClosed 때는 이미 닫혀 있다
+                AtomicBoolean joined = new AtomicBoolean();
+                Future<?> leaving = closer.submit(() -> {
+                    while (!joined.get()) {
+                        fresh.leave(raw);
+                    }
+                });
+
+                fresh.join("zone-test", raw, "hello");
+                joined.set(true);
+                leaving.get(2, TimeUnit.SECONDS);
+
+                assertThat(fresh.sessionCount()).as("반복 %d", i).isZero();
+            }
+        } finally {
+            closer.shutdownNow();
+        }
     }
 
     @Test
