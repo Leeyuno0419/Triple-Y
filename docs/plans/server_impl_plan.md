@@ -60,11 +60,12 @@ com.tripley.crowdsight
 ├─ grade/     Grade, DensityThresholds, GradeRule, GradeSettings, GradeHysteresis, ZoneGrader, CellEvaluation, ZoneEvaluation,
 │             InstabilitySettings, InflowSettings, InstabilityTracker, InflowMonitor, InflowStatus
 │                                                                            (Spring 의존 없음)
-├─ alert/     Alert, AlertReason, AlertDetector, AlertIdGenerator, AlertStore, AlertLogWriter, AlertController
+├─ alert/     AlertReason, AlertEvent, Alert, AlertDetector, AlertIdGenerator, AlertStore (S5),
+│             StoredAlert, AlertAck, AlertLogLine, AlertLogWriter (S6)
 ├─ ws/        ZoneWebSocketHandler, ZoneSessions, MessageFactory, FrameTimestamps, WsZoneBroadcaster, WsPingScheduler,
 │             message/ (HelloMessage, PlaybackView, ThresholdsView, ZoneStateMessage, ZoneView, CellView, PlaybackMessage,
 │                       AlertMessage(S5))
-└─ api/       ZoneController, HealthController
+└─ api/       AlertController, AckResponse, AlertView (S6), ZoneController, HealthController (S7)
 ```
 - `grade/`, `replay/` 핵심(`ZonePlayer`, `ZoneRuntime`)은 순수 Java. 테스트에 Spring 컨텍스트 불필요.
 - Spring은 `config/`, `ws/`, `api/`, 조립 클래스(`ZoneRegistry`, `ReplayScheduler`)에만.
@@ -73,13 +74,14 @@ com.tripley.crowdsight
 ```text
 ReplayScheduler.tickAll()                                ← scheduleAtFixedRate(interval-ms)
   └─ for each ZoneRuntime (구역마다 try/catch)
-       ZoneRuntime.tick()       → ZoneStep(tick, evaluation) 또는 없음(일시정지·끝)
+       ZoneRuntime.tick()       → ZoneStep(tick, evaluation, alerts) 또는 없음(일시정지·끝)
          ZonePlayer.tick()      → Tick(frame, discontinuity, wrapped)
-         discontinuity이면 ZoneGrader.reset()(히스테리시스·불안정·유입 모두) (S5부터 AlertDetector.reset()도)
+         discontinuity이면 ZoneGrader.reset()(히스테리시스·불안정·유입 모두)·AlertDetector.reset()
          ZoneGrader.evaluate(frame) → ZoneEvaluation  (S2, S4: 셀마다 InstabilityTracker, 구역 InflowMonitor)
-       AlertDetector.detect(eval) → List<Alert>                           (S5)
+         AlertDetector.detect(eval) → List<AlertEvent>                    (S5)
        ZoneBroadcaster.playback/zoneState                                 (S3, S5에서 alert)
          구현 WsZoneBroadcaster: MessageFactory → JsonMapper 1번 → ZoneSessions.broadcast
+         WsZoneBroadcaster.zoneState: frame_ts 1번 → zone_state → 알림마다 AlertStore.issue → alert (S5)
 ```
 - 판정 상태는 재생 스레드만 읽고 쓴다 → 잠금 불필요.
 - REST 제어(S7)는 `ZonePlayer`의 `synchronized` 메서드로 "다음 tick에 할 일"만 표시.
@@ -425,22 +427,29 @@ public record InflowStatus(Double average, boolean on) {}
 ### S5. 알림 (`feat/server-alert`)
 ```java
 public enum AlertReason { GRADE_UP, INFLOW, INSTABILITY }
+public record AlertEvent(Grade level, AlertReason reason, String message, Double value, List<String> cellIds) {}
 public record Alert(String alertId, String zoneId, int t, String frameTs, Grade level, AlertReason reason,
-                    String message, double value, List<String> cellIds) {}
+                    String message, Double value, List<String> cellIds) {}
+/** ZoneRuntime이 직접 만든다 (인자 없음). */
 public final class AlertDetector {
-    public AlertDetector(String zoneId, AlertIdGenerator ids, Clock clock);
-    public List<Alert> detect(ZoneEvaluation eval);
+    public List<AlertEvent> detect(ZoneEvaluation eval);
     public void reset();
 }
-/** a-yyyyMMdd-NNNN (서버 시작부터 1씩, 날짜는 Clock 기준). */
-public final class AlertIdGenerator { public String next(); }
-/** 구역별 미확인 알림, 구역당 최대 100 (넘으면 오래된 것부터). */
-@Component public class AlertStore { add, unacked(zoneId), find(alertId), ack(alertId, Instant) /* S6 */ }
+/** a-yyyyMMdd-NNNN (서버 시작부터 1씩, 날짜는 Clock 기준). 패키지 전용. */
+final class AlertIdGenerator { AlertIdGenerator(Clock clock); String next(); }
+/** 구역별 미확인 알림, 구역당 crowdsight.unacked-alert-limit(기본 100)개 (넘으면 오래된 것부터). */
+@Component public final class AlertStore {
+    public AlertStore(CrowdsightProperties props, Clock clock);
+    public Alert issue(String zoneId, int t, String frameTs, AlertEvent event);
+    public List<Alert> unacked(String zoneId);
+    // ack(alertId, ackedAt)·list(zoneId, unackedOnly)는 S6
+}
 ```
 - **GRADE_UP**: 구역 등급 ≥ ALERT이고 이번 사건의 최고 단계보다 높을 때. ALERT 아래로 내려가면 해제. `value` = max_density, `cell_ids` = 대상 셀 중 등급 ≥ level (meta 순서), message `"구역 등급이 주의 → 경계로 올랐다"`.
-- **INFLOW**: on이 F → T. level CAUTION, value 5초 평균.
+- **INFLOW**: on이 F → T. level CAUTION, value 5초 평균(소수 3자리 반올림).
 - **INSTABILITY**: 대상 셀 중 하나라도 unstable F → T (구역 단위). level CRITICAL, value 불안정 셀 최대 pressure. 남아 있으면 재전송 없음.
-- 한 tick 안 순서 `zone_state` → `alert`. `hello.unacked_alerts` = `AlertStore.unacked(zoneId)`.
+- 한 tick 안 순서 `zone_state` → `alert`. 한 초에 여럿이면 INSTABILITY → GRADE_UP → INFLOW. GRADE_UP 문구의 앞 등급은 직전 초 구역 등급이다.
+- `hello` = `MessageFactory.hello(zone, AlertStore.unacked(zoneId))`.
 - `HelloMessage.unackedAlerts` 타입 교체 (`List<Object>` → `List<AlertMessage>`).
 
 | 테스트 | 입력 | 기대 |
@@ -451,21 +460,29 @@ public final class AlertIdGenerator { public String next(); }
 | `instabilityEdge` | c-0000 [F,F,T,T], c-0001 [F,F,F,T] | t2만 |
 | `idFormat` | Clock 2026-11-18 | "a-20261118-0001", "-0002" |
 | `storeCap` | 101개 | 100개, 첫 알림 빠짐 |
-| `ZoneRuntimeTest.alertAfterState` | 등급 오르는 tick | [zone_state, alert] |
+| `WsZoneBroadcasterTest.alertFollowsZoneStateWithSameFrameTs` | 등급 오르는 tick | [zone_state, alert], 같은 frame_ts |
 | `ZoneRuntimeTest.alertRepeatsNextLoop` | duration 5, loop, 4.5 | 반복마다 t1에 GRADE_UP 1개 |
-| `ZoneRuntimeTest.thirtyMinuteLoop` | duration 10, tick 1800 | 예외 없음, 마지막 t 9, store ≤ 100 |
+| `WsZoneBroadcasterTest.thirtyMinuteLoopKeepsStoreBounded` | duration 10, tick 1800 | 예외 없음, 마지막 t 9, store 100개(첫 ID -0081) |
+| `AlertDetectorTest.instabilityThenCriticalGradeUp` | 실제 판정기, 밀도 1.0, pressure 0.03 | t2 INSTABILITY, t3 GRADE_UP 심각 |
+
+상세는 `docs/plans/server_s5_alert_plan.md` 8장.
 
 ### S6. 알림 확인 (`feat/server-alert-ack`)
 - `POST /api/alerts/{alertId}/ack` → 200 `{"alert_id","acked_at"}`, 없으면 404. `GET /api/zones/{zoneId}/alerts?unacked=true`.
-- `AlertLogWriter`: `crowdsight.alert-log`에 JSON 한 줄, `synchronized`, `Files.writeString(..., CREATE, APPEND)`, 부모 폴더 생성.
+- `GET` 응답: 배열(오래된 것부터), 원소 = `alert` 메시지 키 + `acked_at`(미확인이면 `null`). `unacked`를 빼면 `false`(보관 중인 전체). 없는 구역 404.
+- 보관 규칙: 구역당 목록 하나에 미확인·확인을 함께 두고, `unacked-alert-limit`을 넘으면 확인한 것 중 가장 오래된 것부터, 없으면 가장 오래된 미확인을 버린다.
+- `AlertLogWriter`: `crowdsight.alert-log`에 JSON 한 줄, `synchronized`, `Files.writeString(..., CREATE, APPEND)`, 부모 폴더 생성. **처음 확인할 때만** 쓴다. 쓰기 실패는 200 + ERROR 로그.
+- 컨트롤러는 `api/AlertController`(`acked_at` 형식이 `ws.FrameTimestamps`라 `alert/`에 두면 순환).
 - CORS: `WebMvcConfigurer.addCorsMappings("/api/**")`.
 
 | 테스트 (MockMvc + `@TempDir`) | 기대 |
 |---|---|
 | 첫 확인 | 200, acked_at = 고정 Clock, 로그 1줄 {alert_id, zone_id, t, level, reason, sent_at, acked_at} |
-| 두 번째 | 200, 처음 acked_at, 로그 1줄 |
+| 두 번째 | 200, 처음 acked_at, 로그 **그대로** 1줄 (두 번째는 쓰지 않음) |
 | 없는 ID | 404 |
 | 확인 뒤 `?unacked=true` | 빠짐 |
+
+상세는 `docs/plans/server_s6_alert_ack_plan.md` 8장.
 
 ### S7. 재생 제어와 조회 (`feat/server-playback-api`)
 - `ZonePlayer`: `play()`, `pause()`, `seek(int t)`, `setLoop(boolean)` (`synchronized`). seek는 `pendingDiscontinuity`. 상태 바뀌면 `playback`.
@@ -521,6 +538,7 @@ crowdsight:
     min-samples: 3                           # 창 안 non-null 값이 이 개수 이상일 때만 평균 (결정 기록 8, 가정)
     off-seconds: 10                          # 켜진 뒤 조건이 이 초만큼 연속 거짓이면 끔 (가정)
     min-count: 3                             # 구역 인원 count가 이보다 적으면 켜지 않음 (결정 6)
+  unacked-alert-limit: 100                   # 구역당 보관 알림 최대 개수. 넘으면 확인한 것부터, 없으면 가장 오래된 미확인부터 버린다
   ws:
     ping-interval-ms: 30000                  # 연결 확인 ping (api-spec 3.5)
     send-time-limit-ms: 2000                 # 메시지 하나 보내기가 이보다 오래 막히면 그 세션만 닫음 (결정 기록 1)
@@ -528,7 +546,7 @@ crowdsight:
   alert-log: logs/alerts.jsonl               # server/logs/, git 제외
   cors-origin-patterns: ["http://localhost:*", "http://127.0.0.1:*"]   # WS(S3)·REST(S6) 허용 출처 (결정 기록 2)
 ```
-- `CrowdsightProperties`: `@ConfigurationProperties("crowdsight")` 중첩 record, compact constructor 검사 (`DensityThresholds`(0 < caution < alert < critical), 초 ≥ 1, `interval-ms` > 0, `1 ≤ inflow.min-samples ≤ inflow.window-seconds`(`InflowSettings`가 검사)). validation 스타터 안 씀. `timeline-dir`은 `String`(PathEditor 회피).
+- `CrowdsightProperties`: `@ConfigurationProperties("crowdsight")` 중첩 record, compact constructor 검사 (`DensityThresholds`(0 < caution < alert < critical), 초 ≥ 1, `interval-ms` > 0, `1 ≤ inflow.min-samples ≤ inflow.window-seconds`(`InflowSettings`가 검사), `unacked-alert-limit` ≥ 1). validation 스타터 안 씀. `timeline-dir`은 `String`(PathEditor 회피).
 - 시작 시 타임라인 폴더 절대 경로 INFO. 파일 없으면 경로 넣어 시작 실패.
 - 테스트는 `@SpringBootTest(properties = ...)`. `src/test/resources/application.yml`은 만들지 않음.
 
@@ -542,6 +560,7 @@ crowdsight:
 | 느린 화면 | Tomcat 전송 제한 2초를 넘으면 그 세션만 닫고, 재접속 시 hello로 복구 (결정 1). 최악은 그 tick + 2초 × 느린 세션 수 |
 | ping | 같은 `replayTaskScheduler`(poolSize 2)의 두 번째 주기 작업, 30초 |
 | 30분 반복 | 반복마다 판정·알림 초기화 + playback. 커지는 곳은 AlertStore(100 상한)뿐. 1800 tick 테스트 |
+| 미확인 알림 | `AlertStore` `synchronized` + 불변 복사본. 쓰기 재생 스레드(issue)·요청 스레드(ack), 읽기 hello·REST. 로그 파일은 저장소 잠금 밖(S6 계획 7.2). 접속과 발송 사이 중복·드문 놓침은 허용(S5 계획 7.3) |
 | p95 ≤ 5초 | `frame_ts`와 화면 수신 시각 차이 (api-spec 7절). tick 처리 시간 last·max를 `/api/health`에, 500 ms 넘으면 WARN |
 
 ## 6. null 처리
@@ -627,3 +646,6 @@ crowdsight:
 | 9 | 재접속 최대 간격 5 s / 15 s | 나예린 |
 | 10 | 유입 5초 평균의 null 처리 | **닫힘 (결정 기록 8)**: 창이 다 찬 뒤 non-null 3개 이상이면 평균 |
 | 11 | `pressure` null이 불안정 3초 연속을 끊는 빈도 | 조영준, E5 때 |
+| 12 | 알림 문구 3종과 한 초 순서 INSTABILITY → GRADE_UP → INFLOW (S5 계획 `[토론]` 2) | 나예린 |
+| 13 | 접속과 알림 발송 사이 드문 놓침 허용, 화면 `alert_id` 거르기 (S5 계획 7.3, `[토론]` 4) | 조영준, 나예린 |
+| 14 | 재시작 시 알림 번호가 1로 돌아감 (S5 계획 `[토론]` 5) | 조영준 |

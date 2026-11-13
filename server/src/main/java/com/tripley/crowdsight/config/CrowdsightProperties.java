@@ -14,7 +14,6 @@ import com.tripley.crowdsight.grade.InstabilitySettings;
  * crowdsight.* 설정 (application.yml). 기준값·시간·경로는 이 record 한 곳에만 둔다.
  * 값 검사는 compact constructor에서 한다 (validation 스타터 안 씀). 틀리면 서버가 시작하지 않는다.
  * grade·instability·inflow는 grade 패키지의 record로 바로 묶고, 그 값 검사는 해당 record가 한다.
- * alert-log는 그 값을 쓰는 PR(S6)에서 추가한다.
  *
  * @param timelineDir        타임라인 폴더. 상대 경로면 작업 폴더(bootRun·test는 server/) 기준
  * @param timelineFiles      timelineDir 안의 파일 이름. 1개 이상, 파일당 구역 1개
@@ -23,13 +22,15 @@ import com.tripley.crowdsight.grade.InstabilitySettings;
  * @param grade              등급 판정 설정 (crowdsight.grade.*)
  * @param instability        셀 불안정 판정 설정 (crowdsight.instability.*)
  * @param inflow             유입 경보 설정 (crowdsight.inflow.*)
+ * @param unackedAlertLimit  구역당 보관 알림 최대 개수 (1 이상). 미확인은 이 개수를 넘을 때만 오래된 것부터 버린다
  * @param ws                 WebSocket 설정 (crowdsight.ws.*)
- * @param corsOriginPatterns 허용 출처 패턴. WebSocket(S3)과 REST(S6)가 같이 쓴다 (결정 기록 2)
+ * @param alertLog           알림 확인 기록 파일 (JSON 한 줄씩). 상대 경로면 작업 폴더(bootRun·test는 server/) 기준
+ * @param corsOriginPatterns 허용 출처 패턴. WebSocket과 REST(/api/**)가 같이 쓴다 (결정 기록 2)
  */
 @ConfigurationProperties("crowdsight")
 public record CrowdsightProperties(String timelineDir, List<String> timelineFiles, String timeZone, Replay replay,
                                    GradeSettings grade, InstabilitySettings instability, InflowSettings inflow,
-                                   Ws ws, List<String> corsOriginPatterns) {
+                                   int unackedAlertLimit, Ws ws, String alertLog, List<String> corsOriginPatterns) {
 
     public CrowdsightProperties {
         if (timelineDir == null || timelineDir.isBlank()) {
@@ -63,8 +64,15 @@ public record CrowdsightProperties(String timelineDir, List<String> timelineFile
         if (inflow == null) {
             throw new IllegalArgumentException("crowdsight.inflow 가 없습니다.");
         }
+        if (unackedAlertLimit < 1) {     // 키가 없으면 0으로 묶여 여기서 거부된다
+            throw new IllegalArgumentException(
+                    "crowdsight.unacked-alert-limit 는 1 이상이어야 합니다: " + unackedAlertLimit);
+        }
         if (ws == null) {
             throw new IllegalArgumentException("crowdsight.ws 가 없습니다.");
+        }
+        if (alertLog == null || alertLog.isBlank()) {
+            throw new IllegalArgumentException("crowdsight.alert-log 가 없습니다.");
         }
         if (corsOriginPatterns == null || corsOriginPatterns.isEmpty()) {
             throw new IllegalArgumentException("crowdsight.cors-origin-patterns 에 패턴이 1개 이상 필요합니다.");

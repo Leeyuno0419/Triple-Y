@@ -6,6 +6,7 @@ import java.util.Locale;
 
 import org.springframework.stereotype.Component;
 
+import com.tripley.crowdsight.alert.Alert;
 import com.tripley.crowdsight.config.CrowdsightProperties;
 import com.tripley.crowdsight.grade.CellEvaluation;
 import com.tripley.crowdsight.grade.ZoneEvaluation;
@@ -16,6 +17,7 @@ import com.tripley.crowdsight.replay.ZoneRuntime;
 import com.tripley.crowdsight.replay.ZoneStep;
 import com.tripley.crowdsight.timeline.CellState;
 import com.tripley.crowdsight.timeline.Frame;
+import com.tripley.crowdsight.ws.message.AlertMessage;
 import com.tripley.crowdsight.ws.message.CellView;
 import com.tripley.crowdsight.ws.message.HelloMessage;
 import com.tripley.crowdsight.ws.message.PlaybackMessage;
@@ -40,13 +42,19 @@ public class MessageFactory {
     private final Clock clock;
     private final CrowdsightProperties props;
 
-    /** 접속한 화면에 보낼 hello. 재생 상태는 지금 snapshot이다. */
-    public HelloMessage hello(ZoneRuntime zone) {
+    /** 접속한 화면에 보낼 hello. 재생 상태는 지금 snapshot, unacked는 AlertStore.unacked(zoneId)다. */
+    public HelloMessage hello(ZoneRuntime zone, List<Alert> unacked) {
         ZonePlayer player = zone.player();
         ThresholdsView thresholds = new ThresholdsView(props.grade().density(), props.instability().pressure(),
                 props.inflow().ratio());
         return new HelloMessage(API_SCHEMA_VERSION, zone.zoneId(), player.timeline().metaJson(),
-                playbackView(player.snapshot()), thresholds, List.of());
+                playbackView(player.snapshot()), thresholds, unacked.stream().map(this::alert).toList());
+    }
+
+    /** 발급한 알림 (api-spec 3.3). */
+    public AlertMessage alert(Alert a) {
+        return new AlertMessage(a.alertId(), a.zoneId(), a.t(), a.frameTs(), a.level(), a.reason(), a.message(),
+                a.value(), a.cellIds());
     }
 
     /** 재생 상태 변화 (반복으로 0, 끝). */

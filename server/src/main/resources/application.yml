@@ -7,7 +7,7 @@ spring:
 server:
   port: 8080
 
-# crowdsight.* 설정은 그 값을 읽는 클래스와 같은 PR에서 추가한다 (S6: alert-log)
+# crowdsight.* 설정은 그 값을 읽는 클래스와 같은 PR에서 추가한다
 crowdsight:
   timeline-dir: ../data/processed/timeline   # 작업 폴더(bootRun·test는 server/) 기준. 시작 로그에 절대 경로가 찍힌다
   timeline-files: [E04_039.json]             # 파일당 구역 1개. 가짜는 --crowdsight.timeline-files=fake_E04_039.json
@@ -29,8 +29,10 @@ crowdsight:
     min-samples: 3                           # 창 안 non-null 값이 이 개수 이상일 때만 평균 (결정 기록 8, 가정)
     off-seconds: 10                          # 켜진 뒤 조건이 이 초만큼 연속 거짓이면 끔 (가정)
     min-count: 3                             # 구역 인원 count가 이보다 적으면 켜지 않음 (결정 6)
+  unacked-alert-limit: 100                   # 구역당 보관 알림 최대 개수. 넘으면 확인한 것부터, 없으면 가장 오래된 미확인부터 버린다
   ws:
     ping-interval-ms: 30000                  # 연결 확인 ping (api-spec 3.5)
     send-time-limit-ms: 2000                 # 메시지 하나 보내기가 이보다 오래 막히면 그 세션만 닫음 (결정 기록 1)
     buffer-size-limit-bytes: 524288          # 못 보내고 쌓인 메시지 한도 512KB. ping과 겹쳐 보낼 때만 검사된다
-  cors-origin-patterns: ["http://localhost:*", "http://127.0.0.1:*"]   # WS(S3)·REST(S6) 허용 출처 (결정 기록 2)
+  alert-log: logs/alerts.jsonl               # 알림 확인 기록(JSON 한 줄씩). 작업 폴더(server/) 기준, git 제외(server/logs/)
+  cors-origin-patterns: ["http://localhost:*", "http://127.0.0.1:*"]   # WS·REST(/api/**) 허용 출처 (결정 기록 2)
