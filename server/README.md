@@ -48,10 +48,19 @@ cd server
 ## 알림 (S5)
 - 서버가 `alert`를 보낸다: 구역 등급이 경계·심각으로 오를 때(`GRADE_UP`), 판정 대상 셀이 불안정이 될 때(`INSTABILITY`), 유입 경보가 켜질 때(`INFLOW`). 같은 사건은 한 번만 보낸다.
 - 한 초 안에서는 `zone_state` 다음에 `alert`가 오고, 둘의 `t`·`frame_ts`가 같다.
-- 확인하지 않은 알림은 구역당 최근 100개(`crowdsight.unacked-alert-limit`)까지 메모리에 두고, 접속할 때 `hello.unacked_alerts`로 다시 보낸다. 서버를 재시작하면 사라진다. 확인(ack)은 S6.
+- 확인하지 않은 알림은 구역당 최근 100개(`crowdsight.unacked-alert-limit`)까지 메모리에 두고, 접속할 때 `hello.unacked_alerts`로 다시 보낸다. 서버를 재시작하면 사라진다. 확인하면 목록에서 빠진다.
 - 반복 재생으로 처음에 돌아오면 알림 판정이 초기화되어 같은 알림이 새 ID로 다시 온다.
 - 알림마다 INFO 로그 `알림 zone=… t=… alert_id=… reason=… level=… value=…`가 남는다.
 - fixture와 가짜 타임라인 대부분은 경계에 닿지 않아 알림이 없을 수 있다. 판정은 단위 테스트로 확인한다.
+
+## 알림 확인 (S6)
+- 확인: `POST /api/alerts/{alert_id}/ack` → `200 {"alert_id","acked_at"}`. 다시 보내도 처음 확인 시각을 돌려준다. 보관 중이 아닌 ID는 `404`.
+- 목록: `GET /api/zones/{zone_id}/alerts?unacked=true` (미확인만), `unacked`를 빼면 보관 중인 전체(원소에 `acked_at`).
+- 처음 확인할 때마다 `logs/alerts.jsonl`(`crowdsight.alert-log`, `server/` 기준, git 제외)에 JSON 한 줄을 덧붙인다. 시작 로그에 절대 경로가 찍힌다.
+- 기록 파일을 쓰지 못해도 확인은 반영되고, ERROR 로그에 쓰려던 줄이 남는다.
+- 구역당 보관 알림은 100개(`crowdsight.unacked-alert-limit`)까지다. 넘으면 확인한 것부터 버린다.
+- REST(`/api/**`)도 WebSocket과 같은 허용 출처(`crowdsight.cors-origin-patterns`)를 쓴다.
+- 확인 예 (Git Bash): `curl -X POST http://localhost:8080/api/alerts/a-20261118-0001/ack`
 
 ## 타임라인 파일
 - 서버는 시작할 때 `crowdsight.timeline-dir` 폴더의 `crowdsight.timeline-files`를 모두 읽고 검증한다 (`docs/timeline-spec.md` v0.2). 파일이 없거나 규격에 맞지 않으면 시작하지 않는다. 오류 메시지에 파일의 절대 경로가 있다.

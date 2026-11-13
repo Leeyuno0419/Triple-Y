@@ -7,6 +7,7 @@
 | 작성일 | 2026-11-11 (v0.1·v0.2) |
 | 작성자 | 조영준 (Claude 작성 보조) |
 | 상태 | 초안 v0.2 (11-11). 팀 결정 4·6·7·9와 타임라인 v0.2(`count`, `counterflow`), 조영준 결정(느린 화면·허용 출처·null 관측·v0.2 검증·유입 평균) 반영. 나예린(화면)·이유노(타임라인) 검토 전 |
+| S6 보충 | 11-13: `GET .../alerts` 응답 형식, 확인 세부(4.5) |
 | 기준 문서 | `docs/timeline-spec.md` v0.2 (파일 규격), `docs/decisions-2026-11-11.md` (팀 결정 4·6·7·9), `docs/plans/server_impl_plan.md` 결정 기록 1·2·4·7·8 (조영준 결정: 느린 화면, 허용 출처, null 관측, v0.2 검증, 유입 평균), `docs/proposal.md` v3.1 3.2·4.3·5.1, `docs/server-alignment.md` Q2~Q6 |
 | 범위 | Spring Boot ↔ React 상황실 화면. `timeline-spec.md` 9절 6·7번(결정됨)의 세부 |
 
@@ -35,7 +36,7 @@
 | GET | `/api/zones` | 재생 가능한 구역 목록 |
 | GET | `/api/zones/{zone_id}/meta` | 타임라인 `meta` 그대로 (셀 목록·`image_polygon`) |
 | POST | `/api/zones/{zone_id}/playback` | 재생 제어: 재생·일시정지·이동·반복 |
-| GET | `/api/zones/{zone_id}/alerts?unacked=true` | 알림 목록 (미확인만 선택 가능) |
+| GET | `/api/zones/{zone_id}/alerts?unacked=true` | 알림 목록 (오래된 것부터). `unacked=true`면 미확인만, 빼면 보관 중인 전체 |
 | POST | `/api/alerts/{alert_id}/ack` | 알림 확인. 확인 기록을 로그 파일에 남긴다 |
 | GET | `/api/health` | 서버 상태 (재생 중 구역, 현재 `t`) |
 
@@ -66,7 +67,7 @@
 - 화면은 `meta`로 히트맵 셀을 그린다. `GET /meta`를 따로 부르지 않아도 된다.
 - `thresholds`는 표시용(범례·그래프 기준선)이다. 판정은 서버가 한다.
 - 재접속하면 미확인 알림을 `unacked_alerts`로 다시 받는다.
-- `unacked_alerts`는 오래된 것부터, 구역당 최근 100개(`crowdsight.unacked-alert-limit`)까지다. 넘으면 오래된 것부터 버린다. 같은 알림을 `hello`와 `alert`로 두 번 받을 수 있으니 화면은 `alert_id`로 거른다.
+- `unacked_alerts`는 오래된 것부터, 미확인만, 구역당 최대 100개(`crowdsight.unacked-alert-limit`). 확인한 알림은 남는 자리에만 보관한다. 넘으면 오래된 것부터 버린다. 같은 알림을 `hello`와 `alert`로 두 번 받을 수 있으니 화면은 `alert_id`로 거른다.
 - 없는 구역으로 접속하면 서버는 닫기 코드 `4404` (`unknown zone`)로 연결을 닫는다. 닫기 코드는 WebSocket을 닫을 때 이유를 알리는 숫자다. 4000~4999는 응용이 정해 쓴다.
 
 ### 3.2 `zone_state` (1초마다)
@@ -221,6 +222,11 @@
 
 - 응답: `200 {"alert_id": "...", "acked_at": "..."}`. 이미 확인한 알림이면 `200`과 처음 확인 시각을 돌려준다. 없는 ID면 `404`.
 - DB는 쓰지 않는다 (기획서 5.1: 로그 파일). 서버를 재시작하면 미확인 알림 목록은 비워진다 (가정).
+- 알림 목록 `GET /api/zones/{zone_id}/alerts?unacked=true|false`: 원소는 3.3 `alert`와 같은 키에 `acked_at`(미확인이면 `null`)을 더한다. `unacked`를 빼면 `false`. 없는 구역은 `404`, `unacked`가 불리언이 아니면 `400`.
+- 기록은 처음 확인할 때만 한 줄이다. 줄은 UTF-8, LF. 기록을 쓰지 못해도 확인은 반영되고 `200`이다(서버 ERROR 로그에 줄을 남긴다).
+- 확인은 다른 화면에 WebSocket으로 알리지 않는다. 다른 화면은 재접속 `hello`나 이 목록에서 빠진 것을 본다 (가정).
+- 서버를 재시작하면 알림 번호가 1부터 다시 시작한다. 화면은 `hello`를 받으면 미확인 목록을 `unacked_alerts`로 바꾼다(예전 ID를 버린다).
+- `404` 본문은 없다. 오류 본문 형식은 재생 제어(5절)와 함께 정한다 `[토론]`.
 
 ## 5. 재생 제어 (REST)
 
@@ -335,3 +341,5 @@ crowdsight:
 | 17 | 2㎡ 기준이 가짜 E04_039에서 가장 붐비는 왼쪽 열(1.0~1.2㎡)을 판정에서 뺀다 | 실제 셀 면적을 확인한 뒤 기준 유지 여부 결정 | 이유노 |
 | 18 | 화면 변경(9절)과 11-13 1차 연결 범위 | `hello`·`zone_state`부터 | 나예린 |
 | 19 | 유입 5초 평균에 `null`이 섞일 때 (5개 모두 요구 vs 일부 허용) | **닫힘 (결정 8, 구현 계획 결정 기록 8)**: 창(5초)이 다 찬 뒤 non-null 3개 이상이면 평균 (4.4절) | 조영준 |
+| 20 | 확인을 다른 화면에 알릴지(`alert_ack` 메시지) | 알리지 않음 (4.5절) | 나예린 |
+| 21 | 재시작 뒤 같은 알림 번호 | 화면이 `hello`로 목록 교체 (4.5절) | 조영준, 나예린 |
