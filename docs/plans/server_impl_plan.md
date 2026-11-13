@@ -11,7 +11,7 @@
 ## 결정 기록 (조영준, 11-11)
 | # | 안건 | 결정 |
 |---|---|---|
-| 1 | 느린 화면 | Tomcat 차단 전송 제한 2초: 세션 생성 때 네이티브 세션 사용자 속성 `org.apache.tomcat.websocket.BLOCKING_SEND_TIMEOUT` = 2000L. 넘기면 그 세션만 닫고 화면은 재접속해 `hello`로 복구. 데코레이터 한도는 재생 스레드 혼자 보낼 때 검사되지 않으므로 이것에 기대지 않는다 |
+| 1 | 느린 화면 | Tomcat 차단 전송 제한 2초: 세션 생성 때 네이티브 세션 사용자 속성 `org.apache.tomcat.websocket.BLOCKING_SEND_TIMEOUT` = 2000L. 넘기면 그 세션만 닫고 화면은 재접속해 `hello`로 복구. 데코레이터 한도는 재생 스레드 혼자 보낼 때 검사되지 않으므로 이것에 기대지 않는다. (jar 확인) 값은 `Long`이어야 한다. 시간이 넘으면 Tomcat이 먼저 세션을 닫고(GOING_AWAY) `IOException`을 던진다. 우리는 집합에서 빼고 `SESSION_NOT_RELIABLE` 닫기를 한 번 더 시도한다 |
 | 2 | 허용 출처 | `setAllowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*")`, 값은 `crowdsight.cors-origin-patterns` 설정 |
 | 3 | Java 규칙 | 3장 제안 + Lombok (`@RequiredArgsConstructor`, `@Slf4j`). DTO는 `record` 유지. 버전은 Boot 의존성 관리 |
 | 4 | 히스테리시스 null | 건너뜀 (등급 유지, 연속 유지) |
@@ -52,15 +52,17 @@
 ```text
 com.tripley.crowdsight
 ├─ CrowdsightServerApplication      @SpringBootApplication @ConfigurationPropertiesScan
-├─ config/    CrowdsightProperties, WebSocketConfig, ClockConfig, ReplaySchedulerConfig, CorsConfig
+├─ config/    CrowdsightProperties, WebSocketConfig, ClockConfig, ReplaySchedulerConfig, CorsConfig(S6)
 ├─ timeline/  ZoneTimeline, Meta, CellMeta, Models, Prediction, Frame, CellState,
 │             TimelineLoader, TimelineValidator, InvalidTimelineException
-├─ replay/    ZonePlayer, PlaybackState, PlaybackSnapshot, Tick, ZoneStep, ZoneRuntime, ZoneRegistry, ReplayScheduler
+├─ replay/    ZonePlayer, PlaybackState, PlaybackSnapshot, Tick, ZoneStep, ZoneRuntime, ZoneRegistry, ReplayScheduler,
+│             ZoneBroadcaster
 ├─ grade/     Grade, DensityThresholds, GradeRule, GradeSettings, GradeHysteresis, ZoneGrader, CellEvaluation, ZoneEvaluation,
 │             InstabilityTracker, InflowMonitor                              (Spring 의존 없음)
 ├─ alert/     Alert, AlertReason, AlertDetector, AlertIdGenerator, AlertStore, AlertLogWriter, AlertController
-├─ ws/        ZoneWebSocketHandler, ZoneSessions, MessageFactory, FrameTimestamps,
-│             message/ (HelloMessage, ZoneStateMessage, ZoneView, CellView, AlertMessage, PlaybackMessage, ThresholdsView)
+├─ ws/        ZoneWebSocketHandler, ZoneSessions, MessageFactory, FrameTimestamps, WsZoneBroadcaster, WsPingScheduler,
+│             message/ (HelloMessage, PlaybackView, ThresholdsView, ZoneStateMessage, ZoneView, CellView, PlaybackMessage,
+│                       AlertMessage(S5))
 └─ api/       ZoneController, HealthController
 ```
 - `grade/`, `replay/` 핵심(`ZonePlayer`, `ZoneRuntime`)은 순수 Java. 테스트에 Spring 컨텍스트 불필요.
@@ -75,8 +77,8 @@ ReplayScheduler.tickAll()                                ← scheduleAtFixedRate
          discontinuity이면 ZoneGrader.reset() (S5부터 AlertDetector.reset()도)
          ZoneGrader.evaluate(frame) → ZoneEvaluation                       (S2, S4)
        AlertDetector.detect(eval) → List<Alert>                           (S5)
-       MessageFactory → [playback?] → zone_state → alert…                 (S3, S5)
-       ZoneSessions.broadcast(zoneId, json)  JSON 문자열은 한 번만 만든다
+       ZoneBroadcaster.playback/zoneState                                 (S3, S5에서 alert)
+         구현 WsZoneBroadcaster: MessageFactory → JsonMapper 1번 → ZoneSessions.broadcast
 ```
 - 판정 상태는 재생 스레드만 읽고 쓴다 → 잠금 불필요.
 - REST 제어(S7)는 `ZonePlayer`의 `synchronized` 메서드로 "다음 tick에 할 일"만 표시.
@@ -183,7 +185,7 @@ public final class ZonePlayer {
 @Component
 public class ReplayScheduler implements SmartLifecycle {
     public ReplayScheduler(ZoneRegistry zones, ThreadPoolTaskScheduler replayTaskScheduler,
-                           CrowdsightProperties props, ZoneBroadcaster broadcaster /* S3부터 */);
+                           CrowdsightProperties props, ZoneBroadcaster broadcaster /* S3부터, replay 패키지 인터페이스 */);
     void tickAll();             // 패키지 공개: 테스트가 직접 부름
     public void start(); public void stop(); public boolean isRunning();
 }
@@ -278,7 +280,7 @@ public final class ZoneRuntime {
 
 상세는 `docs/plans/server_s2_grade_plan.md` 6장.
 
-### S3. WebSocket `hello`, `zone_state` (`feat/server-ws-zone-state`)
+### S3. WebSocket `hello`, `zone_state`, `playback`, ping (`feat/server-ws-zone-state`)
 ```java
 @Configuration @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
@@ -297,14 +299,22 @@ public class ZoneWebSocketHandler extends TextWebSocketHandler {
     public void handleTransportError(WebSocketSession session, Throwable ex);
 }
 
-/** 구역별 접속자. 세션은 ConcurrentWebSocketSessionDecorator로 감싼다. */
+/** 구역별 접속자. 세션은 ConcurrentWebSocketSessionDecorator로 감싼다. ZoneBroadcaster는 구현하지 않는다. */
 @Component
-public class ZoneSessions implements ZoneBroadcaster {
-    public void join(String zoneId, WebSocketSession raw, String helloJson);   // 감싸기 → hello → 집합 추가
+public final class ZoneSessions {
+    // Tomcat 속성 → 감싸기 → hello → 집합 추가 → isOpen 재확인
+    public void join(String zoneId, WebSocketSession raw, String helloJson);
     public void leave(WebSocketSession raw);
     public void broadcast(String zoneId, String json);    // 실패 세션은 닫고 뺀다
     public void pingAll();
     public int sessionCount();
+    public int sessionCount(String zoneId);
+}
+
+/** replay 패키지 포트. ws의 WsZoneBroadcaster가 구현 (MessageFactory → JsonMapper 1번 → ZoneSessions.broadcast). */
+public interface ZoneBroadcaster {
+    void playback(String zoneId, PlaybackSnapshot snapshot);
+    void zoneState(String zoneId, ZoneStep step);
 }
 ```
 - hello를 먼저 보내고 집합에 넣는다 (zone_state가 hello보다 먼저 가지 않게).
@@ -312,9 +322,10 @@ public class ZoneSessions implements ZoneBroadcaster {
 - `zone_id`는 `UriTemplate.match(session.getUri().getPath())`.
 ```java
 public record HelloMessage(String type, String schemaVersion, String zoneId, JsonNode meta,
-                           PlaybackView playback, ThresholdsView thresholds, List<AlertMessage> unackedAlerts) {}
+                           PlaybackView playback, ThresholdsView thresholds,
+                           List<Object> unackedAlerts /* S3 빈 목록, S5에서 List<AlertMessage> */) {}
 public record PlaybackView(String state, int t, boolean loop, int durationS) {}   // "playing"|"paused"|"ended"
-public record ThresholdsView(DensityThresholds density, double pressure, double inflowRatio) {}
+public record ThresholdsView(DensityThresholds density) {}   // S4가 pressure·inflowRatio 추가
 public record ZoneStateMessage(String type, String zoneId, int t, String frameTs, ZoneView zone, List<CellView> cells) {}
 public record ZoneView(Grade grade, Double maxDensity, Double inflowRatio, boolean inflowAlert, Double count) {}
 public record CellView(String cellId, Grade grade, Double density, Double vx, Double vy, Double speedVar,
@@ -325,11 +336,13 @@ public record PlaybackMessage(String type, String zoneId, String state, int t, b
 
 /** frame_ts: 밀리초 3자리 + 오프셋 (+09:00). */
 public final class FrameTimestamps {
-    static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
-    public static String now(Clock clock) { return FMT.format(ZonedDateTime.now(clock)); }
+    private static final DateTimeFormatter FORMAT = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX");
+    public static String now(Clock clock) { return FORMAT.format(ZonedDateTime.now(clock)); }
 }
 ```
-- `ClockConfig`: `Clock.system(ZoneId.of(props.timeZone()))`. `Instant.now()` 직접 호출 금지.
+- `ClockConfig`: `Clock.system(props.clockZone())`. `Instant.now()` 직접 호출 금지.
+- `CrowdsightProperties(timelineDir, timelineFiles, timeZone, replay, grade, ws, corsOriginPatterns)`, `Ws(long pingIntervalMs, int sendTimeLimitMs, int bufferSizeLimitBytes)`, `clockZone()`.
+- `ReplaySchedulerConfig` poolSize 2 (재생, ping). `WsPingScheduler`(SmartLifecycle)가 같은 스케줄러에 `pingAll`을 30초마다 건다.
 - 반복으로 0 또는 끝: `playback` 먼저, 그다음 `zone_state`.
 - S3의 `inflow_alert`는 항상 false (S4에서 실제 값).
 
@@ -341,10 +354,14 @@ public final class FrameTimestamps {
 | `MessageJsonTest.zoneKeys` | ZoneView | {grade, max_density, inflow_ratio, inflow_alert, count}, grade `"ALERT"` |
 | `MessageJsonTest.helloMetaPassthrough` | `meta.foo`=1 | `hello.meta.foo`==1, `thresholds.density.alert`==4.0 |
 | `ZoneSessionsTest.dropsFailingSession` | 세션 2, 1개 IOException | 실패 세션 닫고 빠짐, 다른 세션 받음, count 1 |
-| `ZoneRuntimeTest.wrapEmitsPlayback` | duration 5, loop | t=4 뒤 [playback(playing, 0), zone_state(0)] |
-| `ZoneWebSocketIntegrationTest` (RANDOM_PORT, `interval-ms=100`, `timeline-dir=src/test/resources/timeline`) | `ws://localhost:{port}/ws/zones/zone-test` | 첫 메시지 hello, `meta.cells` 3, 이어서 zone_state t, t+1 mod 5 |
+| `ReplaySchedulerTest.wrapSendsPlaybackBeforeZoneState` | duration 3, loop | t=2 뒤 [playback(playing, 0), zone_state(0)] |
+| `ZoneWebSocketIntegrationTest` (RANDOM_PORT, `interval-ms=100`, `timeline-dir=src/test/resources/timeline`) | `ws://localhost:{port}/ws/zones/zone-test` | 첫 메시지 hello, `meta.cells` 3, 이어서 zone_state t가 (앞 t+1) mod 5, 0 앞에 playback(playing, 0) |
 | 같은 | `/ws/zones/nope` | 2초 안 닫힘, 4404 |
-| 같은 | 클라이언트 2 | 같은 tick 같은 t |
+| 같은 | 클라이언트 2 | 같은 JSON (t·frame_ts 같음) |
+| 같은 | Origin `http://localhost:5173`·`http://127.0.0.1:5173` / `http://example.com` | 접속·hello / 핸드셰이크 거절 |
+| 같은 | 실제 Tomcat 세션 | 사용자 속성 `BLOCKING_SEND_TIMEOUT` = `2000L` |
+
+상세는 `docs/plans/server_s3_ws_plan.md` 6장.
 
 ### S4. 불안정, 유입 경보 (`feat/server-instability-inflow`)
 ```java
@@ -375,6 +392,7 @@ public record InflowStatus(Double average, boolean on) {}
 - `pressure` null(셀 머리 부족, 흐름 창이 덜 찬 첫 구간)은 불안정 연속을 끊는다. 규칙은 유지하고 실제 데이터의 끊김 빈도를 E5 때 확인한다 `[토론]`.
 - `CrowdsightProperties`: `1 ≤ min-samples ≤ window-seconds` 검사.
 - `ZoneGrader` 생성자에 불안정 설정을 추가하고, `CellEvaluation.unstable`·`ZoneEvaluation.inflowAvg`·`inflowAlert`를 더한다.
+- `ThresholdsView`에 `pressure`·`inflow_ratio`, `ZoneView.inflowAlert` 실제 값.
 
 | 테스트 | 입력 | 기대 |
 |---|---|---|
@@ -411,6 +429,7 @@ public final class AlertIdGenerator { public String next(); }
 - **INFLOW**: on이 F → T. level CAUTION, value 5초 평균.
 - **INSTABILITY**: 대상 셀 중 하나라도 unstable F → T (구역 단위). level CRITICAL, value 불안정 셀 최대 pressure. 남아 있으면 재전송 없음.
 - 한 tick 안 순서 `zone_state` → `alert`. `hello.unacked_alerts` = `AlertStore.unacked(zoneId)`.
+- `HelloMessage.unackedAlerts` 타입 교체 (`List<Object>` → `List<AlertMessage>`).
 
 | 테스트 | 입력 | 기대 |
 |---|---|---|
@@ -472,7 +491,7 @@ server:
 crowdsight:
   timeline-dir: ../data/processed/timeline   # bootRun 작업 폴더가 server/. 환경변수 CROWDSIGHT_TIMELINEDIR로 바꿈
   timeline-files: [E04_039.json]
-  time-zone: Asia/Seoul                      # (S3)
+  time-zone: Asia/Seoul                      # frame_ts 오프셋(+09:00). Clock 빈이 쓴다
   replay:
     interval-ms: 1000
     loop: true
@@ -491,11 +510,11 @@ crowdsight:
     off-seconds: 10
     min-count: 3                             # 결정 6
   ws:
-    ping-interval-ms: 30000
-    send-time-limit-ms: 2000
-    buffer-size-limit-bytes: 524288
+    ping-interval-ms: 30000                  # 연결 확인 ping (api-spec 3.5)
+    send-time-limit-ms: 2000                 # 메시지 하나 보내기가 이보다 오래 막히면 그 세션만 닫음 (결정 기록 1)
+    buffer-size-limit-bytes: 524288          # 못 보내고 쌓인 메시지 한도 512KB. ping과 겹쳐 보낼 때만 검사된다
   alert-log: logs/alerts.jsonl               # server/logs/, git 제외
-  cors-origin-patterns: ["http://localhost:*", "http://127.0.0.1:*"]
+  cors-origin-patterns: ["http://localhost:*", "http://127.0.0.1:*"]   # WS(S3)·REST(S6) 허용 출처 (결정 기록 2)
 ```
 - `CrowdsightProperties`: `@ConfigurationProperties("crowdsight")` 중첩 record, compact constructor 검사 (`DensityThresholds`(0 < caution < alert < critical), 초 ≥ 1, `interval-ms` > 0, `1 ≤ inflow.min-samples ≤ inflow.window-seconds`). validation 스타터 안 씀. `timeline-dir`은 `String`(PathEditor 회피).
 - 시작 시 타임라인 폴더 절대 경로 INFO. 파일 없으면 경로 넣어 시작 실패.
@@ -507,9 +526,9 @@ crowdsight:
 | 재생 시계 | `scheduleAtFixedRate(Duration.ofMillis(interval))`. 주기 작업은 자기와 겹치지 않아 판정 상태는 스레드 1개 |
 | 테스트 시간 | `tickAll()`·`ZoneRuntime.tick()` 직접 호출, `Clock.fixed`. 실제 스케줄러는 20 ms 테스트 1개 |
 | 예외 | Spring `ThreadPoolTaskScheduler`는 반복 작업 예외를 로그 후 계속한다(jar 확인). 구역마다 try/catch는 같은 tick의 다른 구역을 지키기 위해서다 |
-| 세션 | `ConcurrentHashMap<String, Set<WebSocketSession>>` + 데코레이터. JSON은 tick당 한 번 |
-| 느린 화면 | Tomcat 전송 제한 2초를 넘으면 그 세션만 닫고, 재접속 시 hello로 복구 (결정 1). 최악은 그 tick +2초 |
-| ping | 두 번째 스레드, 30초 |
+| 세션 | `ConcurrentHashMap<String, Set<WebSocketSession>>` + 세션 ID 맵 + 데코레이터. JSON은 메시지당 한 번 |
+| 느린 화면 | Tomcat 전송 제한 2초를 넘으면 그 세션만 닫고, 재접속 시 hello로 복구 (결정 1). 최악은 그 tick + 2초 × 느린 세션 수 |
+| ping | 같은 `replayTaskScheduler`(poolSize 2)의 두 번째 주기 작업, 30초 |
 | 30분 반복 | 반복마다 판정·알림 초기화 + playback. 커지는 곳은 AlertStore(100 상한)뿐. 1800 tick 테스트 |
 | p95 ≤ 5초 | `frame_ts`와 화면 수신 시각 차이 (api-spec 7절). tick 처리 시간 last·max를 `/api/health`에, 500 ms 넘으면 WARN |
 
@@ -553,8 +572,9 @@ crowdsight:
 | 10 | `frame_ts` 지연 미기록 | 화면이 기록 (E8) | web |
 | 11 | `thresholds`, `playback`, `unacked_alerts` 없음 | 있음 | web. `playback` 일시정지·이동을 영상에도 반영 (api-spec 6절, 영상 오버레이 #34) |
 | 12 | mock 옛 형식 | | mock 갱신 또는 11-13부터 실제 서버. 담당 `[토론]` |
-| 13 | 화면 5173, 서버 8080 | | 서버 WS·REST CORS에 5173 |
+| 13 | 화면 5173, 서버 8080 | | WS 허용 출처 `localhost:*`·`127.0.0.1:*` 적용(S3), REST는 S6 |
 - S3 병합 때 `hello`·`zone_state` 실제 출력 예시를 PR 설명에 붙여 나예린 님께 전달.
+- 출력 예시·어댑터 예시는 `server_s3_ws_plan.md` 7장.
 
 ## 9. 위험·가정·안건
 ### 위험

@@ -25,6 +25,19 @@ cd server
 
 - 8080을 이미 쓰고 있으면 `netstat -ano | findstr :8080`로 확인하고, `--args='--server.port=8081'` 또는 환경변수 `SERVER_PORT=8081`로 바꾼다.
 
+## WebSocket (S3)
+- 주소: `ws://localhost:8080/ws/zones/{zone_id}` (가짜 E04_039는 `zone-e04-039`). 없는 구역이면 닫기 코드 4404로 닫힌다.
+- 접속하면 `hello` 1번, 이후 1초마다 `zone_state`, 반복으로 처음에 돌아오면 `playback`이 `zone_state` 앞에 온다 (`docs/api-spec.md` 3절).
+- 허용 출처는 `crowdsight.cors-origin-patterns` (기본 `http://localhost:*`, `http://127.0.0.1:*`). 다른 사이트에서 연 콘솔은 403으로 거절된다.
+- 확인 (화면 dev 서버 http://localhost:5173 의 개발자 도구 콘솔):
+  ```js
+  const ws = new WebSocket('ws://localhost:8080/ws/zones/zone-e04-039');
+  ws.onmessage = (e) => console.log(JSON.parse(e.data));
+  ws.onclose = (e) => console.log('닫힘', e.code, e.reason);
+  ```
+- 느린 화면: 메시지 하나 보내기가 2초(`crowdsight.ws.send-time-limit-ms`) 넘게 막히면 그 화면 연결만 닫는다. 화면은 재접속하면 `hello`부터 다시 받는다.
+- 로그: 접속·끊김은 INFO `화면 접속 zone=… session=… 접속자=…`, 보내기 실패는 WARN `보내기 실패한 화면을 닫고 뺌`.
+
 ## 타임라인 파일
 - 서버는 시작할 때 `crowdsight.timeline-dir` 폴더의 `crowdsight.timeline-files`를 모두 읽고 검증한다 (`docs/timeline-spec.md` v0.2). 파일이 없거나 규격에 맞지 않으면 시작하지 않는다. 오류 메시지에 파일의 절대 경로가 있다.
 - 기본값은 `../data/processed/timeline/E04_039.json`이다 (작업 폴더 `server/` 기준). 시작 로그 `타임라인 폴더: ...`에서 실제 절대 경로를 확인한다.

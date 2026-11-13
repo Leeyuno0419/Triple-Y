@@ -4,12 +4,16 @@ import static com.tripley.crowdsight.timeline.TimelineFixtures.timelineOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,7 +62,8 @@ class ReplaySchedulerTest {
         ZoneRuntime b = runtime(new ZonePlayer(timelineOf(5), true));
         ZoneRegistry registry = mock(ZoneRegistry.class);
         when(registry.all()).thenReturn(List.of(runtime(a), b));
-        replay = new ReplayScheduler(registry, scheduler, TestProperties.replay(1000, true));
+        replay = new ReplayScheduler(registry, scheduler, TestProperties.replay(1000, true),
+                mock(ZoneBroadcaster.class));
 
         assertThatCode(() -> {
             replay.tickAll();
@@ -81,7 +86,8 @@ class ReplaySchedulerTest {
         when(player.pollStateChange()).thenReturn(Optional.empty());
         ZoneRegistry registry = mock(ZoneRegistry.class);
         when(registry.all()).thenReturn(List.of(runtime(player)));
-        replay = new ReplayScheduler(registry, scheduler, TestProperties.replay(20, true));
+        replay = new ReplayScheduler(registry, scheduler, TestProperties.replay(20, true),
+                mock(ZoneBroadcaster.class));
 
         replay.start();
 
@@ -92,5 +98,72 @@ class ReplaySchedulerTest {
         int n = count.get();
         await().pollDelay(Duration.ofMillis(200)).atMost(Duration.ofSeconds(1))
                 .untilAsserted(() -> assertThat(count.get()).isLessThanOrEqualTo(n + 1));
+    }
+
+    /** 방송 순서를 문자열로 쌓는다. */
+    private static final class RecordingBroadcaster implements ZoneBroadcaster {
+        final List<String> events = new ArrayList<>();
+
+        @Override
+        public void playback(String zoneId, PlaybackSnapshot snapshot) {
+            events.add("playback " + snapshot.state() + " " + snapshot.t());
+        }
+
+        @Override
+        public void zoneState(String zoneId, ZoneStep step) {
+            events.add("zone_state " + step.evaluation().t());
+        }
+    }
+
+    private static ZoneRegistry registryOf(ZoneRuntime... runtimes) {
+        ZoneRegistry registry = mock(ZoneRegistry.class);
+        when(registry.all()).thenReturn(List.of(runtimes));
+        return registry;
+    }
+
+    @Test
+    @DisplayName("반복으로 처음에 돌아오면 playback을 zone_state보다 먼저 보낸다")
+    void wrapSendsPlaybackBeforeZoneState() {
+        RecordingBroadcaster broadcaster = new RecordingBroadcaster();
+        replay = new ReplayScheduler(registryOf(runtime(new ZonePlayer(timelineOf(3), true))), scheduler,
+                TestProperties.replay(1000, true), broadcaster);
+
+        for (int i = 0; i < 4; i++) {
+            replay.tickAll();
+        }
+
+        assertThat(broadcaster.events).containsExactly("zone_state 0", "zone_state 1", "zone_state 2",
+                "playback PLAYING 0", "zone_state 0");
+    }
+
+    @Test
+    @DisplayName("끝나면 playback(ended)을 한 번만 보낸다")
+    void endSendsPlaybackOnce() {
+        RecordingBroadcaster broadcaster = new RecordingBroadcaster();
+        replay = new ReplayScheduler(registryOf(runtime(new ZonePlayer(timelineOf(2), false))), scheduler,
+                TestProperties.replay(1000, false), broadcaster);
+
+        for (int i = 0; i < 4; i++) {
+            replay.tickAll();
+        }
+
+        assertThat(broadcaster.events).containsExactly("zone_state 0", "zone_state 1", "playback ENDED 1");
+    }
+
+    @Test
+    @DisplayName("한 구역 방송이 실패해도 같은 tick의 다른 구역은 보낸다")
+    void broadcastFailureDoesNotStopOtherZones() {
+        ZoneBroadcaster broadcaster = mock(ZoneBroadcaster.class);
+        doThrow(new IllegalStateException("시험")).doNothing().when(broadcaster).zoneState(any(), any());
+        replay = new ReplayScheduler(registryOf(runtime(new ZonePlayer(timelineOf(5), true)),
+                runtime(new ZonePlayer(timelineOf(5), true))), scheduler, TestProperties.replay(1000, true),
+                broadcaster);
+
+        assertThatCode(() -> {
+            replay.tickAll();
+            replay.tickAll();
+        }).doesNotThrowAnyException();
+
+        verify(broadcaster, times(4)).zoneState(eq("zone-test"), any());
     }
 }

@@ -50,4 +50,13 @@ class TimelineStartupIntegrationTest {
                 .rootCause()
                 .hasMessageContaining("caution < alert < critical");
     }
+
+    @Test
+    @DisplayName("모르는 시간대면 시작하지 않는다")
+    void failsOnUnknownTimeZone() {
+        assertThatThrownBy(() -> run("--crowdsight.timeline-dir=src/test/resources/timeline",
+                "--crowdsight.timeline-files=valid_v02.json", "--crowdsight.time-zone=Mars/Base"))
+                .rootCause()
+                .hasMessageContaining("crowdsight.time-zone");
+    }
 }
