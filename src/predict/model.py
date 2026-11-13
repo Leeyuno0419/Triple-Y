@@ -11,6 +11,7 @@ frames[t].cells[].density_pred_60s 에 채운다. t 이후 값은 절대 쓰지 
 BasePredictor 인터페이스를 두어 이후 학습 기반 모델로 교체할 수 있게 한다.
 
 flow 예측기의 가정·한계
+    - 속도가 전혀 없는 timeline(전부 null)은 fill_predictions 가 거부한다. 일부 셀·시각만 null 이면 그 셀은 정지로 본다.
     - 속도 방향: vx > 0 → col 증가, vy > 0 → row 증가 (영상 좌표: x 오른쪽, y 아래). 규격 문서에 정의가 없어 가정이다.
     - 이류 대상은 밀도가 아니라 셀별 인원수(밀도 × 보행 가능 면적)다. 면적이 다른 셀 사이에서도 인원이 보존된다.
     - meta.cells 에 없는 칸(보행 불가)으로 흘러간 인원은 사라진다.
@@ -81,6 +82,22 @@ def to_arrays(timeline: Timeline) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
             c = by_id[cid]
             dens[t, k], vx[t, k], vy[t, k] = c.density, _nan(c.vx), _nan(c.vy)
     return dens, vx, vy
+
+
+def has_velocity(vx: np.ndarray, vy: np.ndarray) -> bool:
+    """timeline 전체에 유한한 속도 값이 하나라도 있으면 True. 전부 null(NaN)이면 False.
+
+    flow 예측기는 속도가 없는 셀을 정지로 본다. 전체가 비어 있으면 결과가 persistence 와 똑같아지므로
+    그때는 flow 로 부르면 안 된다 (E04_039 에서 실제로 발생: meta.models.flow='none').
+    """
+    return bool(np.isfinite(vx).any() or np.isfinite(vy).any())
+
+
+NO_VELOCITY_MESSAGE = (
+    "flow 예측기는 속도(vx, vy)가 필요한데 timeline 의 모든 값이 null 이다 "
+    "(흐름 모듈 결과가 합쳐지지 않은 파일). 이대로면 persistence 와 같은 결과가 'flow' 로 표시된다. "
+    "흐름이 합쳐진 timeline 을 쓰거나 persistence·linear 를 선택하라."
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -192,11 +209,14 @@ def fill_predictions(timeline: Timeline, predictor: BasePredictor) -> Timeline:
     - t < history_s - 1 (입력이 부족한 구간)은 null 로 둔다. 기존 값이 있어도 지운다.
     - t 의 예측에는 frames[t - history_s + 1 .. t] 만 쓴다.
     - meta.models.predictor 와 meta.prediction 을 이 예측기·설정 값으로 갱신한다.
+    - flow 예측기인데 timeline 에 속도가 전혀 없으면 ValueError (persistence 결과가 'flow' 로 저장되는 것을 막는다).
     """
     cfg = predictor.cfg
     require_unit_interval(timeline.meta)
     layout = CellLayout.from_meta(timeline.meta)
     dens, vx, vy = to_arrays(timeline)
+    if predictor.name == FlowAdvectionPredictor.name and not has_velocity(vx, vy):
+        raise ValueError(NO_VELOCITY_MESSAGE)
 
     frames: List[Frame] = []
     for t, fr in enumerate(timeline.frames):

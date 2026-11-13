@@ -26,6 +26,8 @@ class PredictConfig:
     scheme: str = "tvd"
     flow_decay_tau_s: float = 120.0
     max_speed_cells_per_s: float = 3.0
+    # 평가(evaluate) 전용: 이 면적(㎡) 이상인 셀만 모은 지표를 따로 낸다 (결정 2026-11-11 #4와 같은 기준)
+    eval_min_cell_area_m2: float = 2.0
 
     def __post_init__(self) -> None:
         if self.predictor not in PREDICTOR_NAMES:
@@ -42,6 +44,8 @@ class PredictConfig:
             raise ValueError("scheme 은 'tvd' 또는 'upwind' 여야 한다: {!r}".format(self.scheme))
         if self.max_speed_cells_per_s <= 0:
             raise ValueError("max_speed_cells_per_s 는 0보다 커야 한다")
+        if self.eval_min_cell_area_m2 < 0:
+            raise ValueError("eval_min_cell_area_m2 는 0 이상이어야 한다")
 
 
 def load_config(path: Optional[Union[str, Path]] = None) -> PredictConfig:

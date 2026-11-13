@@ -7,7 +7,7 @@ from src.predict.extrapolate import advect_density
 from src.predict.io import assert_not_raw, load_timeline, save_timeline
 from src.predict.model import (
     CellLayout, FlowAdvectionPredictor, LinearTrendPredictor, PersistencePredictor,
-    fill_predictions, make_predictor, to_arrays,
+    fill_predictions, has_velocity, make_predictor, to_arrays,
 )
 
 
@@ -18,10 +18,12 @@ def test_default_config_loads_with_spec_values():
     cfg = load_config()
     assert (cfg.history_s, cfg.horizon_s) == (30, 60)
     assert cfg.predictor == "persistence"
+    assert cfg.eval_min_cell_area_m2 == 2.0        # 구역 등급과 같은 기준 (결정 2026-11-11 #4)
 
 
 @pytest.mark.parametrize("bad", [dict(predictor="nope"), dict(history_s=1), dict(horizon_s=0),
-                                 dict(scheme="nope"), dict(step_s=0), dict(cfl_max=1.5)])
+                                 dict(scheme="nope"), dict(step_s=0), dict(cfl_max=1.5),
+                                 dict(eval_min_cell_area_m2=-1.0)])
 def test_invalid_config_rejected(bad):
     with pytest.raises(ValueError):
         PredictConfig(**bad)
@@ -79,6 +81,22 @@ def test_flow_without_velocity_equals_persistence(make_timeline):
     nan = np.full(layout.row.size, np.nan)
     pred = FlowAdvectionPredictor(PredictConfig(predictor="flow")).predict(layout, _hist(dens), nan, nan)
     assert np.allclose(pred, dens[-1].ravel())
+
+
+def test_has_velocity_false_only_when_everything_is_null():
+    nan = np.full((5, 3), np.nan)
+    assert not has_velocity(nan, nan)
+    some = nan.copy()
+    some[2, 1] = 0.1
+    assert has_velocity(some, nan) and has_velocity(nan, some)     # 하나라도 있으면 True
+
+
+def test_fill_predictions_rejects_flow_when_timeline_has_no_velocity(make_timeline):
+    tl = make_timeline(blob_series(100))                           # 속도 전부 null
+    with pytest.raises(ValueError, match="속도"):
+        fill_predictions(tl, make_predictor(PredictConfig(predictor="flow")))
+    for name in ("persistence", "linear"):                         # 속도가 필요 없는 예측기는 그대로 된다
+        fill_predictions(tl, make_predictor(PredictConfig(predictor=name)))
 
 
 # --------------------------------------------------------------------------- #
