@@ -9,3 +9,6 @@ cfl_max: 0.5                     # 한 서브스텝에서 이동 가능한 최�
 scheme: tvd                      # 이류 방식: tvd(2차, 번짐 적음) | upwind(1차, 비교/롤백용)
 flow_decay_tau_s: 120.0          # 흐름 속도 시간 감쇠 상수(초). 0 이하면 감쇠 없음
 max_speed_cells_per_s: 3.0       # 입력 흐름 속도 클리핑(이상치 방지)
+
+# 평가(evaluate) 전용
+eval_min_cell_area_m2: 2.0       # 보행 면적이 이 값(㎡) 이상인 셀만 모은 지표를 따로 낸다. 작은 셀은 오탐 1명에도 밀도가 튄다 (docs/decisions-2026-11-11.md #4)
