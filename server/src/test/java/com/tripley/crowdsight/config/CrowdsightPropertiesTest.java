@@ -38,6 +38,7 @@ class CrowdsightPropertiesTest {
         map.put("crowdsight.inflow.min-samples", "3");
         map.put("crowdsight.inflow.off-seconds", "10");
         map.put("crowdsight.inflow.min-count", "3");
+        map.put("crowdsight.unacked-alert-limit", "100");
         map.put("crowdsight.time-zone", "Asia/Seoul");
         map.put("crowdsight.ws.ping-interval-ms", "30000");
         map.put("crowdsight.ws.send-time-limit-ms", "2000");
@@ -280,5 +281,34 @@ class CrowdsightPropertiesTest {
         assertThatThrownBy(() -> bind(map))
                 .isInstanceOf(BindException.class)
                 .rootCause().hasMessageContaining("crowdsight." + key);
+    }
+
+    @Test
+    @DisplayName("미확인 알림 상한을 묶는다")
+    void bindsUnackedAlertLimit() {
+        assertThat(bind(defaults()).unackedAlertLimit()).isEqualTo(100);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1})
+    @DisplayName("미확인 알림 상한이 1 미만이면 거부한다")
+    void rejectsNonPositiveUnackedAlertLimit(int limit) {
+        Map<String, String> map = defaults();
+        map.put("crowdsight.unacked-alert-limit", String.valueOf(limit));
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("crowdsight.unacked-alert-limit");
+    }
+
+    @Test
+    @DisplayName("미확인 알림 상한이 없으면 거부한다")
+    void rejectsMissingUnackedAlertLimit() {
+        Map<String, String> map = defaults();
+        map.remove("crowdsight.unacked-alert-limit");
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("crowdsight.unacked-alert-limit");
     }
 }

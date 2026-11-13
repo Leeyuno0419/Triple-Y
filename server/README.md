@@ -45,6 +45,14 @@ cd server
 - DEBUG 로그 `재생 zone=… inflow_avg=… inflow_alert=…`로 5초 평균을 확인한다 (평균은 메시지로 보내지 않는다).
 - 가짜 타임라인은 `inflow_ratio`가 0.6을 넘지 않아 유입 경보가 켜지지 않는다. 판정은 단위 테스트로 확인한다.
 
+## 알림 (S5)
+- 서버가 `alert`를 보낸다: 구역 등급이 경계·심각으로 오를 때(`GRADE_UP`), 판정 대상 셀이 불안정이 될 때(`INSTABILITY`), 유입 경보가 켜질 때(`INFLOW`). 같은 사건은 한 번만 보낸다.
+- 한 초 안에서는 `zone_state` 다음에 `alert`가 오고, 둘의 `t`·`frame_ts`가 같다.
+- 확인하지 않은 알림은 구역당 최근 100개(`crowdsight.unacked-alert-limit`)까지 메모리에 두고, 접속할 때 `hello.unacked_alerts`로 다시 보낸다. 서버를 재시작하면 사라진다. 확인(ack)은 S6.
+- 반복 재생으로 처음에 돌아오면 알림 판정이 초기화되어 같은 알림이 새 ID로 다시 온다.
+- 알림마다 INFO 로그 `알림 zone=… t=… alert_id=… reason=… level=… value=…`가 남는다.
+- fixture와 가짜 타임라인 대부분은 경계에 닿지 않아 알림이 없을 수 있다. 판정은 단위 테스트로 확인한다.
+
 ## 타임라인 파일
 - 서버는 시작할 때 `crowdsight.timeline-dir` 폴더의 `crowdsight.timeline-files`를 모두 읽고 검증한다 (`docs/timeline-spec.md` v0.2). 파일이 없거나 규격에 맞지 않으면 시작하지 않는다. 오류 메시지에 파일의 절대 경로가 있다.
 - 기본값은 `../data/processed/timeline/E04_039.json`이다 (작업 폴더 `server/` 기준). 시작 로그 `타임라인 폴더: ...`에서 실제 절대 경로를 확인한다.
