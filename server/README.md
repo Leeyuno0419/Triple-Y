@@ -38,6 +38,13 @@ cd server
 - 느린 화면: 메시지 하나 보내기가 2초(`crowdsight.ws.send-time-limit-ms`) 넘게 막히면 그 화면 연결만 닫는다. 화면은 재접속하면 `hello`부터 다시 받는다.
 - 로그: 접속·끊김은 INFO `화면 접속 zone=… session=… 접속자=…`, 보내기 실패는 WARN `보내기 실패한 화면을 닫고 뺌`.
 
+## 판정 기준 (S4)
+- 기준값은 `application.yml`의 `crowdsight.grade.*`(밀도), `crowdsight.instability.*`(군중 압력), `crowdsight.inflow.*`(유입)에 있다. 화면은 `hello.thresholds`로 같은 값을 받는다.
+- 불안정: 셀 `pressure`가 0.02를 3초 연속 넘으면 그 셀은 심각 조건이다. `null`이거나 기준 이하면 연속이 끊긴다. 심각은 조건이 풀려도 10초에 한 단계씩 내려간다.
+- 유입 경보(`zone.inflow_alert`): `inflow_ratio` 최근 5초 평균(값 3개 이상일 때)이 0.6을 넘고 `count`가 3명 이상이면 켜진다. 10초 연속 조건이 거짓이면 꺼진다. 반복·이동 뒤 처음 4초는 평균이 없다.
+- DEBUG 로그 `재생 zone=… inflow_avg=… inflow_alert=…`로 5초 평균을 확인한다 (평균은 메시지로 보내지 않는다).
+- 가짜 타임라인은 `inflow_ratio`가 0.6을 넘지 않아 유입 경보가 켜지지 않는다. 판정은 단위 테스트로 확인한다.
+
 ## 타임라인 파일
 - 서버는 시작할 때 `crowdsight.timeline-dir` 폴더의 `crowdsight.timeline-files`를 모두 읽고 검증한다 (`docs/timeline-spec.md` v0.2). 파일이 없거나 규격에 맞지 않으면 시작하지 않는다. 오류 메시지에 파일의 절대 경로가 있다.
 - 기본값은 `../data/processed/timeline/E04_039.json`이다 (작업 폴더 `server/` 기준). 시작 로그 `타임라인 폴더: ...`에서 실제 절대 경로를 확인한다.

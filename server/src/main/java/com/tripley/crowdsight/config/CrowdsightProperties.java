@@ -7,24 +7,29 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import com.tripley.crowdsight.grade.GradeSettings;
+import com.tripley.crowdsight.grade.InflowSettings;
+import com.tripley.crowdsight.grade.InstabilitySettings;
 
 /**
  * crowdsight.* 설정 (application.yml). 기준값·시간·경로는 이 record 한 곳에만 둔다.
  * 값 검사는 compact constructor에서 한다 (validation 스타터 안 씀). 틀리면 서버가 시작하지 않는다.
- * grade는 grade 패키지의 record로 바로 묶고, 그 값 검사는 해당 record가 한다.
- * instability·inflow·alert-log는 그 값을 쓰는 PR(S4~S6)에서 추가한다.
+ * grade·instability·inflow는 grade 패키지의 record로 바로 묶고, 그 값 검사는 해당 record가 한다.
+ * alert-log는 그 값을 쓰는 PR(S6)에서 추가한다.
  *
  * @param timelineDir        타임라인 폴더. 상대 경로면 작업 폴더(bootRun·test는 server/) 기준
  * @param timelineFiles      timelineDir 안의 파일 이름. 1개 이상, 파일당 구역 1개
  * @param timeZone           서버 시계의 시간대 (IANA 이름, 예: Asia/Seoul). frame_ts 오프셋이 된다
  * @param replay             재생 설정
  * @param grade              등급 판정 설정 (crowdsight.grade.*)
+ * @param instability        셀 불안정 판정 설정 (crowdsight.instability.*)
+ * @param inflow             유입 경보 설정 (crowdsight.inflow.*)
  * @param ws                 WebSocket 설정 (crowdsight.ws.*)
  * @param corsOriginPatterns 허용 출처 패턴. WebSocket(S3)과 REST(S6)가 같이 쓴다 (결정 기록 2)
  */
 @ConfigurationProperties("crowdsight")
 public record CrowdsightProperties(String timelineDir, List<String> timelineFiles, String timeZone, Replay replay,
-                                   GradeSettings grade, Ws ws, List<String> corsOriginPatterns) {
+                                   GradeSettings grade, InstabilitySettings instability, InflowSettings inflow,
+                                   Ws ws, List<String> corsOriginPatterns) {
 
     public CrowdsightProperties {
         if (timelineDir == null || timelineDir.isBlank()) {
@@ -51,6 +56,12 @@ public record CrowdsightProperties(String timelineDir, List<String> timelineFile
         }
         if (grade == null) {
             throw new IllegalArgumentException("crowdsight.grade 가 없습니다.");
+        }
+        if (instability == null) {
+            throw new IllegalArgumentException("crowdsight.instability 가 없습니다.");
+        }
+        if (inflow == null) {
+            throw new IllegalArgumentException("crowdsight.inflow 가 없습니다.");
         }
         if (ws == null) {
             throw new IllegalArgumentException("crowdsight.ws 가 없습니다.");

@@ -6,6 +6,7 @@ import static com.tripley.crowdsight.grade.Grade.CRITICAL;
 import static com.tripley.crowdsight.grade.Grade.NORMAL;
 import static com.tripley.crowdsight.timeline.TimelineFixtures.MAPPER;
 import static com.tripley.crowdsight.timeline.TimelineFixtures.fixturePath;
+import static com.tripley.crowdsight.timeline.TimelineFixtures.timelineWithInflow;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Clock;
@@ -21,7 +22,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import com.tripley.crowdsight.config.TestProperties;
 import com.tripley.crowdsight.grade.DensityThresholds;
-import com.tripley.crowdsight.grade.ZoneGrader;
 import com.tripley.crowdsight.replay.PlaybackSnapshot;
 import com.tripley.crowdsight.replay.PlaybackState;
 import com.tripley.crowdsight.replay.ZonePlayer;
@@ -54,8 +54,7 @@ class MessageFactoryTest {
 
     /** 반복 재생하는 fixture 런타임. */
     static ZoneRuntime fixtureRuntime(ZoneTimeline timeline) {
-        return new ZoneRuntime(new ZonePlayer(timeline, true),
-                new ZoneGrader(timeline.meta().cells(), TestProperties.GRADE));
+        return new ZoneRuntime(new ZonePlayer(timeline, true), TestProperties.grader(timeline.meta().cells()));
     }
 
     /** tick을 n번 하고 마지막 step을 준다. */
@@ -74,7 +73,7 @@ class MessageFactoryTest {
     }
 
     @Test
-    @DisplayName("hello는 meta 원본·재생 상태·밀도 기준·빈 미확인 알림을 담는다")
+    @DisplayName("hello는 meta 원본·재생 상태·기준값·빈 미확인 알림을 담는다")
     void helloFromFixture() {
         HelloMessage hello = messages.hello(runtime);
 
@@ -83,7 +82,7 @@ class MessageFactoryTest {
         assertThat(hello.zoneId()).isEqualTo("zone-test");
         assertThat(hello.meta()).isSameAs(timeline.metaJson());
         assertThat(hello.playback()).isEqualTo(new PlaybackView("playing", 0, true, 5));
-        assertThat(hello.thresholds()).isEqualTo(new ThresholdsView(new DensityThresholds(3.0, 4.0, 5.0)));
+        assertThat(hello.thresholds()).isEqualTo(new ThresholdsView(new DensityThresholds(3.0, 4.0, 5.0), 0.02, 0.6));
         assertThat(hello.unackedAlerts()).isEmpty();
     }
 
@@ -132,6 +131,20 @@ class MessageFactoryTest {
         PlaybackMessage message = messages.playback("zone-test", new PlaybackSnapshot(state, 4, false, 5));
 
         assertThat(message).isEqualTo(new PlaybackMessage("playback", "zone-test", expected, 4, false));
+    }
+
+    @Test
+    @DisplayName("zone.inflow_alert는 판정 결과를 옮긴다")
+    void zoneStateCarriesInflowAlert() {
+        ZoneRuntime inflow = fixtureRuntime(timelineWithInflow(5, 0.8, 5.0));
+
+        ZoneView t3 = messages.zoneState("zone-test", tickTimes(inflow, 4), messages.frameTs()).zone();
+        ZoneView t4 = messages.zoneState("zone-test", tickTimes(inflow, 1), messages.frameTs()).zone();
+
+        assertThat(t3.inflowAlert()).isFalse();
+        assertThat(t4.inflowAlert()).isTrue();
+        assertThat(t4.inflowRatio()).isEqualTo(0.8);
+        assertThat(t4.count()).isEqualTo(5.0);
     }
 
     @Test

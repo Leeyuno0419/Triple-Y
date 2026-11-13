@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import com.tripley.crowdsight.config.TestProperties;
-import com.tripley.crowdsight.grade.ZoneGrader;
 
 class ReplaySchedulerTest {
 
@@ -34,7 +33,7 @@ class ReplaySchedulerTest {
 
     /** 셀 없는 판정기로 감싼다. mock 플레이어에는 timeline이 없고 timelineOf의 셀도 비어 있다. */
     private static ZoneRuntime runtime(ZonePlayer player) {
-        return new ZoneRuntime(player, new ZoneGrader(List.of(), TestProperties.GRADE));
+        return new ZoneRuntime(player, TestProperties.grader(List.of()));
     }
 
     @BeforeEach

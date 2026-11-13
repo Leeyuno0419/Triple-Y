@@ -43,8 +43,10 @@ public class MessageFactory {
     /** 접속한 화면에 보낼 hello. 재생 상태는 지금 snapshot이다. */
     public HelloMessage hello(ZoneRuntime zone) {
         ZonePlayer player = zone.player();
+        ThresholdsView thresholds = new ThresholdsView(props.grade().density(), props.instability().pressure(),
+                props.inflow().ratio());
         return new HelloMessage(API_SCHEMA_VERSION, zone.zoneId(), player.timeline().metaJson(),
-                playbackView(player.snapshot()), new ThresholdsView(props.grade().density()), List.of());
+                playbackView(player.snapshot()), thresholds, List.of());
     }
 
     /** 재생 상태 변화 (반복으로 0, 끝). */
@@ -56,8 +58,8 @@ public class MessageFactory {
     public ZoneStateMessage zoneState(String zoneId, ZoneStep step, String frameTs) {
         Frame frame = step.tick().frame();
         ZoneEvaluation eval = step.evaluation();
-        ZoneView zone = new ZoneView(eval.zoneGrade(), eval.maxDensity(), frame.inflowRatio(),
-                false, frame.count());                                   // inflow_alert는 S4에서 실제 값
+        ZoneView zone = new ZoneView(eval.zoneGrade(), eval.maxDensity(), frame.inflowRatio(), eval.inflowAlert(),
+                frame.count());
         List<CellView> cells = eval.cells().stream().map(MessageFactory::cellView).toList();
         return new ZoneStateMessage(zoneId, eval.t(), frameTs, zone, cells);
     }

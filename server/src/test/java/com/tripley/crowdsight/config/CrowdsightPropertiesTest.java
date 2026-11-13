@@ -31,6 +31,13 @@ class CrowdsightPropertiesTest {
         map.put("crowdsight.grade.up-seconds", "2");
         map.put("crowdsight.grade.down-seconds", "10");
         map.put("crowdsight.grade.min-walkable-area-m2", "2.0");
+        map.put("crowdsight.instability.pressure", "0.02");
+        map.put("crowdsight.instability.seconds", "3");
+        map.put("crowdsight.inflow.ratio", "0.6");
+        map.put("crowdsight.inflow.window-seconds", "5");
+        map.put("crowdsight.inflow.min-samples", "3");
+        map.put("crowdsight.inflow.off-seconds", "10");
+        map.put("crowdsight.inflow.min-count", "3");
         map.put("crowdsight.time-zone", "Asia/Seoul");
         map.put("crowdsight.ws.ping-interval-ms", "30000");
         map.put("crowdsight.ws.send-time-limit-ms", "2000");
@@ -216,5 +223,62 @@ class CrowdsightPropertiesTest {
         assertThatThrownBy(() -> bind(map))
                 .isInstanceOf(BindException.class)
                 .rootCause().hasMessageContaining("빈 패턴");
+    }
+
+    @Test
+    @DisplayName("instability·inflow 키를 설정 record로 묶는다")
+    void bindsInstabilityAndInflowKeys() {
+        CrowdsightProperties props = bind(defaults());
+
+        assertThat(props.instability()).isEqualTo(TestProperties.INSTABILITY);
+        assertThat(props.inflow()).isEqualTo(TestProperties.INFLOW);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"pressure, 0", "pressure, -0.01", "seconds, 0"})
+    @DisplayName("불안정 기준·초가 틀리면 거부한다")
+    void rejectsInvalidInstability(String key, String value) {
+        Map<String, String> map = defaults();
+        map.put("crowdsight.instability." + key, value);
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining(key);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"ratio, 1.0", "ratio, -0.1", "window-seconds, 0", "min-samples, 0", "off-seconds, 0",
+            "min-count, -1"})
+    @DisplayName("유입 설정 값이 틀리면 거부한다")
+    void rejectsInvalidInflow(String key, String value) {
+        Map<String, String> map = defaults();
+        map.put("crowdsight.inflow." + key, value);
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining(key);
+    }
+
+    @Test
+    @DisplayName("min-samples가 창보다 크면 거부한다")
+    void rejectsMinSamplesAboveWindow() {
+        Map<String, String> map = defaults();
+        map.put("crowdsight.inflow.min-samples", "6");
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("min-samples").hasMessageContaining("window-seconds");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"instability", "inflow"})
+    @DisplayName("instability·inflow 설정이 없으면 거부한다")
+    void rejectsMissingSection(String key) {
+        Map<String, String> map = defaults();
+        map.keySet().removeIf(k -> k.startsWith("crowdsight." + key + "."));
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("crowdsight." + key);
     }
 }
