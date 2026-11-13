@@ -3,6 +3,7 @@ package com.tripley.crowdsight.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,6 +31,12 @@ class CrowdsightPropertiesTest {
         map.put("crowdsight.grade.up-seconds", "2");
         map.put("crowdsight.grade.down-seconds", "10");
         map.put("crowdsight.grade.min-walkable-area-m2", "2.0");
+        map.put("crowdsight.time-zone", "Asia/Seoul");
+        map.put("crowdsight.ws.ping-interval-ms", "30000");
+        map.put("crowdsight.ws.send-time-limit-ms", "2000");
+        map.put("crowdsight.ws.buffer-size-limit-bytes", "524288");
+        map.put("crowdsight.cors-origin-patterns[0]", "http://localhost:*");
+        map.put("crowdsight.cors-origin-patterns[1]", "http://127.0.0.1:*");
         return map;
     }
 
@@ -143,5 +150,71 @@ class CrowdsightPropertiesTest {
         assertThatThrownBy(() -> bind(map))
                 .isInstanceOf(BindException.class)
                 .rootCause().hasMessageContaining("crowdsight.grade");
+    }
+
+    @Test
+    @DisplayName("ws·허용 출처·시간대 키를 묶는다")
+    void bindsWsCorsAndTimeZone() {
+        CrowdsightProperties props = bind(defaults());
+
+        assertThat(props.ws()).isEqualTo(TestProperties.WS);
+        assertThat(props.corsOriginPatterns()).isEqualTo(TestProperties.CORS);
+        assertThat(props.clockZone()).isEqualTo(ZoneId.of("Asia/Seoul"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ping-interval-ms", "send-time-limit-ms", "buffer-size-limit-bytes"})
+    @DisplayName("ws 값이 0이면 거부한다")
+    void rejectsNonPositiveWs(String key) {
+        Map<String, String> map = defaults();
+        map.put("crowdsight.ws." + key, "0");
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("crowdsight.ws." + key);
+    }
+
+    @Test
+    @DisplayName("ws 설정이 없으면 거부한다")
+    void rejectsMissingWs() {
+        Map<String, String> map = defaults();
+        map.keySet().removeIf(key -> key.startsWith("crowdsight.ws."));
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("crowdsight.ws");
+    }
+
+    @Test
+    @DisplayName("모르는 시간대면 거부한다")
+    void rejectsUnknownTimeZone() {
+        Map<String, String> map = defaults();
+        map.put("crowdsight.time-zone", "Mars/Base");
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("crowdsight.time-zone");
+    }
+
+    @Test
+    @DisplayName("허용 출처가 없으면 거부한다")
+    void rejectsMissingCorsPatterns() {
+        Map<String, String> map = defaults();
+        map.keySet().removeIf(key -> key.startsWith("crowdsight.cors-origin-patterns"));
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("crowdsight.cors-origin-patterns");
+    }
+
+    @Test
+    @DisplayName("빈 허용 출처 패턴을 거부한다")
+    void rejectsBlankCorsPattern() {
+        Map<String, String> map = defaults();
+        map.put("crowdsight.cors-origin-patterns[1]", " ");
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("빈 패턴");
     }
 }
