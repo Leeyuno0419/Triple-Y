@@ -21,6 +21,9 @@ public final class TestProperties {
     /** application.yml crowdsight.inflow 기본값과 같다. */
     public static final InflowSettings INFLOW = new InflowSettings(0.6, 5, 3, 10, 3.0);
 
+    /** application.yml crowdsight.unacked-alert-limit 기본값과 같다 (bindsDefaultUnackedAlertLimit가 확인). */
+    public static final int UNACKED_ALERT_LIMIT = 100;
+
     /** application.yml crowdsight.time-zone 기본값. */
     public static final String TIME_ZONE = "Asia/Seoul";
 
@@ -56,6 +59,6 @@ public final class TestProperties {
     private static CrowdsightProperties full(String dir, List<String> files, long intervalMs, boolean loop,
                                              CrowdsightProperties.Ws ws) {
         return new CrowdsightProperties(dir, files, TIME_ZONE, new CrowdsightProperties.Replay(intervalMs, loop),
-                GRADE, INSTABILITY, INFLOW, ws, CORS);
+                GRADE, INSTABILITY, INFLOW, UNACKED_ALERT_LIMIT, ws, CORS);
     }
 }

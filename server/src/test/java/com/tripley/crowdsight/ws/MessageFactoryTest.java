@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import com.tripley.crowdsight.alert.Alert;
+import com.tripley.crowdsight.alert.AlertReason;
 import com.tripley.crowdsight.config.TestProperties;
 import com.tripley.crowdsight.grade.DensityThresholds;
 import com.tripley.crowdsight.replay.PlaybackSnapshot;
@@ -29,6 +31,7 @@ import com.tripley.crowdsight.replay.ZoneRuntime;
 import com.tripley.crowdsight.replay.ZoneStep;
 import com.tripley.crowdsight.timeline.TimelineLoader;
 import com.tripley.crowdsight.timeline.ZoneTimeline;
+import com.tripley.crowdsight.ws.message.AlertMessage;
 import com.tripley.crowdsight.ws.message.CellView;
 import com.tripley.crowdsight.ws.message.HelloMessage;
 import com.tripley.crowdsight.ws.message.PlaybackMessage;
@@ -41,6 +44,8 @@ class MessageFactoryTest {
 
     static final Clock FIXED = Clock.fixed(Instant.parse("2026-11-18T05:02:31.512Z"), ZoneId.of("Asia/Seoul"));
     static final String FIXED_TS = "2026-11-18T14:02:31.512+09:00";
+    static final Alert ALERT_SAMPLE = new Alert("a-20261118-0001", "zone-test", 1, FIXED_TS, ALERT,
+            AlertReason.GRADE_UP, "구역 등급이 정상 → 경계로 올랐다", 4.5, List.of("c-0000"));
 
     private final MessageFactory messages = new MessageFactory(FIXED, TestProperties.replay(1000, true));
     private ZoneTimeline timeline;
@@ -75,7 +80,7 @@ class MessageFactoryTest {
     @Test
     @DisplayName("hello는 meta 원본·재생 상태·기준값·빈 미확인 알림을 담는다")
     void helloFromFixture() {
-        HelloMessage hello = messages.hello(runtime);
+        HelloMessage hello = messages.hello(runtime, List.of());
 
         assertThat(hello.type()).isEqualTo("hello");
         assertThat(hello.schemaVersion()).isEqualTo("0.2");
@@ -91,7 +96,7 @@ class MessageFactoryTest {
     void helloReflectsCurrentPlayback() {
         tickTimes(runtime, 3);
 
-        assertThat(messages.hello(runtime).playback().t()).isEqualTo(2);
+        assertThat(messages.hello(runtime, List.of()).playback().t()).isEqualTo(2);
     }
 
     @Test
@@ -151,5 +156,23 @@ class MessageFactoryTest {
     @DisplayName("frame_ts는 주입한 시계를 쓴다")
     void frameTsUsesClock() {
         assertThat(messages.frameTs()).isEqualTo(FIXED_TS);
+    }
+
+    @Test
+    @DisplayName("hello는 받은 미확인 알림을 순서대로 담는다")
+    void helloCarriesUnackedAlerts() {
+        Alert second = new Alert("a-20261118-0002", "zone-test", 4, FIXED_TS, CAUTION, AlertReason.INFLOW,
+                "구역으로 들어오는 인원이 몰린다", 0.8, List.of());
+
+        HelloMessage hello = messages.hello(runtime, List.of(ALERT_SAMPLE, second));
+
+        assertThat(hello.unackedAlerts()).containsExactly(messages.alert(ALERT_SAMPLE), messages.alert(second));
+    }
+
+    @Test
+    @DisplayName("alert 메시지는 발급한 알림 값을 옮긴다")
+    void alertFromAlert() {
+        assertThat(messages.alert(ALERT_SAMPLE)).isEqualTo(new AlertMessage("alert", "a-20261118-0001", "zone-test",
+                1, FIXED_TS, ALERT, AlertReason.GRADE_UP, "구역 등급이 정상 → 경계로 올랐다", 4.5, List.of("c-0000")));
     }
 }
