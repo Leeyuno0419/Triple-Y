@@ -66,8 +66,9 @@ public final class ZoneSessions {
         targets.add(session);
         if (!raw.isOpen()) {     // 그 사이 끊김. leave가 bySessionId만 먼저 지웠을 수 있어 두 맵에서 직접 뺀다
             targets.remove(session);
-            bySessionId.remove(raw.getId(), member);
-            log.info("화면 접속 끊김 zone={} session={} 접속자={}", zoneId, raw.getId(), sessionCount(zoneId));
+            if (bySessionId.remove(raw.getId(), member)) {     // Member를 뺀 쪽만 로그 (leave가 뺐으면 leave가 남겼다)
+                log.info("화면 접속 끊김 zone={} session={} 접속자={}", zoneId, raw.getId(), sessionCount(zoneId));
+            }
             return;
         }
         log.info("화면 접속 zone={} session={} 접속자={}", zoneId, raw.getId(), sessionCount(zoneId));
