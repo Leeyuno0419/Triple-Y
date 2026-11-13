@@ -67,7 +67,7 @@
 - 화면은 `meta`로 히트맵 셀을 그린다. `GET /meta`를 따로 부르지 않아도 된다.
 - `thresholds`는 표시용(범례·그래프 기준선)이다. 판정은 서버가 한다.
 - 재접속하면 미확인 알림을 `unacked_alerts`로 다시 받는다.
-- `unacked_alerts`는 오래된 것부터, 미확인만, 구역당 최대 100개(`crowdsight.unacked-alert-limit`). 확인한 알림은 남는 자리에만 보관한다. 넘으면 오래된 것부터 버린다. 같은 알림을 `hello`와 `alert`로 두 번 받을 수 있으니 화면은 `alert_id`로 거른다.
+- `unacked_alerts`는 오래된 것부터, 미확인만, 구역당 최대 100개(`crowdsight.unacked-alert-limit`). 확인한 알림은 남는 자리에만 보관한다. 상한을 넘으면 확인한 알림부터 버리고, 미확인만으로 넘으면 가장 오래된 미확인부터 버린다. 같은 알림을 `hello`와 `alert`로 두 번 받을 수 있으니 화면은 `alert_id`로 거른다.
 - 없는 구역으로 접속하면 서버는 닫기 코드 `4404` (`unknown zone`)로 연결을 닫는다. 닫기 코드는 WebSocket을 닫을 때 이유를 알리는 숫자다. 4000~4999는 응용이 정해 쓴다.
 
 ### 3.2 `zone_state` (1초마다)
@@ -222,7 +222,7 @@
 
 - 응답: `200 {"alert_id": "...", "acked_at": "..."}`. 이미 확인한 알림이면 `200`과 처음 확인 시각을 돌려준다. 없는 ID면 `404`.
 - DB는 쓰지 않는다 (기획서 5.1: 로그 파일). 서버를 재시작하면 미확인 알림 목록은 비워진다 (가정).
-- 알림 목록 `GET /api/zones/{zone_id}/alerts?unacked=true|false`: 원소는 3.3 `alert`와 같은 키에 `acked_at`(미확인이면 `null`)을 더한다. `unacked`를 빼면 `false`. 없는 구역은 `404`, `unacked`가 불리언이 아니면 `400`.
+- 알림 목록 `GET /api/zones/{zone_id}/alerts?unacked=true|false`: 원소는 3.3 `alert`와 같은 키에 `acked_at`(미확인이면 `null`)을 더한다. `unacked`를 빼면 `false`. 없는 구역은 `404`, `unacked`는 `true`·`false`(Spring이 `1`·`0`·`yes`·`no`·`on`·`off`도 받음), 그 밖의 값은 `400`.
 - 기록은 처음 확인할 때만 한 줄이다. 줄은 UTF-8, LF. 기록을 쓰지 못해도 확인은 반영되고 `200`이다(서버 ERROR 로그에 줄을 남긴다).
 - 확인은 다른 화면에 WebSocket으로 알리지 않는다. 다른 화면은 재접속 `hello`나 이 목록에서 빠진 것을 본다 (가정).
 - 서버를 재시작하면 알림 번호가 1부터 다시 시작한다. 화면은 `hello`를 받으면 미확인 목록을 `unacked_alerts`로 바꾼다(예전 ID를 버린다).
