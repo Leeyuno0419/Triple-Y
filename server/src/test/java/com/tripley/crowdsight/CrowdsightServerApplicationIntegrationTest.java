@@ -65,6 +65,12 @@ class CrowdsightServerApplicationIntegrationTest {
     }
 
     @Test
+    @DisplayName("application.yml의 알림 확인 기록 경로를 읽는다")
+    void bindsDefaultAlertLog() {
+        assertThat(props.alertLog()).isEqualTo(TestProperties.ALERT_LOG);
+    }
+
+    @Test
     @DisplayName("Clock 빈은 설정 시간대를 쓴다")
     void clockUsesConfiguredZone() {
         assertThat(clock.getZone()).isEqualTo(ZoneId.of("Asia/Seoul"));
