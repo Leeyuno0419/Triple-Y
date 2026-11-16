@@ -40,16 +40,28 @@ def count_cells(ground_pts: np.ndarray, cells: list[dict[str, object]],
     return counts
 
 
-def main() -> None:
-    """영상 전체를 1초 간격으로 처리해 timeline.json과 초별 구역 인원 CSV를 저장한다."""
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--homography", required=True)
-    ap.add_argument("--video", required=True)
-    ap.add_argument("--out", required=True)
-    ap.add_argument("--limit", type=int, default=0, help="앞에서 몇 초만 (빠른 확인용)")
-    args = ap.parse_args()
+def frame_plan(duration: int, fps: float, n_frames: int,
+               offsets: np.ndarray) -> tuple[dict[int, list[int]], list[int]]:
+    """초마다 셀 프레임 번호를 정한다.
 
-    cfg = json.loads(Path(args.homography).read_text(encoding="utf-8"))
+    돌려주는 값: (프레임 번호 -> 그 프레임을 쓰는 초들, 초마다 정각 프레임 번호).
+    정각 프레임은 round(t·fps)이고 흐름 모듈이 머리 점을 받는 프레임과 같다.
+    영상 앞뒤 끝을 넘는 프레임은 안쪽으로 자른다.
+    """
+    need: dict[int, list[int]] = {}
+    for t in range(duration):
+        for off in offsets:
+            need.setdefault(int(np.clip(round((t + off) * fps), 0, n_frames - 1)), []).append(t)
+    centre = [int(np.clip(round(t * fps), 0, n_frames - 1)) for t in range(duration)]
+    return need, centre
+
+
+def count_video(cfg: dict[str, object], video: str, limit: int = 0
+                ) -> tuple[dict[str, object], list[np.ndarray], list[tuple[int, float, float]]]:
+    """영상을 1초 간격으로 세어 (timeline dict, 초별 정각 프레임 머리 점, 초별 통계 행)을 돌려준다.
+
+    머리 점은 흐름 모듈에 메모리로 넘기기 위한 것이다. 호출한 쪽이 쓰고 버려야 하며 저장하지 않는다.
+    """
     h_ground = np.array(cfg["H_img_to_ground"])
     h_head = np.array(cfg["head_plane"]["H_head_img_to_ground"])
     origin, cell_m = tuple(cfg["cell_origin_m"]), 2.0
@@ -57,27 +69,24 @@ def main() -> None:
     scale, threshold = ctr["scale"], ctr["threshold"]
     offsets = np.linspace(-ctr["window_s"], ctr["window_s"], ctr["avg_frames"])
 
-    cap = cv2.VideoCapture(args.video)
+    cap = cv2.VideoCapture(video)
     fps = cap.get(cv2.CAP_PROP_FPS)
     n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
     duration = int(n_frames / fps)
-    if args.limit:
-        duration = min(duration, args.limit)
+    if limit:
+        duration = min(duration, limit)
     cells = build_cells(h_ground, cfg["walkable_polygon_px"], size, cell_m, origin_m=origin)
     areas = np.array([c["walkable_area_m2"] for c in cells])
 
-    # 프레임 번호 -> 그 프레임을 쓰는 초들 (영상 앞뒤 끝은 안쪽으로 자른다)
-    need: dict[int, list[int]] = {}
-    for t in range(duration):
-        for off in offsets:
-            need.setdefault(int(np.clip(round((t + off) * fps), 0, n_frames - 1)), []).append(t)
+    need, centre = frame_plan(duration, fps, n_frames, offsets)
+    centre_of = {f: t for t, f in enumerate(centre)}
+    heads: list[np.ndarray] = [np.zeros((0, 2))] * duration
     acc = np.zeros((duration, len(cells)))
     used = np.zeros(duration)
     frame_total = np.zeros(duration)
 
     model = load_p2pnet(WEIGHTS)
-    start = time.time()
     for idx in range(max(need) + 1):
         if not cap.grab():
             break
@@ -85,6 +94,8 @@ def main() -> None:
             continue
         _, frame = cap.retrieve()
         pts = head_points(model, frame, scale, threshold)
+        if idx in centre_of:
+            heads[centre_of[idx]] = np.asarray(pts, float).reshape(-1, 2)
         counts = count_cells(image_to_ground(h_head, pts), cells, origin, cell_m) if len(pts) \
             else np.zeros(len(cells), int)
         for t in need[idx]:
@@ -93,6 +104,7 @@ def main() -> None:
             frame_total[t] += len(pts)
         if idx % round(fps * 10) < 1:
             print(f"{idx / fps:5.1f}s 처리 중", flush=True)
+    cap.release()
 
     mean = acc / used[:, None]
     frames, rows = [], []
@@ -118,16 +130,37 @@ def main() -> None:
         },
         "frames": frames,
     })
-    out = Path(args.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(timeline, ensure_ascii=False), encoding="utf-8")
+    return timeline, heads, rows
 
+
+def save_counts(vid: str, rows: list[tuple[int, float, float]]) -> Path:
+    """초별 구역 인원 통계를 outputs/g1/{영상}_counts.csv로 저장한다."""
     stat = ROOT / "outputs" / "g1" / f"{vid}_counts.csv"
     stat.parent.mkdir(parents=True, exist_ok=True)
     with open(stat, "w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerows([("t", "zone_count", "frame_count"), *rows])
-    el = time.time() - start
-    print(f"저장: {out}, {stat} ({len(frames)}초, 셀 {len(cells)}개, {el:.0f}초 소요)")
+    return stat
+
+
+def main() -> None:
+    """영상 전체를 1초 간격으로 처리해 timeline.json과 초별 구역 인원 CSV를 저장한다."""
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--homography", required=True)
+    ap.add_argument("--video", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--limit", type=int, default=0, help="앞에서 몇 초만 (빠른 확인용)")
+    args = ap.parse_args()
+
+    cfg = json.loads(Path(args.homography).read_text(encoding="utf-8"))
+    start = time.time()
+    timeline, heads, rows = count_video(cfg, args.video, args.limit)
+    del heads  # 밀도만 만들 때는 머리 점을 쓰지 않는다
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(timeline, ensure_ascii=False), encoding="utf-8")
+    stat = save_counts(cfg["video"], rows)
+    print(f"저장: {out}, {stat} ({len(rows)}초, 셀 {len(timeline['meta']['cells'])}개, "
+          f"{time.time() - start:.0f}초 소요)")
 
 
 if __name__ == "__main__":
