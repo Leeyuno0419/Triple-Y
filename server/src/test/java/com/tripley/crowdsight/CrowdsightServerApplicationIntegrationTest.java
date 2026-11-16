@@ -59,6 +59,12 @@ class CrowdsightServerApplicationIntegrationTest {
     }
 
     @Test
+    @DisplayName("application.yml의 미확인 알림 상한을 읽는다")
+    void bindsDefaultUnackedAlertLimit() {
+        assertThat(props.unackedAlertLimit()).isEqualTo(TestProperties.UNACKED_ALERT_LIMIT);
+    }
+
+    @Test
     @DisplayName("Clock 빈은 설정 시간대를 쓴다")
     void clockUsesConfiguredZone() {
         assertThat(clock.getZone()).isEqualTo(ZoneId.of("Asia/Seoul"));

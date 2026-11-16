@@ -11,6 +11,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.tripley.crowdsight.alert.AlertEvent;
+import com.tripley.crowdsight.alert.AlertReason;
 import com.tripley.crowdsight.config.TestProperties;
 import com.tripley.crowdsight.grade.Grade;
 import com.tripley.crowdsight.timeline.ZoneTimeline;
@@ -66,5 +68,22 @@ class ZoneRuntimeTest {
             assertThat(s.evaluation().zoneGrade()).isEqualTo(Grade.NORMAL);
         });
         assertThat(second).isEmpty();
+    }
+
+    @Test
+    @DisplayName("반복으로 처음에 돌아오면 같은 알림이 다시 생긴다")
+    void alertRepeatsNextLoop() {
+        ZoneRuntime runtime = runtime(timelineWithDensity(5, 4.5), true);
+        List<ZoneStep> steps = new ArrayList<>();
+
+        for (int i = 0; i < 10; i++) {
+            steps.add(runtime.tick().orElseThrow());
+        }
+
+        assertThat(steps).extracting(s -> s.alerts().size()).containsExactly(0, 1, 0, 0, 0, 0, 1, 0, 0, 0);
+        AlertEvent expected = new AlertEvent(Grade.ALERT, AlertReason.GRADE_UP, "구역 등급이 정상 → 경계로 올랐다",
+                4.5, List.of("c-0000"));
+        assertThat(steps.get(1).alerts()).containsExactly(expected);
+        assertThat(steps.get(6).alerts()).containsExactly(expected);
     }
 }

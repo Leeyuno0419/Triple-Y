@@ -23,13 +23,14 @@ import com.tripley.crowdsight.grade.InstabilitySettings;
  * @param grade              등급 판정 설정 (crowdsight.grade.*)
  * @param instability        셀 불안정 판정 설정 (crowdsight.instability.*)
  * @param inflow             유입 경보 설정 (crowdsight.inflow.*)
+ * @param unackedAlertLimit  구역당 미확인 알림 최대 개수 (1 이상). 넘으면 가장 오래된 것부터 버린다
  * @param ws                 WebSocket 설정 (crowdsight.ws.*)
  * @param corsOriginPatterns 허용 출처 패턴. WebSocket(S3)과 REST(S6)가 같이 쓴다 (결정 기록 2)
  */
 @ConfigurationProperties("crowdsight")
 public record CrowdsightProperties(String timelineDir, List<String> timelineFiles, String timeZone, Replay replay,
                                    GradeSettings grade, InstabilitySettings instability, InflowSettings inflow,
-                                   Ws ws, List<String> corsOriginPatterns) {
+                                   int unackedAlertLimit, Ws ws, List<String> corsOriginPatterns) {
 
     public CrowdsightProperties {
         if (timelineDir == null || timelineDir.isBlank()) {
@@ -62,6 +63,10 @@ public record CrowdsightProperties(String timelineDir, List<String> timelineFile
         }
         if (inflow == null) {
             throw new IllegalArgumentException("crowdsight.inflow 가 없습니다.");
+        }
+        if (unackedAlertLimit < 1) {     // 키가 없으면 0으로 묶여 여기서 거부된다
+            throw new IllegalArgumentException(
+                    "crowdsight.unacked-alert-limit 는 1 이상이어야 합니다: " + unackedAlertLimit);
         }
         if (ws == null) {
             throw new IllegalArgumentException("crowdsight.ws 가 없습니다.");

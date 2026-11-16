@@ -10,6 +10,6 @@ public interface ZoneBroadcaster {
     /** 재생 상태가 바뀌었다 (반복으로 0, 끝). */
     void playback(String zoneId, PlaybackSnapshot snapshot);
 
-    /** 한 초 판정 결과. */
+    /** 한 초 판정 결과와 그 초 알림(step.alerts()). 구현은 같은 frame_ts로 zone_state 다음 alert를 보낸다. */
     void zoneState(String zoneId, ZoneStep step);
 }

@@ -35,6 +35,12 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.socket.handler.WebSocketSessionDecorator;
 
+import com.tripley.crowdsight.alert.Alert;
+import com.tripley.crowdsight.alert.AlertEvent;
+import com.tripley.crowdsight.alert.AlertReason;
+import com.tripley.crowdsight.alert.AlertStore;
+import com.tripley.crowdsight.grade.Grade;
+
 import jakarta.websocket.Session;
 import tools.jackson.databind.JsonNode;
 
@@ -55,6 +61,9 @@ class ZoneWebSocketIntegrationTest {
 
     @Autowired
     private ZoneSessions sessions;
+
+    @Autowired
+    private AlertStore alerts;
 
     private final StandardWebSocketClient client = new StandardWebSocketClient();
     private final List<WebSocketSession> opened = new ArrayList<>();
@@ -142,7 +151,30 @@ class ZoneWebSocketIntegrationTest {
         assertThat(hello.get("thresholds").get("density").get("alert").asDouble()).isEqualTo(4.0);
         assertThat(hello.get("thresholds").get("pressure").asDouble()).isEqualTo(0.02);
         assertThat(hello.get("thresholds").get("inflow_ratio").asDouble()).isEqualTo(0.6);
-        assertThat(hello.get("unacked_alerts").size()).isZero();
+        assertThat(hello.get("unacked_alerts").isArray()).isTrue();
+    }
+
+    @Test
+    @DisplayName("접속하면 그 구역 미확인 알림을 hello로 받는다")
+    void helloCarriesUnackedAlerts() throws Exception {
+        Alert issued = alerts.issue("zone-test", 3, "2026-11-18T14:02:31.512+09:00", new AlertEvent(Grade.ALERT,
+                AlertReason.GRADE_UP, "구역 등급이 주의 → 경계로 올랐다", 4.3, List.of("c-0000")));
+
+        JsonNode hello = connect("zone-test").next();
+
+        JsonNode found = null;
+        for (JsonNode a : hello.get("unacked_alerts").values()) {
+            if (a.get("alert_id").asString().equals(issued.alertId())) {
+                found = a;
+            }
+        }
+        assertThat(found).as("발급한 알림이 hello에 있어야 한다").isNotNull();
+        assertThat(found.propertyNames()).containsExactlyInAnyOrder("type", "alert_id", "zone_id", "t", "frame_ts",
+                "level", "reason", "message", "value", "cell_ids");
+        assertThat(found.get("type").asString()).isEqualTo("alert");
+        assertThat(found.get("t").asInt()).isEqualTo(3);
+        assertThat(found.get("level").asString()).isEqualTo("ALERT");
+        assertThat(found.get("cell_ids").values()).extracting(JsonNode::asString).containsExactly("c-0000");
     }
 
     @Test

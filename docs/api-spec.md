@@ -66,6 +66,7 @@
 - 화면은 `meta`로 히트맵 셀을 그린다. `GET /meta`를 따로 부르지 않아도 된다.
 - `thresholds`는 표시용(범례·그래프 기준선)이다. 판정은 서버가 한다.
 - 재접속하면 미확인 알림을 `unacked_alerts`로 다시 받는다.
+- `unacked_alerts`는 오래된 것부터, 구역당 최근 100개(`crowdsight.unacked-alert-limit`)까지다. 넘으면 오래된 것부터 버린다. 같은 알림을 `hello`와 `alert`로 두 번 받을 수 있으니 화면은 `alert_id`로 거른다.
 - 없는 구역으로 접속하면 서버는 닫기 코드 `4404` (`unknown zone`)로 연결을 닫는다. 닫기 코드는 WebSocket을 닫을 때 이유를 알리는 숫자다. 4000~4999는 응용이 정해 쓴다.
 
 ### 3.2 `zone_state` (1초마다)
@@ -133,6 +134,9 @@
 | `INSTABILITY` | 판정 대상 셀 중 하나라도 불안정이 될 때 (4.3절, 구역 단위) | `CRITICAL` | 불안정 셀의 최대 `pressure` |
 
 - `t`·`frame_ts`는 같은 초에 보낸 `zone_state`와 같다. 한 초 안에서는 `zone_state` 다음에 `alert`가 온다.
+- 한 초에 알림이 여럿이면 `INSTABILITY` → `GRADE_UP` → `INFLOW` 순서다.
+- `INFLOW`의 `value`는 소수 3자리로 반올림한다.
+- `alert_id`는 `a-yyyyMMdd-NNNN`이고 번호는 서버 시작부터 1씩 는다(재시작하면 1부터).
 - `GRADE_UP` 재전송: 구역 등급이 경계 이상이고 이번 사건에서 보낸 가장 높은 단계보다 높을 때만 보낸다. 구역 등급이 경계 아래로 내려가면 사건이 끝나고, 다시 경계로 오르면 새로 보낸다.
     - 예: 구역 등급 정상, 주의, 경계, 심각, 경계, 심각, 주의, 경계 → 3번째(경계)·4번째(심각)·8번째(경계)에 보낸다.
 - `cell_ids` (`meta.cells` 순서):
@@ -286,6 +290,7 @@ crowdsight:
     min-samples: 3                           # 결정 기록 8, 5초 중 non-null 값 개수 하한
     off-seconds: 10
     min-count: 3                             # 결정 6
+  unacked-alert-limit: 100
   ws:
     ping-interval-ms: 30000
     send-time-limit-ms: 2000

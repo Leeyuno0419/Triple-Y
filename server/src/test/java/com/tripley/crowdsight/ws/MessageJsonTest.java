@@ -2,6 +2,7 @@ package com.tripley.crowdsight.ws;
 
 import static com.tripley.crowdsight.timeline.TimelineFixtures.MAPPER;
 import static com.tripley.crowdsight.timeline.TimelineFixtures.timelineOf;
+import static com.tripley.crowdsight.ws.MessageFactoryTest.ALERT_SAMPLE;
 import static com.tripley.crowdsight.ws.MessageFactoryTest.FIXED;
 import static com.tripley.crowdsight.ws.MessageFactoryTest.FIXED_TS;
 import static com.tripley.crowdsight.ws.MessageFactoryTest.fixtureRuntime;
@@ -15,7 +16,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.tripley.crowdsight.alert.Alert;
+import com.tripley.crowdsight.alert.AlertReason;
 import com.tripley.crowdsight.config.TestProperties;
+import com.tripley.crowdsight.grade.Grade;
 import com.tripley.crowdsight.replay.ZonePlayer;
 import com.tripley.crowdsight.replay.ZoneRuntime;
 import com.tripley.crowdsight.timeline.ZoneTimeline;
@@ -97,6 +101,39 @@ class MessageJsonTest {
             }
             """;
 
+    private static final String ALERT_GRADE_UP_SAMPLE = """
+            {
+              "type": "alert",
+              "alert_id": "a-20261118-0001",
+              "zone_id": "zone-test",
+              "t": 1,
+              "frame_ts": "2026-11-18T14:02:31.512+09:00",
+              "level": "ALERT",
+              "reason": "GRADE_UP",
+              "message": "구역 등급이 정상 → 경계로 올랐다",
+              "value": 4.5,
+              "cell_ids": ["c-0000"]
+            }
+            """;
+
+    private static final String ALERT_INFLOW_SAMPLE = """
+            {
+              "type": "alert",
+              "alert_id": "a-20261118-0002",
+              "zone_id": "zone-test",
+              "t": 4,
+              "frame_ts": "2026-11-18T14:02:31.512+09:00",
+              "level": "CAUTION",
+              "reason": "INFLOW",
+              "message": "구역으로 들어오는 인원이 몰린다",
+              "value": 0.8,
+              "cell_ids": []
+            }
+            """;
+
+    private static final Alert INFLOW_ALERT = new Alert("a-20261118-0002", "zone-test", 4, FIXED_TS, Grade.CAUTION,
+            AlertReason.INFLOW, "구역으로 들어오는 인원이 몰린다", 0.8, List.of());
+
     private static final String PLAYBACK_SAMPLE = """
             { "type": "playback", "zone_id": "zone-test", "state": "playing", "t": 0, "loop": true }
             """;
@@ -124,7 +161,7 @@ class MessageJsonTest {
     @Test
     @DisplayName("hello 키는 api-spec 3.1과 같다")
     void helloKeys() {
-        JsonNode root = tree(messages.hello(runtime));
+        JsonNode root = tree(messages.hello(runtime, List.of()));
 
         assertThat(root.propertyNames()).containsExactlyInAnyOrder("type", "schema_version", "zone_id", "meta",
                 "playback", "thresholds", "unacked_alerts");
@@ -143,7 +180,7 @@ class MessageJsonTest {
     void helloMatchesSample() {
         tickTimes(runtime, 3);
 
-        assertThat(tree(messages.hello(runtime))).isEqualTo(MAPPER.readTree(HELLO_SAMPLE));
+        assertThat(tree(messages.hello(runtime, List.of()))).isEqualTo(MAPPER.readTree(HELLO_SAMPLE));
     }
 
     @Test
@@ -154,7 +191,7 @@ class MessageJsonTest {
                 MAPPER.readTree("{\"foo\":1,\"zone_id\":\"zone-test\"}"), base.source());
         ZoneRuntime extra = new ZoneRuntime(new ZonePlayer(withExtra, true), TestProperties.grader(List.of()));
 
-        assertThat(tree(messages.hello(extra)).get("meta").get("foo").asInt()).isEqualTo(1);
+        assertThat(tree(messages.hello(extra, List.of())).get("meta").get("foo").asInt()).isEqualTo(1);
     }
 
     @Test
@@ -202,5 +239,36 @@ class MessageJsonTest {
 
         assertThat(root).isEqualTo(MAPPER.readTree(PLAYBACK_SAMPLE));
         assertThat(root.propertyNames()).containsExactlyInAnyOrder("type", "zone_id", "state", "t", "loop");
+    }
+
+    @Test
+    @DisplayName("alert 키는 api-spec 3.3과 같다")
+    void alertKeys() {
+        String json = json(messages.alert(ALERT_SAMPLE));
+
+        assertThat(MAPPER.readTree(json).propertyNames()).containsExactlyInAnyOrder("type", "alert_id", "zone_id",
+                "t", "frame_ts", "level", "reason", "message", "value", "cell_ids");
+        assertThat(json).startsWith("{\"type\":\"alert\",\"alert_id\":");
+    }
+
+    @Test
+    @DisplayName("alert 출력이 10.1절 예시와 같다")
+    void alertMatchesSample() {
+        JsonNode inflow = tree(messages.alert(INFLOW_ALERT));
+
+        assertThat(tree(messages.alert(ALERT_SAMPLE))).isEqualTo(MAPPER.readTree(ALERT_GRADE_UP_SAMPLE));
+        assertThat(inflow).isEqualTo(MAPPER.readTree(ALERT_INFLOW_SAMPLE));
+        assertThat(inflow.get("cell_ids").isArray()).isTrue();
+    }
+
+    @Test
+    @DisplayName("hello.unacked_alerts 원소는 alert 메시지와 같은 키다")
+    void helloUnackedAlertKeys() {
+        JsonNode unacked = tree(messages.hello(runtime, List.of(ALERT_SAMPLE))).get("unacked_alerts");
+
+        assertThat(unacked.size()).isEqualTo(1);
+        assertThat(unacked.get(0).propertyNames()).containsExactlyInAnyOrder("type", "alert_id", "zone_id", "t",
+                "frame_ts", "level", "reason", "message", "value", "cell_ids");
+        assertThat(unacked.get(0).get("type").asString()).isEqualTo("alert");
     }
 }

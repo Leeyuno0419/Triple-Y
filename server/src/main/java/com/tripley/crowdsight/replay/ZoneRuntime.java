@@ -3,18 +3,20 @@ package com.tripley.crowdsight.replay;
 import java.util.Objects;
 import java.util.Optional;
 
+import com.tripley.crowdsight.alert.AlertDetector;
+import com.tripley.crowdsight.grade.ZoneEvaluation;
 import com.tripley.crowdsight.grade.ZoneGrader;
 
 /**
- * 구역 1개의 재생기와 판정기를 묶는다. 불연속 tick(첫 프레임·반복·이동)이면 판정 상태를 먼저 초기화한다.
- * 스레드 규칙: tick()은 재생 스레드만 부른다 (ZoneGrader는 잠금 없음).
+ * 구역 1개의 재생기·판정기·알림 판정기를 묶는다. 불연속 tick(첫 프레임·반복·이동)이면 판정·알림 상태를 먼저 초기화한다.
+ * 스레드 규칙: tick()은 재생 스레드만 부른다 (ZoneGrader·AlertDetector는 잠금 없음).
  * player()가 주는 ZonePlayer는 synchronized라 다른 스레드(S3 hello, S7 제어)에서 써도 된다.
- * S5에서 AlertDetector를 더한다.
  */
 public final class ZoneRuntime {
 
     private final ZonePlayer player;
     private final ZoneGrader grader;
+    private final AlertDetector alerts = new AlertDetector();   // 설정이 없어 주입하지 않는다
 
     public ZoneRuntime(ZonePlayer player, ZoneGrader grader) {
         this.player = Objects.requireNonNull(player, "player");
@@ -39,7 +41,9 @@ public final class ZoneRuntime {
     private ZoneStep evaluate(Tick tick) {
         if (tick.discontinuity()) {
             grader.reset();
+            alerts.reset();
         }
-        return new ZoneStep(tick, grader.evaluate(tick.frame()));
+        ZoneEvaluation evaluation = grader.evaluate(tick.frame());
+        return new ZoneStep(tick, evaluation, alerts.detect(evaluation));
     }
 }

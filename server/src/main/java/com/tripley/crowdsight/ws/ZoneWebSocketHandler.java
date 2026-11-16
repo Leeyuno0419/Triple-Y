@@ -10,6 +10,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.util.UriTemplate;
 
+import com.tripley.crowdsight.alert.AlertStore;
 import com.tripley.crowdsight.replay.ZoneRegistry;
 import com.tripley.crowdsight.replay.ZoneRuntime;
 
@@ -19,6 +20,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * /ws/zones/{zone_id} 접속 처리 (api-spec 3절). 접속하면 hello를 보낸 뒤 방송 대상에 넣는다.
+ * hello에는 그 구역 미확인 알림을 담는다 (api-spec 3.1).
  * 없는 구역이면 닫기 코드 4404로 닫는다. 화면 → 서버 텍스트 메시지는 무시한다 (요청은 REST).
  * 스레드 규칙: Tomcat 스레드에서 불린다. 상태는 ZoneSessions에만 있다.
  */
@@ -36,6 +38,7 @@ public class ZoneWebSocketHandler extends TextWebSocketHandler {
     private final ZoneSessions sessions;
     private final MessageFactory messages;
     private final JsonMapper jsonMapper;
+    private final AlertStore alerts;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -45,8 +48,9 @@ public class ZoneWebSocketHandler extends TextWebSocketHandler {
             session.close(UNKNOWN_ZONE);
             return;
         }
-        String hello = jsonMapper.writeValueAsString(messages.hello(zone.get()));
-        sessions.join(zone.get().zoneId(), session, hello);
+        ZoneRuntime runtime = zone.get();
+        String hello = jsonMapper.writeValueAsString(messages.hello(runtime, alerts.unacked(runtime.zoneId())));
+        sessions.join(runtime.zoneId(), session, hello);
     }
 
     @Override
