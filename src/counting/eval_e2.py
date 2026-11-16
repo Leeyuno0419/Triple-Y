@@ -47,6 +47,8 @@ def main() -> None:
     ap.add_argument("--homography", required=True)
     ap.add_argument("--video", required=True)
     ap.add_argument("--avg", type=int, default=1, help="정답 시각마다 평균할 프레임 수")
+    ap.add_argument("--scales", type=float, nargs="+", default=SCALES,
+                    help="시험할 축소 배율 (머리가 작은 영상은 큰 값까지)")
     args = ap.parse_args()
 
     cfg = json.loads(Path(args.homography).read_text(encoding="utf-8"))
@@ -69,7 +71,7 @@ def main() -> None:
         for off in offsets:
             cap.set(cv2.CAP_PROP_POS_FRAMES, round((t + off) * fps))
             frame = cap.read()[1]
-            for sc in SCALES:
+            for sc in args.scales:
                 cand, scores = head_candidates(model, frame, sc)  # 배율마다 한 번만 추론
                 for th in THRESHOLDS:
                     pts = cand[scores > th]
