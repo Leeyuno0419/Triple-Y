@@ -9,13 +9,13 @@ import com.tripley.crowdsight.timeline.ZoneTimeline;
 
 /**
  * 구역 1개의 재생 위치와 상태. tick마다 다음 프레임을 준다. Spring에 의존하지 않는다.
- * 스레드 규칙: tick()은 재생 스레드만 부른다. snapshot()·pollStateChange()와 S7의 제어 메서드는
- * 다른 스레드(WS·REST)에서도 부르므로 모든 공개 메서드를 synchronized로 둔다. 잠그는 시간은 짧다.
+ * 스레드 규칙: tick()·pollStateChange()는 재생 스레드가 부르고, snapshot()은 다른 스레드(WS hello, REST health)에서도
+ * 부르므로 모든 공개 메서드를 synchronized로 둔다. 잠그는 시간은 짧다.
  */
 public final class ZonePlayer {
 
     private final ZoneTimeline timeline;
-    private final boolean loop;                 // S7 setLoop가 생기면 final을 뗀다
+    private final boolean loop;
     private PlaybackState state = PlaybackState.PLAYING;
     private int nextT;
     private int currentT;
@@ -42,7 +42,7 @@ public final class ZonePlayer {
 
     /**
      * PLAYING이면 다음 프레임을 주고 한 칸 나아간다. 끝을 지나면 loop일 때 0으로 돌아가고(wrapped),
-     * 아니면 ENDED가 되며 빈 값을 준다. PAUSED·ENDED이면 빈 값.
+     * 아니면 ENDED가 되며 빈 값을 준다. ENDED이면 빈 값.
      */
     public synchronized Optional<Tick> tick() {
         if (state != PlaybackState.PLAYING) {

@@ -49,7 +49,7 @@ public final class AlertDetector {
         return List.copyOf(events);
     }
 
-    /** 사건 상태를 처음으로 되돌린다 (첫 프레임·반복·이동). 그래서 반복할 때마다 같은 알림이 다시 생긴다. */
+    /** 사건 상태를 처음으로 되돌린다 (첫 프레임·반복). 그래서 반복할 때마다 같은 알림이 다시 생긴다. */
     public void reset() {
         lastGrade = Grade.NORMAL;
         sentPeak = null;

@@ -130,7 +130,7 @@ class MessageFactoryTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"PLAYING,playing", "PAUSED,paused", "ENDED,ended"})
+    @CsvSource({"PLAYING,playing", "ENDED,ended"})
     @DisplayName("재생 상태는 소문자로 보낸다")
     void playbackStateLowercase(PlaybackState state, String expected) {
         PlaybackMessage message = messages.playback("zone-test", new PlaybackSnapshot(state, 4, false, 5));

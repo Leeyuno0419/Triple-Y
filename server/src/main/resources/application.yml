@@ -15,6 +15,7 @@ crowdsight:
   replay:
     interval-ms: 1000                        # 1초 = 타임라인 1칸 (interval_s 1)
     loop: true                               # 끝에서 처음으로 (E8 30분 반복)
+    slow-tick-ms: 500                        # tick 1번(판정+방송) 처리가 이보다 길면 WARN. last·max는 /api/health
   grade:
     density: { caution: 3.0, alert: 4.0, critical: 5.0 }   # 명/㎡, 이상이면 그 등급 (proposal 3.2)
     up-seconds: 2                            # 최근 2개 관측이 모두 현재보다 높으면 올림 (가정)

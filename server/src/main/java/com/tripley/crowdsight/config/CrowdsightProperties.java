@@ -94,12 +94,17 @@ public record CrowdsightProperties(String timelineDir, List<String> timelineFile
      *
      * @param intervalMs 타임라인 1칸을 재생하는 간격(ms). 운영 1000, 테스트만 짧게
      * @param loop       끝에서 처음으로 돌아갈지
+     * @param slowTickMs tick 1번(모든 구역 판정 + 방송) 처리 시간이 이보다 길면 WARN (ms, 0보다 큼)
      */
-    public record Replay(long intervalMs, boolean loop) {
+    public record Replay(long intervalMs, boolean loop, long slowTickMs) {
 
         public Replay {
             if (intervalMs <= 0) {
                 throw new IllegalArgumentException("crowdsight.replay.interval-ms 는 0보다 커야 합니다: " + intervalMs);
+            }
+            if (slowTickMs <= 0) {     // 키가 없으면 0으로 묶여 여기서 거부된다
+                throw new IllegalArgumentException(
+                        "crowdsight.replay.slow-tick-ms 는 0보다 커야 합니다: " + slowTickMs);
             }
         }
     }

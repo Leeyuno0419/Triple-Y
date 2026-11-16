@@ -8,6 +8,7 @@
 | 작성자 | 조영준 (Claude 작성 보조) |
 | 상태 | 초안 v0.2 (11-11). 팀 결정 4·6·7·9와 타임라인 v0.2(`count`, `counterflow`), 조영준 결정(느린 화면·허용 출처·null 관측·v0.2 검증·유입 평균) 반영. 나예린(화면)·이유노(타임라인) 검토 전 |
 | S6 보충 | 11-13: `GET .../alerts` 응답 형식, 확인 세부(4.5) |
+| S7 보충 | 11-16: 재생 제어 REST 삭제(실시간 CCTV 전제), `playback` 상태 값 `playing`·`ended`, `/api/zones`·`/meta`·`/health` 응답(5절), 오류 본문(4.5) |
 | 기준 문서 | `docs/timeline-spec.md` v0.2 (파일 규격), `docs/decisions-2026-11-11.md` (팀 결정 4·6·7·9), `docs/plans/server_impl_plan.md` 결정 기록 1·2·4·7·8 (조영준 결정: 느린 화면, 허용 출처, null 관측, v0.2 검증, 유입 평균), `docs/proposal.md` v3.1 3.2·4.3·5.1, `docs/server-alignment.md` Q2~Q6 |
 | 범위 | Spring Boot ↔ React 상황실 화면. `timeline-spec.md` 9절 6·7번(결정됨)의 세부 |
 
@@ -19,6 +20,7 @@
 ## 1. 원칙
 
 - 서버는 `data/processed/timeline/{video_id}.json`을 읽어 1초마다 재생한다. 분석은 하지 않는다.
+- 녹화 영상을 실시간 CCTV처럼 끊김 없이 재생한다. 화면은 재생을 제어하지 않는다 (5절).
 - 등급과 알림은 서버만 판정한다. 화면은 받은 등급을 그대로 표시한다.
 - 서버 → 화면은 **순수 WebSocket + JSON** 하나다. 화면 → 서버 요청은 **REST**로 한다.
     - STOMP 대신 순수 WebSocket을 고른 이유: 구역 1개·1Hz 방송·알림뿐이라 STOMP 라우팅의 이점이 작고, 대시보드가 이미 순수 WebSocket을 쓴다. 구역 동시 구독이나 사용자별 알림이 필요해지면 STOMP로 옮긴다.
@@ -33,12 +35,11 @@
 | 방식 | 경로 | 하는 일 |
 |---|---|---|
 | WebSocket | `/ws/zones/{zone_id}` | 접속 시 `hello`, 이후 1초마다 `zone_state`, 사건 때 `alert`·`playback` |
-| GET | `/api/zones` | 재생 가능한 구역 목록 |
+| GET | `/api/zones` | 카메라·구역 목록 (`zone_id`, `camera_id`, `video_id`) |
 | GET | `/api/zones/{zone_id}/meta` | 타임라인 `meta` 그대로 (셀 목록·`image_polygon`) |
-| POST | `/api/zones/{zone_id}/playback` | 재생 제어: 재생·일시정지·이동·반복 |
 | GET | `/api/zones/{zone_id}/alerts?unacked=true` | 알림 목록 (오래된 것부터). `unacked=true`면 미확인만, 빼면 보관 중인 전체 |
 | POST | `/api/alerts/{alert_id}/ack` | 알림 확인. 확인 기록을 로그 파일에 남긴다 |
-| GET | `/api/health` | 서버 상태 (재생 중 구역, 현재 `t`) |
+| GET | `/api/health` | 서버 상태 (구역별 재생 상태, 접속 수, tick 처리 시간) |
 
 - 경로 앞에는 `/api`, WebSocket은 `/ws`를 쓴다.
 - 개발 허용 출처(CORS): `http://localhost:*`, `http://127.0.0.1:*` 패턴 (Vite 5173 포함). WebSocket과 REST(`/api/**`) 모두 같은 값을 쓴다. 값은 설정 `crowdsight.cors-origin-patterns`에 둔다. 운영은 같은 출처로 배포한다 (가정).
@@ -151,11 +152,11 @@
 ### 3.4 `playback` (재생 상태가 바뀔 때)
 
 ```json
-{ "type": "playback", "zone_id": "zone-e04-039", "state": "paused", "t": 130, "loop": true }
+{ "type": "playback", "zone_id": "zone-e04-039", "state": "ended", "t": 179, "loop": false }
 ```
 
-- `state`: `playing`, `paused`, `ended`.
-- 이동(seek)하면 이 메시지 다음에 새 `t`의 `zone_state`가 온다.
+- `state`: `playing`, `ended`.
+- 보내는 때: 반복으로 처음(0)으로 돌아갈 때(피드 재시작), 끝에 닿았고 `loop`가 꺼져 있을 때(피드 끝).
 - 반복 재생으로 처음(0)으로 돌아가면 `{ "state": "playing", "t": 0 }`인 `playback`을 먼저 보내고, 그다음 `t: 0`의 `zone_state`를 보낸다. 화면은 이 메시지를 받으면 쌓아 둔 프레임(그래프·이력)을 비운다.
 
 ### 3.5 연결 유지와 재접속
@@ -190,8 +191,8 @@
 - 구역 등급 = 판정 대상 셀 등급 중 최댓값이다 (결정 4). 대상 셀이 없으면 정상이다.
     - 판정 대상: `walkable_area_m2 ≥ 2.0`인 셀 (결정 4). 면적이 작은 셀은 오탐 1개로도 밀도가 튄다 (E04_039 오른쪽 위 1.17㎡ 셀이 사람 없이 0.3~0.6).
 - 예측 등급 `grade_pred_60s`는 `density_pred_60s`에 4.1절 기준만 적용한다. 히스테리시스는 쓰지 않는다. `density_pred_60s`가 `null`이면 `null`이다.
-- 이동(seek)이나 반복 재생으로 `t`가 불연속이 되면 모든 셀의 상태를 초기화한다.
-- 반복·이동 때 불안정 연속 횟수, 유입 5초 평균·경보, 알림 사건 상태도 초기화한다. 그래서 반복할 때마다 같은 알림이 다시 온다 (가정).
+- 반복 재생으로 `t`가 불연속이 되면 모든 셀의 상태를 초기화한다.
+- 반복 때 불안정 연속 횟수, 유입 5초 평균·경보, 알림 사건 상태도 초기화한다. 그래서 반복할 때마다 같은 알림이 다시 온다 (가정).
 
 ### 4.3 불안정 → 심각
 
@@ -207,7 +208,7 @@
 - **켬**: 구역 `inflow_ratio`의 최근 5초 평균이 `thresholds.inflow_ratio`(0.6, 가정)를 넘고, 구역 인원 `count`가 3명 이상일 때 (결정 6).
 - 5초 평균은 최근 5초 값 중 `null`이 아닌 값이 3개(`inflow.min-samples`) 이상이면 그 값들의 평균이다. 3개 미만이면 평균은 `null`이고 조건은 거짓이다 (결정 기록 8, 가정). 흐름 모듈은 경계에 움직이는 사람이 적으면 `inflow_ratio`를 `null`로 쓰므로, 5개를 모두 요구하면 경보가 거의 켜지지 않는다.
     - 예: 0.7, `null`, 0.8, 0.7, 0.9 → 평균 (0.7 + 0.8 + 0.7 + 0.9) / 4 = 0.775.
-    - 평균은 창이 다 찬 뒤에만 낸다. 재생 시작이나 초기화(반복·이동, 4.2절) 뒤 5초 관측이 쌓이기 전에는 평균이 `null`이다. 초기화 뒤 첫 평균은 `t` 4다 (결정 기록 8).
+    - 평균은 창이 다 찬 뒤에만 낸다. 재생 시작이나 초기화(반복, 4.2절) 뒤 5초 관측이 쌓이기 전에는 평균이 `null`이다. 초기화 뒤 첫 평균은 `t` 4다 (결정 기록 8).
 - `count`가 `null`이거나 키가 없으면 켜지 않는다.
 - **끔**: 위 조건이 10초 연속 거짓이면 끈다. 평균이 `null`인 초, `count` 3명 미만인 초, `count`가 `null`인 초도 거짓으로 센다 (가정).
 - 보완 배경: 경계에 사람이 적으면 몇 명만 들어와도 비율이 튄다 (`timeline-spec.md` 9절 2번).
@@ -226,31 +227,44 @@
 - 기록은 처음 확인할 때만 한 줄이다. 줄은 UTF-8, LF. 기록을 쓰지 못해도 확인은 반영되고 `200`이다(서버 ERROR 로그에 줄을 남긴다).
 - 확인은 다른 화면에 WebSocket으로 알리지 않는다. 다른 화면은 재접속 `hello`나 이 목록에서 빠진 것을 본다 (가정).
 - 서버를 재시작하면 알림 번호가 1부터 다시 시작한다. 화면은 `hello`를 받으면 미확인 목록을 `unacked_alerts`로 바꾼다(예전 ID를 버린다).
-- `404` 본문은 없다. 오류 본문 형식은 재생 제어(5절)와 함께 정한다 `[토론]`.
+- `404` 본문은 없다. `400`은 Spring 기본 응답이고 화면은 상태 코드만 본다. 화면에 이유를 보여 줄 REST 입력이 생기면 그때 ProblemDetail(RFC 9457)로 정한다.
 
-## 5. 재생 제어 (REST)
+## 5. 재생 (실시간 CCTV 흉내)
 
-`POST /api/zones/{zone_id}/playback`
+- 서버는 구역마다 타임라인을 1초에 한 칸씩 끊김 없이 재생한다. 실시간 CCTV 분석은 멈추거나 되돌릴 수 없으므로 화면은 재생을 제어하지 않는다 (11-16 결정, 10절 22번).
+- 끝에 닿으면 `crowdsight.replay.loop`(기본 `true`)대로 처음부터 다시 재생하거나 끝난다. 반복은 계속 들어오는 피드를 흉내 낸다 (E8 30분 무중단 시험).
+
+### 5.1 `GET /api/zones`
 
 ```json
-{ "action": "seek", "t": 90 }
+[{ "zone_id": "zone-e04-039", "camera_id": "cam-e04", "video_id": "E04_039" }]
 ```
 
-| `action` | 추가 필드 | 동작 |
-|---|---|---|
-| `play` | | 현재 `t`부터 1초마다 재생 |
-| `pause` | | 멈춘다. 연결은 유지된다 |
-| `seek` | `t` (0 ≤ t < `duration_s`) | 그 초로 이동하고 판정 상태를 초기화한다 |
-| `loop` | `enabled` (bool) | 끝에 닿으면 처음부터 다시 재생 (E8 30분 무중단 시험) |
+- 카메라·구역 목록이다. 카메라 한 대가 구역 하나다. 순서는 설정(`crowdsight.timeline-files`) 순서다.
+- 원소 키는 `zone_id`, `camera_id`, `video_id` 3개다. 화면은 `video_id`로 영상 파일을 찾는다 (6절).
 
-- 응답: `200` + 현재 재생 상태(`playback` 메시지와 같은 내용). 잘못된 `t`는 `400`.
-- 재생 상태는 구역마다 하나이고 모든 접속자가 같은 화면을 본다 (상황실 공용 화면, 가정).
+### 5.2 `GET /api/zones/{zone_id}/meta`
+
+- 타임라인 `meta`를 그대로 준다 (`hello.meta`와 같다).
+- 없는 구역은 `404`, 본문 없음.
+
+### 5.3 `GET /api/health`
+
+```json
+{ "status": "UP", "zones": [{ "zone_id": "zone-e04-039", "state": "playing", "t": 57, "loop": true }], "sessions": 1, "last_tick_ms": 0.412, "max_tick_ms": 3.871 }
+```
+
+- `status`는 늘 `"UP"`이다 (응답하면 서버가 살아 있다).
+- `zones`는 설정 순서다. `state`·`t`·`loop`는 `hello.playback`과 같은 뜻이다.
+- `sessions`: 모든 구역 WebSocket 접속 수.
+- `last_tick_ms`·`max_tick_ms`: tick 1번(판정+방송) 처리 시간(ms, 소수 3자리). tick 전에는 `null`이고, max는 서버 시작부터다.
+- `max_tick_ms`에는 서버 시작 직후 첫 tick(클래스 로딩·JIT, 실측 약 60 ms)이 들어간다. E8에서 평상시 처리 시간은 `last_tick_ms` 추이로 본다.
 
 ## 6. 영상과 히트맵 시간 맞춤
 
 - 영상 파일은 서버가 아니라 화면이 시연 PC에서 직접 연다 (`timeline-spec.md` 7절). `meta.video_id`로 파일을 찾는다.
 - 화면은 `zone_state`를 받을 때마다 `|video.currentTime − t| > 1.0초`이면 `video.currentTime = t`로 맞춘다 (가정).
-- 일시정지·이동은 `playback` 메시지를 따라 영상도 같이 멈추거나 옮긴다.
+- `playback`(반복으로 0)을 받으면 영상도 0으로 옮긴다.
 
 ## 7. 지연 측정 (E8, 판정→알림 p95 ≤ 5초)
 
@@ -282,6 +296,7 @@ crowdsight:
   replay:
     interval-ms: 1000
     loop: true
+    slow-tick-ms: 500
   grade:
     density: { caution: 3.0, alert: 4.0, critical: 5.0 }
     up-seconds: 2
@@ -325,7 +340,7 @@ crowdsight:
 | 1 | 구역 등급을 셀 최댓값으로 할지, 경계 이상 셀이 N개 이상일 때로 할지 | **닫힘 (결정 4)**: 보행 면적 2㎡ 이상 셀 등급의 최댓값 (4.2절) | 이유노 |
 | 2 | 0.02/s² 불안정 기준과 3초 지속 | E5 결과로 조정 | 이유노 |
 | 3 | 유입 경보 기준 0.6과 사람 수 보완 | **닫힘 (결정 6)**: 5초 평균, `count` 3명 미만이면 끔 (4.4절) | 조영준 |
-| 4 | 재생 상태를 접속자마다 따로 둘지 | 구역마다 하나 (공용 화면) | 나예린 |
+| 4 | 재생 상태를 접속자마다 따로 둘지 | **닫힘 (S7)**: 재생 제어를 두지 않아 재생 상태는 서버가 정한다 | 나예린 |
 | 5 | 지연 기록 방식 (콘솔·CSV) | CSV 내보내기 | 나예린, 이유노 |
 | 6 | `inflow_ratio` 산출 방식 (흐름 모듈) | **닫힘 (`timeline-spec.md` 9절 1번)**: 구역 전체 비율 하나로 저장 | 조영준 (흐름) |
 | 7 | `density` `null` 셀을 허용할지 | 지금은 파일 거부, 히스테리시스는 `null` 관측 건너뜀 (4.2절) | 이유노 |
@@ -343,3 +358,5 @@ crowdsight:
 | 19 | 유입 5초 평균에 `null`이 섞일 때 (5개 모두 요구 vs 일부 허용) | **닫힘 (결정 8, 구현 계획 결정 기록 8)**: 창(5초)이 다 찬 뒤 non-null 3개 이상이면 평균 (4.4절) | 조영준 |
 | 20 | 확인을 다른 화면에 알릴지(`alert_ack` 메시지) | 알리지 않음 (4.5절) | 나예린 |
 | 21 | 재시작 뒤 같은 알림 번호 | 화면이 `hello`로 목록 교체 (4.5절) | 조영준, 나예린 |
+| 22 | 재생 제어 REST 삭제 (실시간 CCTV 전제). 화면 재생 버튼은 서버로 보내지 않음, `paused` 처리 불필요 | 5절 | 나예린 |
+| 23 | `GET /api/zones` 원소 키 (`duration_s` 제외) | 5.1절 | 나예린 |

@@ -38,6 +38,12 @@ class CrowdsightServerApplicationIntegrationTest {
     }
 
     @Test
+    @DisplayName("application.yml의 느린 tick 기준을 읽는다")
+    void bindsDefaultSlowTickMs() {
+        assertThat(props.replay().slowTickMs()).isEqualTo(TestProperties.SLOW_TICK_MS);
+    }
+
+    @Test
     @DisplayName("application.yml의 등급 기본값을 읽는다")
     void bindsDefaultGradeSettings() {
         assertThat(props.grade()).isEqualTo(TestProperties.GRADE);

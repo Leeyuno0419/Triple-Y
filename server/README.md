@@ -41,7 +41,7 @@ cd server
 ## 판정 기준 (S4)
 - 기준값은 `application.yml`의 `crowdsight.grade.*`(밀도), `crowdsight.instability.*`(군중 압력), `crowdsight.inflow.*`(유입)에 있다. 화면은 `hello.thresholds`로 같은 값을 받는다.
 - 불안정: 셀 `pressure`가 0.02를 3초 연속 넘으면 그 셀은 심각 조건이다. `null`이거나 기준 이하면 연속이 끊긴다. 심각은 조건이 풀려도 10초에 한 단계씩 내려간다.
-- 유입 경보(`zone.inflow_alert`): `inflow_ratio` 최근 5초 평균(값 3개 이상일 때)이 0.6을 넘고 `count`가 3명 이상이면 켜진다. 10초 연속 조건이 거짓이면 꺼진다. 반복·이동 뒤 처음 4초는 평균이 없다.
+- 유입 경보(`zone.inflow_alert`): `inflow_ratio` 최근 5초 평균(값 3개 이상일 때)이 0.6을 넘고 `count`가 3명 이상이면 켜진다. 10초 연속 조건이 거짓이면 꺼진다. 반복 뒤 처음 4초는 평균이 없다.
 - DEBUG 로그 `재생 zone=… inflow_avg=… inflow_alert=…`로 5초 평균을 확인한다 (평균은 메시지로 보내지 않는다).
 - 가짜 타임라인은 `inflow_ratio`가 0.6을 넘지 않아 유입 경보가 켜지지 않는다. 판정은 단위 테스트로 확인한다.
 
@@ -61,6 +61,14 @@ cd server
 - 구역당 보관 알림은 100개(`crowdsight.unacked-alert-limit`)까지다. 넘으면 확인한 것부터 버린다.
 - REST(`/api/**`)도 WebSocket과 같은 허용 출처(`crowdsight.cors-origin-patterns`)를 쓴다.
 - 확인 예 (Git Bash): `curl -X POST http://localhost:8080/api/alerts/a-20261118-0001/ack`
+
+## 조회와 서버 상태 (S7)
+- 재생은 실시간 CCTV처럼 끊김 없이 흐른다. 재생 제어 API는 없다 (`docs/api-spec.md` 5절).
+- 카메라·구역 목록: `GET /api/zones` → `[{"zone_id","camera_id","video_id"}]`.
+- 구역 meta: `GET /api/zones/{zone_id}/meta` (타임라인 meta 그대로, `hello.meta`와 같음). 없는 구역은 `404`.
+- 서버 상태: `GET /api/health` → 구역별 재생 상태(`state`·`t`·`loop`), 접속 수 `sessions`, tick 처리 시간 `last_tick_ms`·`max_tick_ms`.
+- tick 1번(판정+방송) 처리가 `crowdsight.replay.slow-tick-ms`(500 ms)를 넘으면 WARN `tick 처리가 느림`이 남는다.
+- 확인 예 (Git Bash): `curl http://localhost:8080/api/zones`, `curl http://localhost:8080/api/health`
 
 ## 타임라인 파일
 - 서버는 시작할 때 `crowdsight.timeline-dir` 폴더의 `crowdsight.timeline-files`를 모두 읽고 검증한다 (`docs/timeline-spec.md` v0.2). 파일이 없거나 규격에 맞지 않으면 시작하지 않는다. 오류 메시지에 파일의 절대 경로가 있다.

@@ -36,6 +36,9 @@ public final class TestProperties {
     /** application.yml crowdsight.cors-origin-patterns 기본값과 같다. */
     public static final List<String> CORS = List.of("http://localhost:*", "http://127.0.0.1:*");
 
+    /** application.yml crowdsight.replay.slow-tick-ms 기본값과 같다 (bindsDefaultSlowTickMs가 확인). */
+    public static final long SLOW_TICK_MS = 500;
+
     private TestProperties() {
     }
 
@@ -66,7 +69,8 @@ public final class TestProperties {
 
     private static CrowdsightProperties full(String dir, List<String> files, long intervalMs, boolean loop,
                                              CrowdsightProperties.Ws ws, String alertLog) {
-        return new CrowdsightProperties(dir, files, TIME_ZONE, new CrowdsightProperties.Replay(intervalMs, loop),
+        return new CrowdsightProperties(dir, files, TIME_ZONE,
+                new CrowdsightProperties.Replay(intervalMs, loop, SLOW_TICK_MS),
                 GRADE, INSTABILITY, INFLOW, UNACKED_ALERT_LIMIT, ws, alertLog, CORS);
     }
 }

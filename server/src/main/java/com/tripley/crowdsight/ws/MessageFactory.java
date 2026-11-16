@@ -77,7 +77,8 @@ public class MessageFactory {
         return FrameTimestamps.now(clock);
     }
 
-    static String stateName(PlaybackState state) {
+    /** 재생 상태의 메시지 표기 (playing·ended). REST health도 쓴다. */
+    public static String stateName(PlaybackState state) {
         return state.name().toLowerCase(Locale.ROOT);
     }
 

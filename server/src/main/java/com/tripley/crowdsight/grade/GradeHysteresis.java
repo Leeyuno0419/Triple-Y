@@ -58,7 +58,7 @@ public final class GradeHysteresis {
         return current;
     }
 
-    /** NORMAL로 되돌리고 기록을 비운다 (반복·이동). */
+    /** NORMAL로 되돌리고 기록을 비운다 (첫 프레임·반복). */
     public void reset() {
         current = Grade.NORMAL;
         recent.clear();

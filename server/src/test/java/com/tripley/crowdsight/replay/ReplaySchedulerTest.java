@@ -62,7 +62,7 @@ class ReplaySchedulerTest {
         ZoneRegistry registry = mock(ZoneRegistry.class);
         when(registry.all()).thenReturn(List.of(runtime(a), b));
         replay = new ReplayScheduler(registry, scheduler, TestProperties.replay(1000, true),
-                mock(ZoneBroadcaster.class));
+                mock(ZoneBroadcaster.class), new TickStats());
 
         assertThatCode(() -> {
             replay.tickAll();
@@ -86,7 +86,7 @@ class ReplaySchedulerTest {
         ZoneRegistry registry = mock(ZoneRegistry.class);
         when(registry.all()).thenReturn(List.of(runtime(player)));
         replay = new ReplayScheduler(registry, scheduler, TestProperties.replay(20, true),
-                mock(ZoneBroadcaster.class));
+                mock(ZoneBroadcaster.class), new TickStats());
 
         replay.start();
 
@@ -125,7 +125,7 @@ class ReplaySchedulerTest {
     void wrapSendsPlaybackBeforeZoneState() {
         RecordingBroadcaster broadcaster = new RecordingBroadcaster();
         replay = new ReplayScheduler(registryOf(runtime(new ZonePlayer(timelineOf(3), true))), scheduler,
-                TestProperties.replay(1000, true), broadcaster);
+                TestProperties.replay(1000, true), broadcaster, new TickStats());
 
         for (int i = 0; i < 4; i++) {
             replay.tickAll();
@@ -140,7 +140,7 @@ class ReplaySchedulerTest {
     void endSendsPlaybackOnce() {
         RecordingBroadcaster broadcaster = new RecordingBroadcaster();
         replay = new ReplayScheduler(registryOf(runtime(new ZonePlayer(timelineOf(2), false))), scheduler,
-                TestProperties.replay(1000, false), broadcaster);
+                TestProperties.replay(1000, false), broadcaster, new TickStats());
 
         for (int i = 0; i < 4; i++) {
             replay.tickAll();
@@ -156,7 +156,7 @@ class ReplaySchedulerTest {
         doThrow(new IllegalStateException("시험")).doNothing().when(broadcaster).zoneState(any(), any());
         replay = new ReplayScheduler(registryOf(runtime(new ZonePlayer(timelineOf(5), true)),
                 runtime(new ZonePlayer(timelineOf(5), true))), scheduler, TestProperties.replay(1000, true),
-                broadcaster);
+                broadcaster, new TickStats());
 
         assertThatCode(() -> {
             replay.tickAll();
@@ -164,5 +164,19 @@ class ReplaySchedulerTest {
         }).doesNotThrowAnyException();
 
         verify(broadcaster, times(4)).zoneState(eq("zone-test"), any());
+    }
+
+    @Test
+    @DisplayName("tick 처리 시간을 기록한다")
+    void recordsTickTime() {
+        TickStats stats = new TickStats();
+        replay = new ReplayScheduler(registryOf(runtime(new ZonePlayer(timelineOf(5), true))), scheduler,
+                TestProperties.replay(1000, true), mock(ZoneBroadcaster.class), stats);
+        assertThat(stats.lastMs()).isNull();
+
+        replay.tickAll();
+
+        assertThat(stats.lastMs()).isNotNull().isGreaterThanOrEqualTo(0.0);
+        assertThat(stats.maxMs()).isGreaterThanOrEqualTo(stats.lastMs());
     }
 }
