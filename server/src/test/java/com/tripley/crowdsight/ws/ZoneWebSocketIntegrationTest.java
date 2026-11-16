@@ -7,6 +7,9 @@ import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -320,5 +323,21 @@ class ZoneWebSocketIntegrationTest {
         opened.get(0).close();
 
         await().atMost(WAIT).until(() -> sessions.sessionCount() == 0);
+    }
+
+    @Test
+    @DisplayName("health 접속 수는 연결된 화면 수다")
+    void healthCountsSessions() throws Exception {
+        connect("zone-test").next();   // hello
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/health")).build();
+
+        try (HttpClient http = HttpClient.newHttpClient()) {
+            // hello를 보낸 뒤 방송 대상에 넣으므로 1이 될 때까지 기다린다
+            await().atMost(WAIT).untilAsserted(() -> {
+                HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+                assertThat(response.statusCode()).isEqualTo(200);
+                assertThat(MAPPER.readTree(response.body()).get("sessions").asInt()).isEqualTo(1);
+            });
+        }
     }
 }
