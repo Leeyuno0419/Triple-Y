@@ -21,7 +21,8 @@ import tools.jackson.databind.JsonNode;
 
 @SpringBootTest(properties = {
         "crowdsight.timeline-dir=src/test/resources/timeline",
-        "crowdsight.timeline-files=valid_v02.json"
+        "crowdsight.timeline-files=valid_v02.json",
+        "crowdsight.alert-log=build/test-logs/alerts.jsonl"
 })
 @AutoConfigureMockMvc
 class ZoneControllerIntegrationTest {

@@ -18,7 +18,7 @@
 | 5 | PR 순서 | S4(불안정·유입)는 S3 뒤 |
 | 6 | S0 범위 | `crowdsight.*` 설정과 `@ConfigurationPropertiesScan`은 S1부터 쓰는 PR에서 |
 | 7 | v0.2 검증 | 서버 타임라인 검증을 `src/predict/schema.py`·`web/src/lib/validate.ts`(main, #35)와 같게 한다. `schema_version` 둘째 자리 ≥ 2이면 `frames[].count`·`cells[].counterflow` 키 필수(값 null 가능), v0.1이면 키 생략 허용(null로 읽음). `counterflow` 0~1, `count` ≥ 0 |
-| 8 | 유입 평균 | 창이 다 찬 뒤에만 평균을 낸다: 시작·초기화(반복·이동) 뒤 5초 관측이 쌓이기 전에는 평균 null(초기화 뒤 첫 평균은 t4). 그 뒤 최근 5초 중 non-null `inflow_ratio`가 `min-samples`(기본 3, `crowdsight.inflow.min-samples`)개 이상이면 그 값들의 평균, 아니면 평균 null·조건 거짓. 평균 null인 초도 끄는 연속에 센다 |
+| 8 | 유입 평균 | 창이 다 찬 뒤에만 평균을 낸다: 시작·초기화(첫 프레임·반복) 뒤 5초 관측이 쌓이기 전에는 평균 null(초기화 뒤 첫 평균은 t4). 그 뒤 최근 5초 중 non-null `inflow_ratio`가 `min-samples`(기본 3, `crowdsight.inflow.min-samples`)개 이상이면 그 값들의 평균, 아니면 평균 null·조건 거짓. 평균 null인 초도 끄는 연속에 센다 |
 
 - 본문의 "결정 4·6·9"는 `docs/decisions-2026-11-11.md`의 팀 결정 번호다. 이 표는 "결정 기록 N"으로 인용한다.
 

@@ -258,6 +258,7 @@
 - `zones`는 설정 순서다. `state`·`t`·`loop`는 `hello.playback`과 같은 뜻이다.
 - `sessions`: 모든 구역 WebSocket 접속 수.
 - `last_tick_ms`·`max_tick_ms`: tick 1번(판정+방송) 처리 시간(ms, 소수 3자리). tick 전에는 `null`이고, max는 서버 시작부터다.
+- `max_tick_ms`에는 서버 시작 직후 첫 tick(클래스 로딩·JIT, 실측 약 60 ms)이 들어간다. E8에서 평상시 처리 시간은 `last_tick_ms` 추이로 본다.
 
 ## 6. 영상과 히트맵 시간 맞춤
 
