@@ -56,7 +56,7 @@ com.tripley.crowdsight
 ├─ timeline/  ZoneTimeline, Meta, CellMeta, Models, Prediction, Frame, CellState,
 │             TimelineLoader, TimelineValidator, InvalidTimelineException
 ├─ replay/    ZonePlayer, PlaybackState, PlaybackSnapshot, Tick, ZoneStep, ZoneRuntime, ZoneRegistry, ReplayScheduler,
-│             ZoneBroadcaster
+│             ZoneBroadcaster, TickStats (S7)
 ├─ grade/     Grade, DensityThresholds, GradeRule, GradeSettings, GradeHysteresis, ZoneGrader, CellEvaluation, ZoneEvaluation,
 │             InstabilitySettings, InflowSettings, InstabilityTracker, InflowMonitor, InflowStatus
 │                                                                            (Spring 의존 없음)
@@ -65,7 +65,8 @@ com.tripley.crowdsight
 ├─ ws/        ZoneWebSocketHandler, ZoneSessions, MessageFactory, FrameTimestamps, WsZoneBroadcaster, WsPingScheduler,
 │             message/ (HelloMessage, PlaybackView, ThresholdsView, ZoneStateMessage, ZoneView, CellView, PlaybackMessage,
 │                       AlertMessage(S5))
-└─ api/       AlertController, AckResponse, AlertView (S6), ZoneController, HealthController (S7)
+└─ api/       AlertController, AckResponse, AlertView (S6), ZoneController, HealthController, ZoneSummary, HealthResponse,
+              ZoneHealth (S7)
 ```
 - `grade/`, `replay/` 핵심(`ZonePlayer`, `ZoneRuntime`)은 순수 Java. 테스트에 Spring 컨텍스트 불필요.
 - Spring은 `config/`, `ws/`, `api/`, 조립 클래스(`ZoneRegistry`, `ReplayScheduler`)에만.
@@ -74,7 +75,7 @@ com.tripley.crowdsight
 ```text
 ReplayScheduler.tickAll()                                ← scheduleAtFixedRate(interval-ms)
   └─ for each ZoneRuntime (구역마다 try/catch)
-       ZoneRuntime.tick()       → ZoneStep(tick, evaluation, alerts) 또는 없음(일시정지·끝)
+       ZoneRuntime.tick()       → ZoneStep(tick, evaluation, alerts) 또는 없음(끝)
          ZonePlayer.tick()      → Tick(frame, discontinuity, wrapped)
          discontinuity이면 ZoneGrader.reset()(히스테리시스·불안정·유입 모두)·AlertDetector.reset()
          ZoneGrader.evaluate(frame) → ZoneEvaluation  (S2, S4: 셀마다 InstabilityTracker, 구역 InflowMonitor)
@@ -84,7 +85,7 @@ ReplayScheduler.tickAll()                                ← scheduleAtFixedRate
          WsZoneBroadcaster.zoneState: frame_ts 1번 → zone_state → 알림마다 AlertStore.issue → alert (S5)
 ```
 - 판정 상태는 재생 스레드만 읽고 쓴다 → 잠금 불필요.
-- REST 제어(S7)는 `ZonePlayer`의 `synchronized` 메서드로 "다음 tick에 할 일"만 표시.
+- tick 처리 시간은 `TickStats`(S7). 화면은 재생을 제어하지 않는다(실시간 CCTV 전제, S7 계획 1.1).
 
 ## 2. PR 단위 (결정 8 순서)
 
@@ -100,7 +101,7 @@ ReplayScheduler.tickAll()                                ← scheduleAtFixedRate
 | S4 | `feat/server-instability-inflow` | 불안정 → 심각, 유입 경보 (5초 평균, `count` < 3이면 끔) | 11-16 |
 | S5 | `feat/server-alert` | `alert`, 미확인 알림, `hello.unacked_alerts` | 11-16 |
 | S6 | `feat/server-alert-ack` | `POST /api/alerts/{id}/ack`, `GET .../alerts`, `logs/alerts.jsonl` | 11-17 |
-| S7 | `feat/server-playback-api` | 재생 제어 REST, `/api/zones`, `/meta`, `/health` | 11-18 |
+| S7 | `feat/server-zones-health` | `/api/zones`(카메라 목록), `/meta`, `/health`, tick 처리 시간 (재생 제어 없음: 실시간 CCTV 전제) | 11-18 |
 
 - S4는 S3 뒤: G1 타임라인은 `pressure`·`inflow_ratio`가 null이라 11-13 연결에 불필요.
 - 쌓인 PR은 CLAUDE.md 규칙대로 병합 전에 `into main` 확인.
@@ -170,9 +171,9 @@ final class TimelineValidator {
 - `t < history_s − 1`이면 `density_pred_60s` null. 모르는 키 무시.
 
 ```java
-public enum PlaybackState { PLAYING, PAUSED, ENDED }
+public enum PlaybackState { PLAYING, ENDED }
 public record PlaybackSnapshot(PlaybackState state, int t, boolean loop, int durationS) {}
-/** discontinuity: 첫 프레임·반복·이동 직후 → 판정 상태 초기화. wrapped: 반복으로 0으로 돌아옴. */
+/** discontinuity: 첫 프레임·반복 직후 → 판정 상태 초기화. wrapped: 반복으로 0으로 돌아옴. */
 public record Tick(Frame frame, boolean discontinuity, boolean wrapped) {}
 
 public final class ZonePlayer {
@@ -331,7 +332,7 @@ public interface ZoneBroadcaster {
 public record HelloMessage(String type, String schemaVersion, String zoneId, JsonNode meta,
                            PlaybackView playback, ThresholdsView thresholds,
                            List<Object> unackedAlerts /* S3 빈 목록, S5에서 List<AlertMessage> */) {}
-public record PlaybackView(String state, int t, boolean loop, int durationS) {}   // "playing"|"paused"|"ended"
+public record PlaybackView(String state, int t, boolean loop, int durationS) {}   // "playing"|"ended"
 public record ThresholdsView(DensityThresholds density, double pressure, double inflowRatio) {}
 // pressure·inflowRatio는 S4
 public record ZoneStateMessage(String type, String zoneId, int t, String frameTs, ZoneView zone, List<CellView> cells) {}
@@ -389,14 +390,14 @@ public final class InstabilityTracker {
 public final class InflowMonitor {
     public InflowMonitor(InflowSettings settings);
     public InflowStatus update(Double inflowRatio, Double count);
-    public void reset();                   // 창·연속·on 모두 비움 (반복·이동)
+    public void reset();                   // 창·연속·on 모두 비움 (첫 프레임·반복)
 }
 public record InflowStatus(Double average, boolean on) {}
 ```
 - 셀 관측 등급 = `unstable ? CRITICAL : ofDensity(density)` (같은 결과, density null이면 null).
 - 불안정 비교는 초과(`>`)다. 기준과 같으면 연속 0. `unstable`·5초 평균은 `zone_state`로 보내지 않는다.
 - 5초 평균(결정 기록 8): 최근 5초 중 non-null 값이 3개(`min-samples`) 이상이면 그 평균, 아니면 null(조건 거짓). 창은 최근 5초 그대로이고 null도 한 칸을 차지한다.
-- 창이 다 찬 뒤에만 평균을 낸다(결정 기록 8): 시작·초기화(반복·이동) 뒤 t0~t3은 평균 null, 첫 평균은 t4. `inflow_ratio` null인 초도 관측 1초로 센다.
+- 창이 다 찬 뒤에만 평균을 낸다(결정 기록 8): 시작·초기화(첫 프레임·반복) 뒤 t0~t3은 평균 null, 첫 평균은 t4. `inflow_ratio` null인 초도 관측 1초로 센다.
 - 끄는 연속에는 평균 null·`count < 3`·`count` null인 초도 포함 (가정). `counterflow`는 판정에 안 씀 `[토론]` (흐름 모듈이 쓰지 않아 실제 파일은 늘 null).
 - `pressure` null(셀 머리 부족, 흐름 창이 덜 찬 첫 구간)은 불안정 연속을 끊는다. 규칙은 유지하고 실제 데이터의 끊김 빈도를 E5 때 확인한다 `[토론]`.
 - `InflowSettings`가 `1 ≤ min-samples ≤ window-seconds`, `0 ≤ ratio < 1`, 초 ≥ 1, `min-count` ≥ 0을 검사. `InstabilitySettings`가 `pressure` > 0, `seconds` ≥ 1을 검사.
@@ -484,11 +485,22 @@ final class AlertIdGenerator { AlertIdGenerator(Clock clock); String next(); }
 
 상세는 `docs/plans/server_s6_alert_ack_plan.md` 8장.
 
-### S7. 재생 제어와 조회 (`feat/server-playback-api`)
-- `ZonePlayer`: `play()`, `pause()`, `seek(int t)`, `setLoop(boolean)` (`synchronized`). seek는 `pendingDiscontinuity`. 상태 바뀌면 `playback`.
-- `GET /api/zones` → `[{zone_id, video_id, duration_s}]`, `GET /api/zones/{id}/meta`, `POST /api/zones/{id}/playback` (seek 범위 밖 400).
-- `GET /api/health` → `{status, zones:[{zone_id, state, t}], sessions, last_tick_ms, max_tick_ms}`.
-- 테스트: pause → tick 빈 값 + playback(paused) 1번 / seek 90 → 다음 t 90, 구역 N / seek −1·180(duration 180) → 400 / loop false → 끝에서 ENDED.
+### S7. 구역 조회와 서버 상태 (`feat/server-zones-health`)
+- 재생 제어 REST는 만들지 않는다. 영상은 실시간 CCTV처럼 끊김 없이 재생하고 화면은 재생을 제어하지 않는다. `ZonePlayer`에 제어 메서드를 더하지 않고 `loop`는 `final` 그대로.
+- `GET /api/zones` → `[{zone_id, camera_id, video_id}]` (설정 순서, `duration_s` 없음). `GET /api/zones/{id}/meta` → 타임라인 `meta` 원본(`ZoneTimeline.metaJson()`), 없는 구역 404(본문 없음).
+- `GET /api/health` → `{status:"UP", zones:[{zone_id, state, t, loop}], sessions, last_tick_ms, max_tick_ms}`. tick 전이면 두 시간 `null`.
+- tick 처리 시간: `ReplayScheduler.tickAll` 전체(모든 구역 판정 + 방송)를 `System.nanoTime()` 차이로 재서 `replay/TickStats`에 last·max(서버 시작부터, ms 소수 3자리). `crowdsight.replay.slow-tick-ms`(기본 500)를 넘으면 WARN.
+- `PlaybackState.PAUSED` 삭제. `playback`·`hello.playback`의 `state`는 `playing`·`ended` 두 값.
+
+| 방식 | 경로 | 200 응답 | 그 밖 |
+|---|---|---|---|
+| GET | `/api/zones` | `[{"zone_id","camera_id","video_id"}]` (설정 순서) | — |
+| GET | `/api/zones/{zone_id}/meta` | 타임라인 `meta` 원본 객체 | 404 본문 없음 |
+| GET | `/api/health` | `{"status":"UP","zones":[{"zone_id","state","t","loop"}],"sessions","last_tick_ms","max_tick_ms"}` | — |
+
+- 테스트: 설정 `slow-tick-ms` 묶기·거부, `TickStatsTest`(기록 전 null, last·max, 반올림, 음수 거부), `ReplaySchedulerTest.recordsTickTime`, `ZoneControllerTest`·`HealthControllerTest`(평범한 객체), `ZoneControllerIntegrationTest`(MockMvc 키·404 본문 없음·CORS), `ZoneWebSocketIntegrationTest.healthCountsSessions`.
+
+상세는 `docs/plans/server_s7_zones_health_plan.md`.
 
 ## 3. Java 규칙 제안 `[결정 필요]`
 | 항목 | 제안 |
@@ -524,6 +536,7 @@ crowdsight:
   replay:
     interval-ms: 1000
     loop: true
+    slow-tick-ms: 500
   grade:
     density: { caution: 3.0, alert: 4.0, critical: 5.0 }
     up-seconds: 2
@@ -561,7 +574,7 @@ crowdsight:
 | ping | 같은 `replayTaskScheduler`(poolSize 2)의 두 번째 주기 작업, 30초 |
 | 30분 반복 | 반복마다 판정·알림 초기화 + playback. 커지는 곳은 AlertStore(100 상한)뿐. 1800 tick 테스트 |
 | 미확인 알림 | `AlertStore` `synchronized` + 불변 복사본. 쓰기 재생 스레드(issue)·요청 스레드(ack), 읽기 hello·REST. 로그 파일은 저장소 잠금 밖(S6 계획 7.2). 접속과 발송 사이 중복·드문 놓침은 허용(S5 계획 7.3) |
-| p95 ≤ 5초 | `frame_ts`와 화면 수신 시각 차이 (api-spec 7절). tick 처리 시간 last·max를 `/api/health`에, 500 ms 넘으면 WARN |
+| p95 ≤ 5초 | `frame_ts`와 화면 수신 시각 차이 (api-spec 7절). tick 처리 시간 last·max를 `/api/health`에, `crowdsight.replay.slow-tick-ms`(500 ms)를 넘으면 WARN |
 
 ## 6. null 처리
 | 필드 | 서버 처리 |
@@ -601,7 +614,7 @@ crowdsight:
 | 8 | `alerts.ts`가 raise·clear·forecast 직접 생성 | 서버 `alert` + REST | web. forecast 유지 여부 `[토론]` |
 | 9 | 재접속 1 s → ×2, 최대 15 s | 1, 2, 5, 이후 5 s | web 최대 5 s 권장 |
 | 10 | `frame_ts` 지연 미기록 | 화면이 기록 (E8) | web |
-| 11 | `thresholds`, `playback`, `unacked_alerts` 없음 | 있음 | web. `playback` 일시정지·이동을 영상에도 반영 (api-spec 6절, 영상 오버레이 #34) |
+| 11 | `thresholds`, `playback`, `unacked_alerts` 없음 | 있음 | web. `playback`(반복 0·끝)을 영상에도 반영 (api-spec 6절, 영상 오버레이 #34) |
 | 12 | mock 옛 형식 | | mock 갱신 또는 11-13부터 실제 서버. 담당 `[토론]` |
 | 13 | 화면 5173, 서버 8080 | | WS 허용 출처 `localhost:*`·`127.0.0.1:*` 적용(S3), REST는 S6 |
 - S3 병합 때 `hello`·`zone_state` 실제 출력 예시를 PR 설명에 붙여 나예린 님께 전달.
