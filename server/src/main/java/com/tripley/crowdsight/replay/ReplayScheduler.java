@@ -3,6 +3,7 @@ package com.tripley.crowdsight.replay;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.context.SmartLifecycle;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -19,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
  * 구역 하나가 예외를 던져도 로그만 남기고 다른 구역과 다음 tick은 계속한다.
  * SmartLifecycle 기본 phase(MAX)라 다른 빈(웹 서버 포함)이 다 뜬 뒤 시작하고, 닫을 때 가장 먼저 멈춘다.
  * tick마다 재생 상태 변화(playback)를 먼저, 판정 결과(zone_state)를 다음에 ZoneBroadcaster로 보낸다.
+ * tick마다 처리 시간(System.nanoTime 차이)을 TickStats에 남기고, crowdsight.replay.slow-tick-ms를 넘으면 WARN을 남긴다.
  */
 @Slf4j
 @Component
@@ -29,6 +31,7 @@ public class ReplayScheduler implements SmartLifecycle {
     private final ThreadPoolTaskScheduler replayTaskScheduler;
     private final CrowdsightProperties props;
     private final ZoneBroadcaster broadcaster;
+    private final TickStats tickStats;
     private volatile ScheduledFuture<?> future;
 
     @Override
@@ -56,14 +59,22 @@ public class ReplayScheduler implements SmartLifecycle {
         return future != null;
     }
 
-    /** 모든 구역을 한 칸씩 진행·판정하고 내보낸다. 재생 작업에서만 부른다 (테스트는 직접 부른다). */
+    /** 모든 구역을 한 칸씩 진행·판정하고 내보낸 뒤 처리 시간을 기록한다. 재생 작업에서만 부른다 (테스트는 직접 부른다). */
     void tickAll() {
+        long start = System.nanoTime();
         for (ZoneRuntime zone : zones.all()) {
             try {
                 tickZone(zone);
             } catch (RuntimeException e) {
                 log.error("구역 재생 중 오류, 다음 구역으로 계속 zone={}", zone.zoneId(), e);
             }
+        }
+        long elapsed = System.nanoTime() - start;
+        tickStats.record(elapsed);
+        long slowMs = props.replay().slowTickMs();
+        if (elapsed > TimeUnit.MILLISECONDS.toNanos(slowMs)) {
+            log.warn("tick 처리가 느림 처리={} ms 기준={} ms 구역={}개 (/api/health 참고)", tickStats.lastMs(),
+                    slowMs, zones.all().size());
         }
     }
 

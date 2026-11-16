@@ -25,6 +25,7 @@ class CrowdsightPropertiesTest {
         map.put("crowdsight.timeline-files[1]", "b.json");
         map.put("crowdsight.replay.interval-ms", "1000");
         map.put("crowdsight.replay.loop", "true");
+        map.put("crowdsight.replay.slow-tick-ms", "500");
         map.put("crowdsight.grade.density.caution", "3.0");
         map.put("crowdsight.grade.density.alert", "4.0");
         map.put("crowdsight.grade.density.critical", "5.0");
@@ -74,6 +75,35 @@ class CrowdsightPropertiesTest {
         assertThatThrownBy(() -> bind(map))
                 .isInstanceOf(BindException.class)
                 .rootCause().hasMessageContaining("crowdsight.replay.interval-ms");
+    }
+
+    @Test
+    @DisplayName("느린 tick 기준을 묶는다")
+    void bindsSlowTickMs() {
+        assertThat(bind(defaults()).replay().slowTickMs()).isEqualTo(500);
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {0, -1})
+    @DisplayName("느린 tick 기준이 0 이하이면 거부한다")
+    void rejectsNonPositiveSlowTick(long slowTickMs) {
+        Map<String, String> map = defaults();
+        map.put("crowdsight.replay.slow-tick-ms", String.valueOf(slowTickMs));
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("crowdsight.replay.slow-tick-ms");
+    }
+
+    @Test
+    @DisplayName("느린 tick 기준이 없으면 거부한다")
+    void rejectsMissingSlowTick() {
+        Map<String, String> map = defaults();
+        map.remove("crowdsight.replay.slow-tick-ms");
+
+        assertThatThrownBy(() -> bind(map))
+                .isInstanceOf(BindException.class)
+                .rootCause().hasMessageContaining("crowdsight.replay.slow-tick-ms");
     }
 
     @Test
