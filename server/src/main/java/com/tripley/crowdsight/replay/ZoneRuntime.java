@@ -8,9 +8,9 @@ import com.tripley.crowdsight.grade.ZoneEvaluation;
 import com.tripley.crowdsight.grade.ZoneGrader;
 
 /**
- * 구역 1개의 재생기·판정기·알림 판정기를 묶는다. 불연속 tick(첫 프레임·반복·이동)이면 판정·알림 상태를 먼저 초기화한다.
+ * 구역 1개의 재생기·판정기·알림 판정기를 묶는다. 불연속 tick(첫 프레임·반복)이면 판정·알림 상태를 먼저 초기화한다.
  * 스레드 규칙: tick()은 재생 스레드만 부른다 (ZoneGrader·AlertDetector는 잠금 없음).
- * player()가 주는 ZonePlayer는 synchronized라 다른 스레드(S3 hello, S7 제어)에서 써도 된다.
+ * player()가 주는 ZonePlayer는 synchronized라 다른 스레드(WS hello, REST health)에서 써도 된다.
  */
 public final class ZoneRuntime {
 
@@ -33,7 +33,7 @@ public final class ZoneRuntime {
         return player;
     }
 
-    /** 한 칸 재생하고 판정한다. 재생할 프레임이 없으면(PAUSED·ENDED) 빈 값. */
+    /** 한 칸 재생하고 판정한다. 재생할 프레임이 없으면(ENDED) 빈 값. */
     public Optional<ZoneStep> tick() {
         return player.tick().map(this::evaluate);
     }

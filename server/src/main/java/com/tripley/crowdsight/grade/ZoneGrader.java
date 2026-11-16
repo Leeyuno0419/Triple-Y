@@ -86,7 +86,7 @@ public final class ZoneGrader {
         return new ZoneEvaluation(frame.t(), zoneGrade, maxDensity, status.average(), status.on(), cells);
     }
 
-    /** 모든 셀을 NORMAL로, 불안정 연속·유입 창·경보를 처음으로 되돌린다 (첫 프레임·반복·이동). */
+    /** 모든 셀을 NORMAL로, 불안정 연속·유입 창·경보를 처음으로 되돌린다 (첫 프레임·반복). */
     public void reset() {
         for (GradeHysteresis h : hysteresis) {
             h.reset();

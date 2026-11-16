@@ -47,7 +47,7 @@ public final class InflowMonitor {
         return new InflowStatus(average, on);
     }
 
-    /** 창·연속·경보를 모두 비운다 (반복·이동). */
+    /** 창·연속·경보를 모두 비운다 (첫 프레임·반복). */
     public void reset() {
         Arrays.fill(window, null);
         next = 0;

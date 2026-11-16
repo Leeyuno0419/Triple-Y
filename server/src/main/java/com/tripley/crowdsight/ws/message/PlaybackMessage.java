@@ -5,7 +5,7 @@ package com.tripley.crowdsight.ws.message;
  *
  * @param type   "playback"
  * @param zoneId 구역 ID
- * @param state  playing·paused·ended
+ * @param state  playing·ended
  * @param t      재생 위치
  * @param loop   끝에서 처음으로 돌아가는지
  */

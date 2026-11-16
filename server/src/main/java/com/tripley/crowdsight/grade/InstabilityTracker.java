@@ -33,7 +33,7 @@ public final class InstabilityTracker {
         return streak >= seconds;
     }
 
-    /** 연속을 0으로 되돌린다 (반복·이동). */
+    /** 연속을 0으로 되돌린다 (첫 프레임·반복). */
     public void reset() {
         streak = 0;
     }
