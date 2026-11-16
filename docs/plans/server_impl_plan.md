@@ -61,11 +61,11 @@ com.tripley.crowdsight
 │             InstabilitySettings, InflowSettings, InstabilityTracker, InflowMonitor, InflowStatus
 │                                                                            (Spring 의존 없음)
 ├─ alert/     AlertReason, AlertEvent, Alert, AlertDetector, AlertIdGenerator, AlertStore (S5),
-│             AlertLogWriter, AlertController (S6)
+│             StoredAlert, AlertAck, AlertLogLine, AlertLogWriter (S6)
 ├─ ws/        ZoneWebSocketHandler, ZoneSessions, MessageFactory, FrameTimestamps, WsZoneBroadcaster, WsPingScheduler,
 │             message/ (HelloMessage, PlaybackView, ThresholdsView, ZoneStateMessage, ZoneView, CellView, PlaybackMessage,
 │                       AlertMessage(S5))
-└─ api/       ZoneController, HealthController
+└─ api/       AlertController, AckResponse, AlertView (S6), ZoneController, HealthController (S7)
 ```
 - `grade/`, `replay/` 핵심(`ZonePlayer`, `ZoneRuntime`)은 순수 Java. 테스트에 Spring 컨텍스트 불필요.
 - Spring은 `config/`, `ws/`, `api/`, 조립 클래스(`ZoneRegistry`, `ReplayScheduler`)에만.
@@ -442,7 +442,7 @@ final class AlertIdGenerator { AlertIdGenerator(Clock clock); String next(); }
     public AlertStore(CrowdsightProperties props, Clock clock);
     public Alert issue(String zoneId, int t, String frameTs, AlertEvent event);
     public List<Alert> unacked(String zoneId);
-    // find(alertId)·ack(alertId)는 S6
+    // ack(alertId, ackedAt)·list(zoneId, unackedOnly)는 S6
 }
 ```
 - **GRADE_UP**: 구역 등급 ≥ ALERT이고 이번 사건의 최고 단계보다 높을 때. ALERT 아래로 내려가면 해제. `value` = max_density, `cell_ids` = 대상 셀 중 등급 ≥ level (meta 순서), message `"구역 등급이 주의 → 경계로 올랐다"`.
@@ -469,15 +469,20 @@ final class AlertIdGenerator { AlertIdGenerator(Clock clock); String next(); }
 
 ### S6. 알림 확인 (`feat/server-alert-ack`)
 - `POST /api/alerts/{alertId}/ack` → 200 `{"alert_id","acked_at"}`, 없으면 404. `GET /api/zones/{zoneId}/alerts?unacked=true`.
-- `AlertLogWriter`: `crowdsight.alert-log`에 JSON 한 줄, `synchronized`, `Files.writeString(..., CREATE, APPEND)`, 부모 폴더 생성.
+- `GET` 응답: 배열(오래된 것부터), 원소 = `alert` 메시지 키 + `acked_at`(미확인이면 `null`). `unacked`를 빼면 `false`(보관 중인 전체). 없는 구역 404.
+- 보관 규칙: 구역당 목록 하나에 미확인·확인을 함께 두고, `unacked-alert-limit`을 넘으면 확인한 것 중 가장 오래된 것부터, 없으면 가장 오래된 미확인을 버린다.
+- `AlertLogWriter`: `crowdsight.alert-log`에 JSON 한 줄, `synchronized`, `Files.writeString(..., CREATE, APPEND)`, 부모 폴더 생성. **처음 확인할 때만** 쓴다. 쓰기 실패는 200 + ERROR 로그.
+- 컨트롤러는 `api/AlertController`(`acked_at` 형식이 `ws.FrameTimestamps`라 `alert/`에 두면 순환).
 - CORS: `WebMvcConfigurer.addCorsMappings("/api/**")`.
 
 | 테스트 (MockMvc + `@TempDir`) | 기대 |
 |---|---|
 | 첫 확인 | 200, acked_at = 고정 Clock, 로그 1줄 {alert_id, zone_id, t, level, reason, sent_at, acked_at} |
-| 두 번째 | 200, 처음 acked_at, 로그 1줄 |
+| 두 번째 | 200, 처음 acked_at, 로그 **그대로** 1줄 (두 번째는 쓰지 않음) |
 | 없는 ID | 404 |
 | 확인 뒤 `?unacked=true` | 빠짐 |
+
+상세는 `docs/plans/server_s6_alert_ack_plan.md` 8장.
 
 ### S7. 재생 제어와 조회 (`feat/server-playback-api`)
 - `ZonePlayer`: `play()`, `pause()`, `seek(int t)`, `setLoop(boolean)` (`synchronized`). seek는 `pendingDiscontinuity`. 상태 바뀌면 `playback`.
@@ -533,7 +538,7 @@ crowdsight:
     min-samples: 3                           # 창 안 non-null 값이 이 개수 이상일 때만 평균 (결정 기록 8, 가정)
     off-seconds: 10                          # 켜진 뒤 조건이 이 초만큼 연속 거짓이면 끔 (가정)
     min-count: 3                             # 구역 인원 count가 이보다 적으면 켜지 않음 (결정 6)
-  unacked-alert-limit: 100                   # 구역당 미확인 알림 최대 개수. 넘으면 가장 오래된 것부터 버린다 (메모리 상한)
+  unacked-alert-limit: 100                   # 구역당 보관 알림 최대 개수. 넘으면 확인한 것부터, 없으면 가장 오래된 미확인부터 버린다
   ws:
     ping-interval-ms: 30000                  # 연결 확인 ping (api-spec 3.5)
     send-time-limit-ms: 2000                 # 메시지 하나 보내기가 이보다 오래 막히면 그 세션만 닫음 (결정 기록 1)
@@ -555,7 +560,7 @@ crowdsight:
 | 느린 화면 | Tomcat 전송 제한 2초를 넘으면 그 세션만 닫고, 재접속 시 hello로 복구 (결정 1). 최악은 그 tick + 2초 × 느린 세션 수 |
 | ping | 같은 `replayTaskScheduler`(poolSize 2)의 두 번째 주기 작업, 30초 |
 | 30분 반복 | 반복마다 판정·알림 초기화 + playback. 커지는 곳은 AlertStore(100 상한)뿐. 1800 tick 테스트 |
-| 미확인 알림 | `AlertStore` `synchronized` + 불변 복사본. 쓰기 재생 스레드, 읽기 hello(·S6 REST). 접속과 발송 사이 중복·드문 놓침은 허용(S5 계획 7.3) |
+| 미확인 알림 | `AlertStore` `synchronized` + 불변 복사본. 쓰기 재생 스레드(issue)·요청 스레드(ack), 읽기 hello·REST. 로그 파일은 저장소 잠금 밖(S6 계획 7.2). 접속과 발송 사이 중복·드문 놓침은 허용(S5 계획 7.3) |
 | p95 ≤ 5초 | `frame_ts`와 화면 수신 시각 차이 (api-spec 7절). tick 처리 시간 last·max를 `/api/health`에, 500 ms 넘으면 WARN |
 
 ## 6. null 처리
