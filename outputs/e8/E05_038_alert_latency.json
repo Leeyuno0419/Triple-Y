@@ -1,0 +1,1143 @@
+{
+  "zone_id": "zone-e05-038",
+  "video_id": "E05_038",
+  "duration_s": 60,
+  "started_at": "2026-11-17T06:19:44.522Z",
+  "ended_at": "2026-11-17T06:49:44.529Z",
+  "elapsed_min": 30,
+  "zone_states": 1800,
+  "loops": 30,
+  "disconnects": 0,
+  "missing_seconds": 0,
+  "max_gap_ms": 1022,
+  "transport_delay_ms": {
+    "n": 1800,
+    "p50": 1,
+    "p95": 1,
+    "max": 3
+  },
+  "alert_delay_ms": {
+    "n": 120,
+    "p50": 3001,
+    "p95": 4002,
+    "max": 4002
+  },
+  "alert_delay_ms_by_reason": {
+    "INFLOW": {
+      "n": 60,
+      "p50": 3003,
+      "p95": 4002,
+      "max": 4002
+    },
+    "INSTABILITY": {
+      "n": 30,
+      "p50": 2001,
+      "p95": 2002,
+      "max": 2002
+    },
+    "GRADE_UP": {
+      "n": 30,
+      "p50": 3001,
+      "p95": 3002,
+      "max": 3002
+    }
+  },
+  "pass_alert_p95": true,
+  "pass_no_interruption": true,
+  "thresholds": {
+    "density": {
+      "caution": 3,
+      "alert": 4,
+      "critical": 5
+    },
+    "pressure": 0.02,
+    "inflow_ratio": 0.6
+  },
+  "environment": {
+    "node": "v24.22.1",
+    "platform": "win32",
+    "client": "node WebSocket (화면 표시 시간 제외)"
+  },
+  "alerts": [
+    {
+      "alert_id": "a-20261117-0014",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0016",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 2002
+    },
+    {
+      "alert_id": "a-20261117-0018",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 3002
+    },
+    {
+      "alert_id": "a-20261117-0021",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0023",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0024",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 2002
+    },
+    {
+      "alert_id": "a-20261117-0026",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0030",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0032",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 3,
+      "delay_ms": 3003
+    },
+    {
+      "alert_id": "a-20261117-0033",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0034",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0040",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0043",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0044",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 2000
+    },
+    {
+      "alert_id": "a-20261117-0045",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0050",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0052",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 2,
+      "delay_ms": 3002
+    },
+    {
+      "alert_id": "a-20261117-0053",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 2002
+    },
+    {
+      "alert_id": "a-20261117-0054",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 3002
+    },
+    {
+      "alert_id": "a-20261117-0059",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0061",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 0,
+      "delay_ms": 3000
+    },
+    {
+      "alert_id": "a-20261117-0062",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 2000
+    },
+    {
+      "alert_id": "a-20261117-0063",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0069",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0072",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 0,
+      "delay_ms": 3000
+    },
+    {
+      "alert_id": "a-20261117-0073",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 2000
+    },
+    {
+      "alert_id": "a-20261117-0074",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0079",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0081",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0082",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 2000
+    },
+    {
+      "alert_id": "a-20261117-0083",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 3000
+    },
+    {
+      "alert_id": "a-20261117-0088",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 2,
+      "delay_ms": 4002
+    },
+    {
+      "alert_id": "a-20261117-0090",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0091",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0092",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0098",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 2,
+      "delay_ms": 4002
+    },
+    {
+      "alert_id": "a-20261117-0101",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 0,
+      "delay_ms": 3000
+    },
+    {
+      "alert_id": "a-20261117-0102",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0103",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0108",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0110",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0111",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 2002
+    },
+    {
+      "alert_id": "a-20261117-0112",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0117",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0119",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 2,
+      "delay_ms": 3002
+    },
+    {
+      "alert_id": "a-20261117-0120",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 2002
+    },
+    {
+      "alert_id": "a-20261117-0121",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0127",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0130",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0131",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0132",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0137",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0139",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0140",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 2002
+    },
+    {
+      "alert_id": "a-20261117-0141",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0146",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 2,
+      "delay_ms": 4002
+    },
+    {
+      "alert_id": "a-20261117-0148",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0149",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0150",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0156",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0159",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0160",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0161",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0165",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0168",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0169",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0170",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0174",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 2,
+      "delay_ms": 4002
+    },
+    {
+      "alert_id": "a-20261117-0177",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0178",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0179",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 3002
+    },
+    {
+      "alert_id": "a-20261117-0184",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0188",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0189",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 2000
+    },
+    {
+      "alert_id": "a-20261117-0190",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0194",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 2,
+      "delay_ms": 4002
+    },
+    {
+      "alert_id": "a-20261117-0197",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0198",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 2000
+    },
+    {
+      "alert_id": "a-20261117-0199",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 3002
+    },
+    {
+      "alert_id": "a-20261117-0203",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0206",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0207",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0208",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0213",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0216",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 2,
+      "delay_ms": 3002
+    },
+    {
+      "alert_id": "a-20261117-0218",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0219",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0223",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 2,
+      "delay_ms": 4002
+    },
+    {
+      "alert_id": "a-20261117-0225",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0227",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 2000
+    },
+    {
+      "alert_id": "a-20261117-0228",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0232",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 2,
+      "delay_ms": 4002
+    },
+    {
+      "alert_id": "a-20261117-0234",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0235",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0237",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 3002
+    },
+    {
+      "alert_id": "a-20261117-0242",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0245",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0246",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 2002
+    },
+    {
+      "alert_id": "a-20261117-0247",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 3000
+    },
+    {
+      "alert_id": "a-20261117-0252",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0254",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0255",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 2000
+    },
+    {
+      "alert_id": "a-20261117-0256",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0261",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0263",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 0,
+      "delay_ms": 3000
+    },
+    {
+      "alert_id": "a-20261117-0264",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0265",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 3000
+    },
+    {
+      "alert_id": "a-20261117-0271",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0274",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0275",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 2,
+      "delay_ms": 2002
+    },
+    {
+      "alert_id": "a-20261117-0276",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0281",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0283",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0284",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 0,
+      "delay_ms": 2000
+    },
+    {
+      "alert_id": "a-20261117-0285",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0290",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0292",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 29,
+      "onset_t": 26,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0293",
+      "reason": "INSTABILITY",
+      "level": "CRITICAL",
+      "t": 31,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 2001
+    },
+    {
+      "alert_id": "a-20261117-0294",
+      "reason": "GRADE_UP",
+      "level": "CRITICAL",
+      "t": 32,
+      "onset_t": 29,
+      "transport_ms": 1,
+      "delay_ms": 3001
+    },
+    {
+      "alert_id": "a-20261117-0300",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 4,
+      "onset_t": 0,
+      "transport_ms": 2,
+      "delay_ms": 4002
+    }
+  ]
+}
