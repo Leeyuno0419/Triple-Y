@@ -5,6 +5,7 @@
     - load_timeline / save_timeline
     - fill_predictions / make_predictor / BasePredictor
     - PersistencePredictor / LinearTrendPredictor / FlowAdvectionPredictor
+    - MLPredictor (학습된 회귀 모델. 학습은 python -m src.predict.train_forecast)
 """
 from .config import PredictConfig, load_config
 from .io import load_timeline, save_timeline
@@ -12,6 +13,7 @@ from .model import (
     BasePredictor,
     FlowAdvectionPredictor,
     LinearTrendPredictor,
+    MLPredictor,
     PersistencePredictor,
     fill_predictions,
     make_predictor,
@@ -28,4 +30,5 @@ __all__ = [
     "PersistencePredictor",
     "LinearTrendPredictor",
     "FlowAdvectionPredictor",
+    "MLPredictor",
 ]

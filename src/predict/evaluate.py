@@ -23,7 +23,7 @@ from typing import List, Optional, Sequence
 
 import numpy as np
 
-from .config import PREDICTOR_NAMES, PredictConfig, load_config
+from .config import BASELINE_PREDICTOR_NAMES, PREDICTOR_NAMES, PredictConfig, load_config
 from .io import assert_not_raw, load_timeline
 from .model import (
     NO_VELOCITY_MESSAGE, CellLayout, has_velocity, make_predictor, require_unit_interval, to_arrays,
@@ -69,7 +69,7 @@ def _skill(rmse: float, base_rmse: Optional[float]) -> Optional[float]:
 
 
 def evaluate(
-    timeline: Timeline, config: PredictConfig, predictors: Sequence[str] = PREDICTOR_NAMES
+    timeline: Timeline, config: PredictConfig, predictors: Sequence[str] = BASELINE_PREDICTOR_NAMES
 ) -> List[PredictorMetrics]:
     """predictors 각각의 지표를 계산한다. 길이가 history_s + horizon_s 보다 짧으면 ValueError.
 
@@ -160,8 +160,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--input", required=True, help="timeline.json (history_s + horizon_s 초 이상)")
     ap.add_argument("--config", default=None, help="설정 YAML (기본: src/predict/config.yaml)")
-    ap.add_argument("--predictors", nargs="+", choices=PREDICTOR_NAMES, default=list(PREDICTOR_NAMES),
-                    help="비교할 예측기 (기본: 전부)")
+    ap.add_argument("--predictors", nargs="+", choices=PREDICTOR_NAMES, default=list(BASELINE_PREDICTOR_NAMES),
+                    help="비교할 예측기 (기본: persistence linear flow. 학습한 모델은 'ml' 을 직접 추가)")
     ap.add_argument("--output", default=None, help="지표 JSON 저장 경로 (data/raw/ 는 불가)")
     args = ap.parse_args(argv)
 

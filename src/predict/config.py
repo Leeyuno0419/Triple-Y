@@ -10,7 +10,8 @@ import yaml
 DEFAULT_CONFIG_PATH = Path(__file__).with_name("config.yaml")
 
 # 사용할 수 있는 예측기 이름 (model.py 의 PREDICTORS 와 같은 키)
-PREDICTOR_NAMES: Tuple[str, ...] = ("persistence", "linear", "flow")
+BASELINE_PREDICTOR_NAMES: Tuple[str, ...] = ("persistence", "linear", "flow")   # 학습 파일 없이 바로 돌아가는 예측기
+PREDICTOR_NAMES: Tuple[str, ...] = BASELINE_PREDICTOR_NAMES + ("ml",)           # ml = 학습된 회귀 모델 (model_path 필요)
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,8 @@ class PredictConfig:
     max_speed_cells_per_s: float = 3.0
     # 평가(evaluate) 전용: 이 면적(㎡) 이상인 셀만 모은 지표를 따로 낸다 (결정 2026-11-11 #4와 같은 기준)
     eval_min_cell_area_m2: float = 2.0
+    # ml 예측기 전용: train_forecast.py 가 저장한 모델 파일. 상대 경로는 저장소 루트 기준이다.
+    model_path: str = "outputs/models/forecast_ridge.joblib"
 
     def __post_init__(self) -> None:
         if self.predictor not in PREDICTOR_NAMES:
