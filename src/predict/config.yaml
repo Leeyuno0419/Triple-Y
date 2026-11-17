@@ -1,5 +1,5 @@
 # 60초 예측 설정 (docs/timeline-spec.md). 코드에 하드코딩하지 말고 여기서만 조정한다.
-predictor: persistence           # persistence(현재값 유지) | linear(직선 추세) | flow(흐름 이류)
+predictor: persistence           # persistence(현재값 유지) | linear(직선 추세) | flow(흐름 이류) | ml(학습된 회귀 모델)
 history_s: 30                    # 예측 입력 기간(초). 최근 이 길이의 밀도 기록만 쓴다 (t 이후 값은 쓰지 않음)
 horizon_s: 60                    # 예측 시점(초)
 
@@ -12,3 +12,6 @@ max_speed_cells_per_s: 3.0       # 입력 흐름 속도 클리핑(이상치 방�
 
 # 평가(evaluate) 전용
 eval_min_cell_area_m2: 2.0       # 보행 면적이 이 값(㎡) 이상인 셀만 모은 지표를 따로 낸다. 작은 셀은 오탐 1명에도 밀도가 튄다 (docs/decisions-2026-11-11.md #4)
+
+# ml 예측기 전용: python -m src.predict.train_forecast 로 먼저 학습해 이 파일을 만든다 (git 에는 올리지 않음)
+model_path: outputs/models/forecast_ridge.joblib
