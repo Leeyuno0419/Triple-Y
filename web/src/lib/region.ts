@@ -1,6 +1,6 @@
 import { DENSITY_LEVELS, type DensityLevel } from '../config/density';
 import type { CellMeta, Frame, Meta } from '../types/timeline';
-import { levelOf } from './density';
+import { cellLevel, gradeLevel } from './grade';
 import { cellValue, pairCells, type ViewMode } from './model';
 
 export interface ZoneSummary {
@@ -21,8 +21,11 @@ export interface ZoneSummary {
   maxDensity: number | null;
   maxCell: CellMeta | null;
   /**
-   * 구역 위험 단계 = 값이 있는 셀 중 가장 높은 밀도의 단계 (가장 위험한 곳 기준).
-   * !! 서버가 판정하는 공식 등급이 아니라 클라이언트 임계값 해석이다 (docs/server-alignment.md Q3). 값이 없으면 null.
+   * 구역 위험 단계.
+   * - 실시간 관측(now): 서버가 판정한 구역 등급(frame.zone.grade)을 그대로 쓴다. 이때 maxDensity·maxCell 도 서버의
+   *   zone.max_density(판정 대상 셀 중 최대)에 맞춘다.
+   * - 그 밖(예측 모드, 서버 등급이 없는 timeline 파일): 값이 있는 셀 중 가장 높은 단계(가장 위험한 곳 기준).
+   *   셀 단계는 서버 등급이 있으면 그 값, 없으면 밀도 임계값 해석이다 (lib/grade.ts cellLevel). 값이 없으면 null.
    */
   level: DensityLevel | null;
   /** DENSITY_LEVELS 순서대로 각 단계에 속한 셀 수 */
@@ -42,6 +45,7 @@ export function summarizeFrame(meta: Meta, frame: Frame | undefined, mode: ViewM
   let maxDensity: number | null = null;
   let maxCell: CellMeta | null = null;
   let maxPressure: number | null = null;
+  let topLevelIndex = -1; // 값이 있는 셀 중 가장 높은 단계 (DENSITY_LEVELS 인덱스)
 
   for (const { meta: cm, state } of pairCells(meta, frame)) {
     if (state.pressure !== null && Number.isFinite(state.pressure) && (maxPressure === null || state.pressure > maxPressure)) {
@@ -52,11 +56,25 @@ export function summarizeFrame(meta: Meta, frame: Frame | undefined, mode: ViewM
     observedCells += 1;
     people += value * cm.walkable_area_m2;
     area += cm.walkable_area_m2;
-    levelCounts[DENSITY_LEVELS.indexOf(levelOf(value))] += 1;
+    const lv = cellLevel(state, mode, value);
+    if (lv) {
+      const li = DENSITY_LEVELS.indexOf(lv);
+      levelCounts[li] += 1;
+      topLevelIndex = Math.max(topLevelIndex, li);
+    }
     if (maxDensity === null || value > maxDensity) {
       maxDensity = value;
       maxCell = cm;
     }
+  }
+
+  let level: DensityLevel | null = topLevelIndex >= 0 ? DENSITY_LEVELS[topLevelIndex] : null;
+  // 서버가 구역 요약(zone)을 보냈으면 그대로 쓴다: 구역 등급, 판정 대상 셀 중 최대 밀도와 그 셀.
+  if (mode === 'now' && frame?.zone) {
+    level = gradeLevel(frame.zone.grade);
+    maxDensity = frame.zone.max_density;
+    const target = maxDensity;
+    maxCell = target === null ? null : (pairCells(meta, frame).find((p) => p.state.density === target)?.meta ?? null);
   }
 
   // 파일의 구역 인원은 현재 관측에만 있다. 예측 모드는 셀 합으로 계산한다.
@@ -72,7 +90,7 @@ export function summarizeFrame(meta: Meta, frame: Frame | undefined, mode: ViewM
     meanDensity: observedCells > 0 && area > 0 ? people / area : null,
     maxDensity,
     maxCell,
-    level: maxDensity === null ? null : levelOf(maxDensity),
+    level,
     levelCounts,
     inflowRatio: frame?.inflow_ratio ?? null,
     maxPressure,

@@ -8,6 +8,7 @@ import { Sparkline } from '../components/Sparkline';
 import type { AlertItem } from '../lib/alerts';
 import type { Dashboard } from '../lib/dashboard';
 import { fmtClock, type StatusInfo } from '../lib/format';
+import type { LiveAlert } from '../types/live';
 import type { Frame, Meta } from '../types/timeline';
 
 interface Props {
@@ -18,7 +19,12 @@ interface Props {
   dash: Dashboard | null;
   /** 가장 최근 프레임의 60초 뒤 예측 기준 요약 */
   dashPred: Dashboard | null;
+  /** 프레임 이력에서 파생한 알림 (서버 알림이 없을 때만 쓴다) */
   alerts: AlertItem[];
+  /** 서버가 보낸 미확인 알림. null 이면 서버에 연결되지 않은 것이다 */
+  liveAlerts: LiveAlert[] | null;
+  /** 알림 '확인' 버튼 */
+  onAck: (alertId: string) => void;
   /** 프레임별 최대 밀도 + 미래 예측(있으면 뒤에 붙음) */
   peakValues: number[];
   lastIndex: number;
@@ -118,9 +124,9 @@ export function HomeView(p: Props) {
             <h3>
               <BellIcon size={14} /> 최근 알림
             </h3>
-            <small>단계 변화 기준</small>
+            <small>{p.liveAlerts ? `서버 알림 · 미확인 ${p.liveAlerts.length}건` : '단계 변화 기준'}</small>
           </div>
-          <AlertFeed alerts={p.alerts} onSelect={p.onOpenMonitor} />
+          <AlertFeed alerts={p.alerts} liveAlerts={p.liveAlerts} onAck={p.onAck} onSelect={p.onOpenMonitor} />
         </section>
       </div>
 
@@ -136,7 +142,7 @@ export function HomeView(p: Props) {
           <div className="card-title">
             <h3>셀 등급 분포</h3>
             <small>
-              <EyeIcon size={12} /> {s?.totalCells ?? 0}칸 · 경고 이상 {dash?.riskCells ?? 0}칸
+              <EyeIcon size={12} /> {s?.totalCells ?? 0}칸 · 경계 이상 {dash?.riskCells ?? 0}칸
             </small>
           </div>
           {s && <GradeDistribution summary={s} />}

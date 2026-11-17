@@ -399,6 +399,21 @@ h1, h2, h3, p { margin: 0; }
 .alert-tag.raise { background: #f6d0d6; color: #8a2a3b; }
 .alert-tag.clear { background: #e4eede; color: #46663f; }
 .alert-tag.forecast { background: var(--sky-soft); color: var(--sky-ink); }
+.alert-tag.inflow { background: var(--sky-soft); color: var(--sky-ink); }
+.alert-tag.unstable { background: #f6d0d6; color: #8a2a3b; }
+/* 서버 알림: 한 줄 = 알림 본문(누르면 모니터로) + 확인 버튼 */
+.alert-row { display: flex; align-items: center; gap: 6px; }
+.alert-row .alert-item { flex: 1; width: auto; min-width: 0; }
+.alert-ack {
+  flex: none; padding: 6px 12px; border: 1px solid var(--accent-line); border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent-ink); font: inherit; font-size: 0.74rem; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.alert-ack:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.alert-ack:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.alert-ack:disabled { opacity: 0.6; cursor: progress; }
+.alert-ack.error { border-color: var(--coral); }
+.alert-error { color: var(--coral-ink); font-weight: 600; }
 .alert-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 0; color: var(--faint); font-size: 0.8rem; }
 
 /* 분석 뷰: 구역 선택 pill, 표, 추이 차트 */
@@ -459,6 +474,7 @@ h1, h2, h3, p { margin: 0; }
 .badge.live.open { background: #e4eede; color: #46663f; }
 .badge.live.open::before { animation: live-pulse 1.8s ease-in-out infinite; }
 .badge.live.connecting, .badge.live.reconnecting { background: #faf0c9; color: #74601a; }
+.badge.live.ended { background: #e2e8f0; color: #475569; }
 @keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* ---------------- 시간 컨트롤 ---------------- */

@@ -1,6 +1,6 @@
 import { DENSITY_LEVELS, RISK_MIN_LEVEL_INDEX, type DensityLevel } from '../config/density';
 import type { CellMeta, CellState, Frame, Meta } from '../types/timeline';
-import { levelOf } from './density';
+import { cellLevel } from './grade';
 import { cellValue, frameMaxDensity, pairCells, type ViewMode } from './model';
 import { summarizeFrame, type ZoneSummary } from './region';
 
@@ -13,7 +13,7 @@ export interface HotCell {
 
 export interface Dashboard {
   summary: ZoneSummary;
-  /** 경고(RISK_MIN_LEVEL_INDEX) 이상인 셀 수 */
+  /** 경계(RISK_MIN_LEVEL_INDEX) 이상인 셀 수 */
   riskCells: number;
   /** 심각 셀 수 */
   severeCells: number;
@@ -34,7 +34,8 @@ export function hotCellsFor(
   for (const { meta: cm, state } of pairCells(meta, frame)) {
     const value = cellValue(state, mode);
     if (value === null) continue;
-    const lv = levelOf(value);
+    const lv = cellLevel(state, mode, value); // 서버 등급이 있으면 그대로, 없으면(timeline 파일) 밀도로 해석
+    if (!lv) continue;
     if (level && lv !== level) continue;
     hot.push({ meta: cm, state, value, level: lv });
   }

@@ -6,5 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_TIMELINE_URL?: string;
   readonly VITE_USE_MOCK?: string;
   readonly VITE_WS_URL?: string;
+  readonly VITE_ZONE_ID?: string;
+  readonly VITE_API_URL?: string;
   readonly VITE_VIDEO_BASE_URL?: string;
 }

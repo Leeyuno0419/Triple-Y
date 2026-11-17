@@ -5,7 +5,6 @@ import { EyeIcon, PulseIcon, UsersIcon, AlertIcon } from '../components/Icons';
 import { TrendChart } from '../components/TrendChart';
 import { hotCellsFor, predictedPeakSeries, zoneSeries, type Dashboard } from '../lib/dashboard';
 import { fmtClock } from '../lib/format';
-import { levelOf } from '../lib/density';
 import type { Frame, Meta } from '../types/timeline';
 
 interface Props {
@@ -15,6 +14,8 @@ interface Props {
   index: number;
   /** 모니터 뷰의 현재 프레임 기준 요약 (관측 값) */
   dash: Dashboard | null;
+  /** 그래프 기준선으로 그릴 단계 경계값 [주의, 경계, 심각] (서버 hello.thresholds). 없으면 기본 설정 */
+  bounds?: number[];
 }
 
 const MAX_HISTORY_ROWS = 12;
@@ -22,7 +23,7 @@ const CELL_ROWS = 10;
 const fmt = (v: number | null | undefined, d = 2) => (v === null || v === undefined ? '-' : v.toFixed(d));
 
 /** 구역 분석(심층 분석·리포트): 한 줄 지표 띠, 큰 밀도 추이 그래프(관측 + 예측), 프레임 기록 표, 셀 상세 표 */
-export function AnalysisView({ meta, frames, index, dash }: Props) {
+export function AnalysisView({ meta, frames, index, dash, bounds }: Props) {
   const horizon = meta?.prediction.horizon_s ?? 60;
   const series = useMemo(() => (meta ? zoneSeries(meta, frames) : []), [meta, frames]);
   const predPeaks = useMemo(() => predictedPeakSeries(frames, horizon), [frames, horizon]);
@@ -85,6 +86,7 @@ export function AnalysisView({ meta, frames, index, dash }: Props) {
           times={times}
           futureFrom={n}
           current={index}
+          bounds={bounds}
           series={[
             { label: '최대 밀도', color: CHART_COLORS.max, values: pad(series.map((s) => s.maxDensity ?? 0)) },
             { label: '평균 밀도', color: CHART_COLORS.mean, values: pad(series.map((s) => s.meanDensity ?? 0)) },
@@ -138,7 +140,7 @@ export function AnalysisView({ meta, frames, index, dash }: Props) {
                     <tr key={c.meta.cell_id}>
                       <td>{c.meta.row + 1}행 {c.meta.col + 1}열</td>
                       <td className="num">{fmt(c.value)}</td>
-                      <td><GradeBadge level={levelOf(c.value)} /></td>
+                      <td><GradeBadge level={c.level} /></td>
                       <td className="num">{fmt(speed)}</td>
                       <td className="num">{fmt(st.pressure, 4)}</td>
                       <td className="num">{fmt(st.density_pred_60s)}</td>

@@ -3,6 +3,7 @@ import { DEBUG_GRID } from '../config/app';
 import { CELL_STYLE, HEATMAP_OVERLAY, SEVERE_BLINK } from '../config/density';
 import { DebugGrid } from './DebugGrid';
 import { cellStyle } from '../lib/density';
+import { cellLevel } from '../lib/grade';
 import { cellValue, pairCells, type ViewMode } from '../lib/model';
 import { decideVideoSync } from '../lib/video';
 import type { Frame, Meta } from '../types/timeline';
@@ -124,7 +125,8 @@ export function CellHeatmap({
           {meta.cells.map((cm) => {
             const state = byId.get(cm.cell_id);
             const value = state ? cellValue(state, mode) : null;
-            const s = cellStyle(value, predicted);
+            // 색은 서버가 판정한 등급을 그대로 쓴다 (서버 등급이 없는 timeline 파일이면 밀도로 해석)
+            const s = cellStyle(value, predicted, state ? cellLevel(state, mode, value) : undefined);
             const selected = cm.cell_id === selectedCellId;
             const fillOpacity = overlay
               ? s.opacity * HEATMAP_OVERLAY.opacityScale
