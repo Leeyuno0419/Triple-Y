@@ -6,7 +6,8 @@ import { frameMaxDensity } from './model';
 /**
  * 프레임 이력에서 화면용 알림을 만들어 낸다.
  * !! 서버가 보내는 공식 알림이 아니라, 받은 프레임의 단계 변화를 클라이언트에서 해석한 것이다.
- *    알림 규격(기획서 4.3의 5초 이내 경보, 유입·불안정 알림 등)이 확정되면 서버 알림을 받아 이 파생 로직을 대체한다.
+ *    서버(WebSocket)에 연결되면 서버 alert 를 보여 주고(AlertFeed 의 liveAlerts) 이 파생 알림은 쓰지 않는다.
+ *    서버 없이 timeline 파일만 열었을 때만 이 파생 로직을 쓴다.
  */
 export type AlertKind = 'raise' | 'clear' | 'forecast';
 
@@ -24,9 +25,9 @@ export interface AlertItem {
 const levelIndex = (v: number) => DENSITY_LEVELS.indexOf(levelOf(v));
 
 /**
- * - raise    : 구역 단계가 올라 경고 이상이 됨(또는 더 높아짐)
- * - clear    : 경고 이상이던 구역이 그 아래로 내려감
- * - forecast : 가장 최근 프레임의 60초 뒤 예측이 현재보다 높은 경고 이상 단계일 때 (한 건)
+ * - raise    : 구역 단계가 올라 경계 이상이 됨(또는 더 높아짐)
+ * - clear    : 경계 이상이던 구역이 그 아래로 내려감
+ * - forecast : 가장 최근 프레임의 60초 뒤 예측이 현재보다 높은 경계 이상 단계일 때 (한 건)
  * 예측 알림이 먼저, 그 뒤로 최근 순.
  */
 export function deriveAlerts(meta: Meta, frames: Frame[], limit = 8): AlertItem[] {

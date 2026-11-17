@@ -7,8 +7,8 @@ import { RegionPanel, type SelectedCellInfo } from '../components/RegionPanel';
 import { TimeControls } from '../components/TimeControls';
 import { DENSITY_LEVELS } from '../config/density';
 import { hotCellsFor, type Dashboard } from '../lib/dashboard';
-import { levelOf } from '../lib/density';
 import type { StatusInfo } from '../lib/format';
+import { cellLevel } from '../lib/grade';
 import { cellValue, pairCells, type ViewMode } from '../lib/model';
 import type { Frame, Meta } from '../types/timeline';
 
@@ -40,6 +40,8 @@ interface Props {
   onVideoTime: (sec: number) => void;
   onVideoStatus: (status: VideoStatus) => void;
   onVideoEnded: () => void;
+  /** 범례에 표시할 단계 경계값 [주의, 경계, 심각] (서버 hello.thresholds). 없으면 기본 설정 */
+  bounds?: number[];
 }
 
 /**
@@ -66,7 +68,7 @@ export function MonitorView(p: Props) {
     const pair = pairCells(meta, frame).find((c) => c.meta.cell_id === p.selectedCellId);
     if (!pair) return null;
     const value = cellValue(pair.state, mode);
-    return { meta: pair.meta, state: pair.state, value, level: value === null ? null : levelOf(value) };
+    return { meta: pair.meta, state: pair.state, value, level: cellLevel(pair.state, mode, value) };
   }, [meta, frame, mode, p.selectedCellId]);
 
   const toggleGrade = (i: number) => setActiveGrade((prev) => (prev === i ? null : i));
@@ -140,7 +142,7 @@ export function MonitorView(p: Props) {
               onTogglePlay={p.onTogglePlay}
             />
           )}
-          <Legend />
+          <Legend bounds={p.bounds} />
         </footer>
       </aside>
 

@@ -55,9 +55,11 @@ export function fillOpacityOf(density: number): number {
 /**
  * 셀 밀도(null=화각 밖) → 지도에 칠할 색/투명도/테두리.
  * predicted=true 면 같은 등급 색을 반투명 + 점선 테두리로 그려 측정값과 구분한다.
+ * levelOverride: 서버가 판정한 단계(lib/grade.ts cellLevel). 주면 그 단계 색을 그대로 쓰고 밀도로 다시 판정하지 않는다.
+ *   undefined 면(등급이 없는 timeline 파일) 밀도로 해석하고, null 이면 판정이 없는 셀이라 '값 없음'으로 칠한다.
  */
-export function cellStyle(density: number | null, predicted = false): CellStyle {
-  if (density === null || !Number.isFinite(density)) {
+export function cellStyle(density: number | null, predicted = false, levelOverride?: DensityLevel | null): CellStyle {
+  if (density === null || !Number.isFinite(density) || levelOverride === null) {
     return {
       color: UNOBSERVED.color,
       opacity: CELL_STYLE.unobservedFillOpacity,
@@ -67,7 +69,7 @@ export function cellStyle(density: number | null, predicted = false): CellStyle 
       blink: false,
     };
   }
-  const level = levelOf(density);
+  const level = levelOverride ?? levelOf(density);
   const empty = density <= CELL_STYLE.emptyDensity;
   const opacity = fillOpacityOf(density);
 

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { APP_NAME_EN, LIVE, WS_URL } from './config/app';
+import { API_URL, APP_NAME_EN, LIVE, WS_URL } from './config/app';
 import { AppHeader, type ViewId } from './components/AppHeader';
 import type { VideoStatus } from './components/CellHeatmap';
+import { ackAlert } from './lib/alertApi';
 import { deriveAlerts } from './lib/alerts';
 import { buildDashboard, futurePeaks, peakSeries } from './lib/dashboard';
 import type { StatusInfo } from './lib/format';
-import { applyLiveMessage, type LiveMessage } from './lib/liveFeed';
+import { thresholdBounds } from './lib/grade';
+import { applyLiveMessage, INITIAL_LIVE_STATE, markAck, removeAlert, type LiveState } from './lib/liveFeed';
 import type { ViewMode } from './lib/model';
+import type { LiveMessage } from './types/live';
 import { loadTimeline, type LoadResult } from './lib/timeline';
 import { useLiveFeed, type LiveStatus } from './lib/useLiveFeed';
 import { frameIndexAtTime, videoUrl } from './lib/video';
@@ -30,7 +33,13 @@ const LIVE_BADGE: Record<LiveStatus, string | null> = {
 };
 
 export default function App() {
-  const [data, setData] = useState<LoadResult | null>(null);
+  // 정적 timeline 파일(서버 없이 볼 때)과 서버 실시간 상태를 따로 둔다. 실시간 hello 가 오면 실시간이 우선한다.
+  const [staticData, setStaticData] = useState<LoadResult | null>(null);
+  const [live, setLive] = useState<LiveState>(INITIAL_LIVE_STATE);
+  const data = useMemo<LoadResult | null>(
+    () => (live.timeline ? { timeline: live.timeline, source: 'live' } : staticData),
+    [live.timeline, staticData],
+  );
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0); // frames 배열 위치 (영상 시간 t 와 같지 않을 수 있다: 실시간은 최근 프레임만 유지)
   const [playing, setPlaying] = useState(false);
@@ -47,28 +56,45 @@ export default function App() {
     loadTimeline(ctrl.signal)
       .then((res) => {
         if (liveReceived.current) return; // 실시간 데이터가 먼저 왔으면 덮어쓰지 않는다
-        setData(res);
+        setStaticData(res);
         setIndex(Math.max(res.timeline.frames.length - 1, 0)); // 처음에는 "현재"(마지막 프레임)를 보여준다.
       })
       .catch((e: Error) => !ctrl.signal.aborted && setError(e.message));
     return () => ctrl.abort();
   }, []);
 
-  // 실시간(WebSocket) 수신: timeline 이 오면 교체, frames 가 오면 이어 붙인다.
+  // 실시간(WebSocket) 수신 (docs/api-spec.md 3절): hello·zone_state·alert·playback 4종을 liveFeed.ts 가 상태에 반영한다.
   const onLive = useCallback((msg: LiveMessage) => {
     liveReceived.current = true;
     setError(null);
-    setData((prev) => {
+    // 반복 재생으로 처음(t=0)으로 돌아왔다: 쌓아 둔 프레임은 liveFeed 가 비우고, 화면은 0초(최신)로 따라간다
+    if (msg.type === 'playback' && msg.playback.state === 'playing' && msg.playback.t === 0) {
+      following.current = true;
+      setPlaying(false);
+      setIndex(0);
+    }
+    setLive((prev) => {
       try {
-        const next = applyLiveMessage(prev?.timeline ?? null, msg, LIVE.maxFrames);
-        return next ? { timeline: next, source: 'live' } : prev;
+        return applyLiveMessage(prev, msg, LIVE.maxFrames);
       } catch (err) {
-        console.warn('[live] 프레임 무시:', err);
+        console.warn('[live] 메시지 무시:', err);
         return prev;
       }
     });
   }, []);
   const liveStatus = useLiveFeed(WS_URL, onLive);
+
+  // 알림 '확인': POST /api/alerts/{alert_id}/ack 가 성공하면 목록에서 지운다. 실패하면 남기고 '다시 시도'를 보여 준다.
+  const onAck = useCallback(async (alertId: string) => {
+    setLive((prev) => markAck(prev, alertId, 'pending'));
+    try {
+      await ackAlert(API_URL, alertId);
+      setLive((prev) => removeAlert(prev, alertId));
+    } catch (err) {
+      console.warn('[live] 알림 확인 실패:', err);
+      setLive((prev) => markAck(prev, alertId, 'error'));
+    }
+  }, []);
 
   const meta = data?.timeline.meta;
   const frames = useMemo(() => data?.timeline.frames ?? [], [data]);
@@ -154,10 +180,15 @@ export default function App() {
   const homeStatus: StatusInfo =
     liveStatus === 'open' ? { text: '● 실시간 관측', kind: 'live' } : { text: '● 관측', kind: 'obs' };
 
+  const bounds = useMemo(() => thresholdBounds(live.thresholds), [live.thresholds]); // 범례·그래프 기준선 (서버 hello.thresholds)
+  // 서버에 연결된 뒤(hello 를 받은 뒤)에는 서버 알림만 보여 준다. 그 전에는 프레임 이력에서 파생한 알림을 쓴다.
+  const liveAlerts = live.timeline ? live.alerts : null;
+
   const badges = (
     <>
       {data?.source === 'mock' && <span className="badge mock">데모 데이터</span>}
       {LIVE_BADGE[liveStatus] && <span className={`badge live ${liveStatus}`}>{LIVE_BADGE[liveStatus]}</span>}
+      {live.playback?.state === 'ended' && <span className="badge live ended">피드 종료</span>}
     </>
   );
 
@@ -174,6 +205,8 @@ export default function App() {
               dash={dashLatest}
               dashPred={dashLatestPred}
               alerts={alerts}
+              liveAlerts={liveAlerts}
+              onAck={onAck}
               peakValues={homePeaks.values}
               lastIndex={Math.max(lastIndex, 0)}
               futureFrom={homePeaks.futureFrom}
@@ -212,13 +245,14 @@ export default function App() {
               onVideoTime={onVideoTime}
               onVideoStatus={setVideoState}
               onVideoEnded={onVideoEnded}
+              bounds={bounds}
             />
           </section>
         )}
 
         {view === 'analysis' && (
           <section key="analysis" id="view-analysis" role="tabpanel" aria-labelledby="tab-analysis" className="view">
-            <AnalysisView meta={meta} frames={frames} index={index} dash={dashShownNow} />
+            <AnalysisView meta={meta} frames={frames} index={index} dash={dashShownNow} bounds={bounds} />
           </section>
         )}
       </main>
