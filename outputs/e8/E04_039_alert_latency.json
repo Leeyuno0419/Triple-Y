@@ -1,0 +1,231 @@
+{
+  "zone_id": "zone-e04-039",
+  "video_id": "E04_039",
+  "duration_s": 180,
+  "started_at": "2026-11-17T06:19:44.506Z",
+  "ended_at": "2026-11-17T06:49:44.512Z",
+  "elapsed_min": 30,
+  "zone_states": 1800,
+  "loops": 10,
+  "disconnects": 0,
+  "missing_seconds": 0,
+  "max_gap_ms": 1020,
+  "transport_delay_ms": {
+    "n": 1800,
+    "p50": 0,
+    "p95": 1,
+    "max": 4
+  },
+  "alert_delay_ms": {
+    "n": 20,
+    "p50": 1001,
+    "p95": 4001,
+    "max": 4001
+  },
+  "alert_delay_ms_by_reason": {
+    "INFLOW": {
+      "n": 20,
+      "p50": 1001,
+      "p95": 4001,
+      "max": 4001
+    }
+  },
+  "pass_alert_p95": true,
+  "pass_no_interruption": true,
+  "thresholds": {
+    "density": {
+      "caution": 3,
+      "alert": 4,
+      "critical": 5
+    },
+    "pressure": 0.02,
+    "inflow_ratio": 0.6
+  },
+  "environment": {
+    "node": "v24.22.1",
+    "platform": "win32",
+    "client": "node WebSocket (화면 표시 시간 제외)"
+  },
+  "alerts": [
+    {
+      "alert_id": "a-20261117-0039",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 1,
+      "delay_ms": 1001
+    },
+    {
+      "alert_id": "a-20261117-0042",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0068",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 0,
+      "delay_ms": 1000
+    },
+    {
+      "alert_id": "a-20261117-0071",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0096",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 1,
+      "delay_ms": 1001
+    },
+    {
+      "alert_id": "a-20261117-0099",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0125",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 0,
+      "delay_ms": 1000
+    },
+    {
+      "alert_id": "a-20261117-0128",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0154",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 1,
+      "delay_ms": 1001
+    },
+    {
+      "alert_id": "a-20261117-0157",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0183",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 1,
+      "delay_ms": 1001
+    },
+    {
+      "alert_id": "a-20261117-0186",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0212",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 1,
+      "delay_ms": 1001
+    },
+    {
+      "alert_id": "a-20261117-0215",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 1,
+      "delay_ms": 4001
+    },
+    {
+      "alert_id": "a-20261117-0240",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 0,
+      "delay_ms": 1000
+    },
+    {
+      "alert_id": "a-20261117-0244",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0267",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 0,
+      "delay_ms": 1000
+    },
+    {
+      "alert_id": "a-20261117-0273",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    },
+    {
+      "alert_id": "a-20261117-0296",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 56,
+      "onset_t": 55,
+      "transport_ms": 0,
+      "delay_ms": 1000
+    },
+    {
+      "alert_id": "a-20261117-0301",
+      "reason": "INFLOW",
+      "level": "CAUTION",
+      "t": 78,
+      "onset_t": 74,
+      "transport_ms": 0,
+      "delay_ms": 4000
+    }
+  ]
+}
