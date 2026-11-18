@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LIVE } from '../config/app';
 import type { LiveMessage } from '../types/live';
 import { parseLiveMessage } from './liveFeed';
+import { noteAlertReceived } from './renderLatency';
 
 export type LiveStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
 
@@ -31,7 +32,9 @@ export function useLiveFeed(url: string, onMessage: (msg: LiveMessage) => void):
       };
       ws.onmessage = (ev) => {
         try {
+          const receivedMs = Date.now(); // G2 지연 측정: 해석·React 상태 반영 전에 받은 시각을 먼저 잡는다
           const msg = parseLiveMessage(String(ev.data));
+          if (msg?.type === 'alert') noteAlertReceived(msg.alert.alert_id, receivedMs);
           if (msg) handlerRef.current(msg); // 모르는 type 은 null 이라 무시한다 (뒤 호환)
         } catch (err) {
           console.warn('[live] 메시지 무시:', err);

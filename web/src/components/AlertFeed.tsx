@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { DENSITY_LEVELS } from '../config/density';
 import type { AlertItem, AlertKind } from '../lib/alerts';
 import { fmtClock } from '../lib/format';
 import { gradeLevel } from '../lib/grade';
+import { logAlertRendered, pendingReceivedAt, waitForPaint } from '../lib/renderLatency';
 import type { LiveAlert } from '../types/live';
 import { AlertIcon, BellIcon, PulseIcon } from './Icons';
 
@@ -95,40 +97,57 @@ function LiveAlertList({ alerts, onAck, onSelect }: { alerts: LiveAlert[]; onAck
   }
   return (
     <ol className="alert-feed">
-      {[...alerts].reverse().map((a) => {
-        const level = gradeLevel(a.level) ?? DENSITY_LEVELS[0];
-        const reason = REASON[a.reason] ?? { tag: a.reason || '알림', cls: 'raise' };
-        const value = valueText(a);
-        return (
-          <li key={a.alert_id} className="alert-row">
-            <button type="button" className="alert-item" onClick={onSelect} title={a.alert_id}>
-              <span className="alert-ico raise" style={{ background: level.soft.bg, color: level.soft.ink }}>
-                <AlertIcon size={16} />
-              </span>
-              <span className="alert-main">
-                <strong>
-                  {level.label} 단계 <em className={`alert-tag ${reason.cls}`}>{reason.tag}</em>
-                </strong>
-                <small>
-                  {a.message}
-                  {value ? ` · ${value}` : ''}
-                  {a.ack === 'error' && <span className="alert-error"> · 확인하지 못했습니다</span>}
-                </small>
-              </span>
-              <time>{fmtClock(a.t)}</time>
-            </button>
-            <button
-              type="button"
-              className={`alert-ack${a.ack === 'error' ? ' error' : ''}`}
-              disabled={a.ack === 'pending'}
-              aria-label={`알림 ${a.alert_id} 확인`}
-              onClick={() => onAck?.(a.alert_id)}
-            >
-              {ACK_LABEL[a.ack]}
-            </button>
-          </li>
-        );
-      })}
+      {[...alerts].reverse().map((a) => (
+        <LiveAlertRow key={a.alert_id} alert={a} onAck={onAck} onSelect={onSelect} />
+      ))}
     </ol>
+  );
+}
+
+/**
+ * 알림 행이 DOM 에 들어가 브라우저가 한 번 그린 뒤, frame_ts 와의 차이를 콘솔에 남긴다 (G2 "5초 이내 화면 표시" 검증).
+ * 행이 처음 붙을 때 한 번만 돈다. hello 로 받은 알림은 수신 기록이 없어 재지 않는다 (lib/renderLatency.ts).
+ */
+function useLogRenderLatency(alert: LiveAlert): void {
+  const { alert_id, t, frame_ts, level, reason } = alert;
+  useEffect(() => {
+    if (pendingReceivedAt(alert_id) === undefined) return;
+    return waitForPaint((renderedMs) => logAlertRendered({ alert_id, t, frame_ts, level, reason }, renderedMs));
+  }, [alert_id, t, frame_ts, level, reason]);
+}
+
+function LiveAlertRow({ alert: a, onAck, onSelect }: { alert: LiveAlert; onAck?: (alertId: string) => void; onSelect?: () => void }) {
+  useLogRenderLatency(a);
+  const level = gradeLevel(a.level) ?? DENSITY_LEVELS[0];
+  const reason = REASON[a.reason] ?? { tag: a.reason || '알림', cls: 'raise' };
+  const value = valueText(a);
+  return (
+    <li className="alert-row">
+      <button type="button" className="alert-item" onClick={onSelect} title={a.alert_id}>
+        <span className="alert-ico raise" style={{ background: level.soft.bg, color: level.soft.ink }}>
+          <AlertIcon size={16} />
+        </span>
+        <span className="alert-main">
+          <strong>
+            {level.label} 단계 <em className={`alert-tag ${reason.cls}`}>{reason.tag}</em>
+          </strong>
+          <small>
+            {a.message}
+            {value ? ` · ${value}` : ''}
+            {a.ack === 'error' && <span className="alert-error"> · 확인하지 못했습니다</span>}
+          </small>
+        </span>
+        <time>{fmtClock(a.t)}</time>
+      </button>
+      <button
+        type="button"
+        className={`alert-ack${a.ack === 'error' ? ' error' : ''}`}
+        disabled={a.ack === 'pending'}
+        aria-label={`알림 ${a.alert_id} 확인`}
+        onClick={() => onAck?.(a.alert_id)}
+      >
+        {ACK_LABEL[a.ack]}
+      </button>
+    </li>
   );
 }
