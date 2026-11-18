@@ -101,6 +101,11 @@ python -m src.predict.run --input data/processed/timeline/fake_E04_039.json `
 - 끝낼 때는 Ctrl+C. 8080이 남아 있으면 `netstat -ano | findstr :8080`으로 PID를 찾아 `taskkill /PID <pid> /F`.
 - 테스트(`gradlew build`)는 `src/test/resources/timeline/valid_v02.json`을 쓰므로 실제 데이터가 필요 없다.
 
+## E5 기준값 민감도 (`e5Sweep`)
+- `./gradlew e5Sweep --args="../data/processed/timeline/E04_039.json ../outputs/e5"`: 타임라인을 서버 판정 클래스(`TimelineLoader` → `ZoneRegistry` → `ZoneRuntime`)로 기준값 조합마다 끝까지 재생해 CSV 4개(`_ticks`·`_alerts`·`_sweep_instability`·`_sweep_inflow`)를 쓴다. 상대 경로는 `server/` 기준.
+- 실행기 `src/test/java/com/tripley/crowdsight/e5/E5Sweep.java`는 test 소스셋이라 bootJar에 들어가지 않고 `test`·`check`·`build`에서 돌지 않는다.
+- 격자·출력 형식은 `docs/plans/flow_e5_plan.md` 6.2·9.1절.
+
 ## IDE
 - Lombok을 쓴다 (`@RequiredArgsConstructor`, `@Slf4j`). IntelliJ는 annotation processing을 켠다. VS Code는 Java 확장팩이 지원한다.
 - 들여쓰기·줄바꿈은 `server/.editorconfig`를 따른다.

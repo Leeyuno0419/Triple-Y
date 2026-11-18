@@ -38,3 +38,11 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// E5 기준값 민감도 실행기 (조영준). test 소스셋 클래스라 bootJar에 들어가지 않고, test·check에 묶지 않는다.
+// 사용 (server/): ./gradlew e5Sweep --args="../data/processed/timeline/E04_039.json ../outputs/e5"
+tasks.register('e5Sweep', JavaExec) {
+    description = 'E5: 타임라인을 서버 판정 클래스로 기준값 조합마다 재생해 CSV로 쓴다'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.tripley.crowdsight.e5.E5Sweep'
+}
