@@ -27,6 +27,9 @@ Thumbs.db
 *.pt
 *.onnx
 *.ckpt
+*.joblib
+*.pkl
+outputs/models/
 
 # 서버 (Spring Boot)
 server/build/

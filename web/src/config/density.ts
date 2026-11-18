@@ -1,6 +1,7 @@
 /**
  * 셀 밀도 → 색상 매핑 설정. 임계값/색은 여기서만 조정한다 (컴포넌트에 하드코딩 금지).
- * 밀도 단위: 명/m². 기준은 기획서 3.2 위험 등급(정상/주의/경계/심각; 화면 표기는 '경계' 대신 '경고')을 따른다.
+ * 밀도 단위: 명/m². 기준은 기획서 3.2 위험 등급(정상/주의/경계/심각)을 따른다. 표기는 서버 명세(docs/api-spec.md 4.1절)와 같이 '경계'다.
+ * 실시간에서는 등급을 서버가 판정한다. 이 임계값(max)은 서버 등급이 없는 timeline 파일을 볼 때의 해석, 범례·그래프 기준선의 기본값에만 쓴다.
  * 심각의 "군중난류 감지" 조건과 깜빡임 표시는 난류 데이터가 timeline 규격에 정해지면 추가한다.
  */
 export interface DensityLevel {
@@ -16,7 +17,7 @@ export interface DensityLevel {
 export const DENSITY_LEVELS: DensityLevel[] = [
   { max: 3, label: '정상', color: '#7fb77e', soft: { bg: '#e4eede', ink: '#46663f', dot: '#a9c8a0' } }, // 초록, 3명 미만
   { max: 4, label: '주의', color: '#f2b38f', soft: { bg: '#fdeadd', ink: '#9a5232', dot: '#f5c3a4' } }, // 소프트 피치, 3명 이상
-  { max: 5, label: '경고', color: '#fb7c72', soft: { bg: '#ffe1dc', ink: '#b3392f', dot: '#ffa59c' } }, // 소프트 코랄, 4명 이상
+  { max: 5, label: '경계', color: '#fb7c72', soft: { bg: '#ffe1dc', ink: '#b3392f', dot: '#ffa59c' } }, // 소프트 코랄, 4명 이상
   { max: Infinity, label: '심각', color: '#e0525c', soft: { bg: '#fbd0d4', ink: '#a1212f', dot: '#f08a92' } }, // 뮤트 레드, 5명 이상
 ];
 
@@ -43,7 +44,7 @@ export const CUSTOM_AREA_STYLE = {
   previewFillOpacity: 0.16,
 };
 
-/** '위험 구역'으로 세는 최소 단계 (DENSITY_LEVELS 인덱스; 2 = 경고 이상) */
+/** '위험 구역'으로 세는 최소 단계 (DENSITY_LEVELS 인덱스; 2 = 경계 이상) */
 export const RISK_MIN_LEVEL_INDEX = 2;
 
 /** 막대 그래프에서 밀도 100% 로 보는 값(명/m²). 가장 높은 임계값 + 1 */

@@ -11,7 +11,10 @@
  * - 파일 1개 = 영상 1개 = 구역 1개 = 카메라 1대. 분석 간격 1초.
  * - 값이 없으면 null 이다. 0은 실제로 측정한 0일 때만 쓴다.
  * - 셀·구역 집계값만 담는다. 등급·알림은 서버가 판정하며 파일에 없다.
+ *   (실시간으로 받은 프레임에는 서버 판정값 grade·grade_pred_60s·zone 이 선택 필드로 붙는다. docs/api-spec.md 3.2절)
  */
+import type { Grade } from './grade';
+
 export const SCHEMA_MAJOR = '0';
 /** 이 코드가 만들고 기대하는 규격 버전 */
 export const SCHEMA_VERSION = '0.2';
@@ -85,6 +88,23 @@ export interface CellState {
   counterflow: number | null;
   /** ρ(t+60) 60초 뒤 밀도 예측(명/㎡). 예측 입력이 30초 미만(t < 29)이면 null */
   density_pred_60s: number | null;
+  /**
+   * 서버가 판정한 셀 등급. 실시간 zone_state 로 받은 프레임에만 있다 (timeline 파일에는 없다).
+   * 이 키가 있으면(값이 null 이어도) 화면은 등급을 다시 계산하지 않고 이 값을 쓴다.
+   */
+  grade?: Grade | null;
+  /** 서버가 판정한 60초 뒤 예측 등급 (density_pred_60s 에 기준값만 적용). 예측이 없으면 null */
+  grade_pred_60s?: Grade | null;
+}
+
+/** 서버가 판정한 구역 요약 (zone_state.zone). 실시간 프레임에만 있다. */
+export interface FrameZone {
+  /** 구역 등급 = 판정 대상 셀(보행 면적 2㎡ 이상) 등급의 최댓값. 대상 셀이 없으면 NORMAL */
+  grade: Grade | null;
+  /** 판정 대상 셀 중 최대 밀도(명/㎡). 대상 셀이 없으면 null */
+  max_density: number | null;
+  /** 유입 경보가 켜져 있는가 (최근 5초 평균 기준) */
+  inflow_alert: boolean;
 }
 
 /** 1초에 1개 */
@@ -95,6 +115,8 @@ export interface Frame {
   inflow_ratio: number | null;
   /** 구역 인원(명) = 셀 인원의 합. 5장 평균이라 소수. 아직 만들지 않았으면 null (v0.2) */
   count: number | null;
+  /** 서버 판정 구역 요약. 실시간(zone_state)으로 받은 프레임에만 있다 */
+  zone?: FrameZone;
   /** meta.cells 와 같은 순서로 모든 셀을 담는다 */
   cells: CellState[];
 }

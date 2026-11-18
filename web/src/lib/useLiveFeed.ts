@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LIVE } from '../config/app';
-import { parseLiveMessage, type LiveMessage } from './liveFeed';
+import type { LiveMessage } from '../types/live';
+import { parseLiveMessage } from './liveFeed';
 
 export type LiveStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
 
@@ -30,7 +31,8 @@ export function useLiveFeed(url: string, onMessage: (msg: LiveMessage) => void):
       };
       ws.onmessage = (ev) => {
         try {
-          handlerRef.current(parseLiveMessage(String(ev.data)));
+          const msg = parseLiveMessage(String(ev.data));
+          if (msg) handlerRef.current(msg); // 모르는 type 은 null 이라 무시한다 (뒤 호환)
         } catch (err) {
           console.warn('[live] 메시지 무시:', err);
         }

@@ -19,6 +19,8 @@ interface Props {
   futureFrom: number;
   /** 지금 보고 있는 프레임 */
   current: number;
+  /** 기준선으로 그릴 단계 경계값 [주의, 경계, 심각] (서버 hello.thresholds). 없으면 기본 설정 */
+  bounds?: number[];
 }
 
 const MIN_W = 280;
@@ -42,7 +44,7 @@ function runs(values: Array<number | null>, x: (i: number) => number, y: (v: num
 }
 
 /** 밀도 추이 꺾은선 그래프. 단계 임계값 가로선, 예측 구간 음영·점선, 현재 위치 세로선. */
-export function TrendChart({ series, times, futureFrom, current }: Props) {
+export function TrendChart({ series, times, futureFrom, current, bounds }: Props) {
   // 부모 크기에 맞춰 SVG 를 다시 그린다 (글자가 늘어나지 않도록 viewBox 를 실제 픽셀 크기로 맞춘다)
   const plotRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 640, h: 240 });
@@ -62,12 +64,13 @@ export function TrendChart({ series, times, futureFrom, current }: Props) {
   if (n < 2) return <p className="empty">추이를 그리려면 프레임이 2개 이상 필요합니다.</p>;
 
   const all = series.flatMap((s) => s.values).filter((v): v is number => v !== null);
-  const top = Math.max(DENSITY_BAR_MAX, Math.ceil(Math.max(0, ...all) + 0.3));
+  const lines = DENSITY_LEVELS.slice(0, -1).map((l, i) => bounds?.[i] ?? l.max); // 서버 기준값이 있으면 그것을 그린다
+  const top = Math.max(DENSITY_BAR_MAX, Math.ceil(Math.max(0, ...all, ...lines) + 0.3));
   const x = (i: number) => PAD.l + (i / (n - 1)) * (W - PAD.l - PAD.r);
   const y = (v: number) => PAD.t + (1 - v / top) * (H - PAD.t - PAD.b);
 
   const ticks = Array.from({ length: top + 1 }, (_, i) => i);
-  const thresholds = DENSITY_LEVELS.slice(0, -1).map((l, i) => ({ value: l.max, label: DENSITY_LEVELS[i + 1].label }));
+  const thresholds = lines.map((value, i) => ({ value, label: DENSITY_LEVELS[i + 1].label }));
   const labelIdx = Array.from(new Set([0, Math.floor((n - 1) / 2), n - 1]));
   const hasFuture = futureFrom > 0 && futureFrom < n;
 

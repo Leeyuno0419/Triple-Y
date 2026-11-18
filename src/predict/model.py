@@ -7,6 +7,7 @@ frames[t].cells[].density_pred_60s 에 채운다. t 이후 값은 절대 쓰지 
     persistence : 현재값 유지 (기준선, 규격 예시의 기본값)
     linear      : 최근 history_s 초 밀도의 최소제곱 직선을 horizon 만큼 연장 (기준선)
     flow        : 현재 셀별 인원을 vx, vy 로 이류시켜 이동 (extrapolate.advect_density)
+    ml          : 학습된 회귀 모델(Ridge 등). 최근 밀도의 변화 패턴(ml_forecast.py)으로 60초 뒤를 예측
 
 BasePredictor 인터페이스를 두어 이후 학습 기반 모델로 교체할 수 있게 한다.
 
@@ -28,6 +29,7 @@ import numpy as np
 
 from .config import PredictConfig
 from .extrapolate import advect_density
+from .ml_forecast import load_bundle
 from .schema import Frame, Meta, Prediction, Timeline
 
 
@@ -188,10 +190,38 @@ class FlowAdvectionPredictor(BasePredictor):
         return 1.0 if tau <= 0 else math.exp(-t / tau)
 
 
+class MLPredictor(BasePredictor):
+    """학습된 회귀 모델(Ridge 등): 최근 밀도 기록의 변화 패턴으로 60초 뒤 밀도를 예측한다.
+
+    모델 파일은 train_forecast.py 가 만든다 (config.model_path). 모든 셀이 같은 모델 하나를 쓴다.
+    파일이 없거나, 학습할 때의 history_s·horizon_s 가 지금 설정과 다르면 조용히 틀리지 않고 에러를 낸다.
+    """
+
+    name = "ml"
+
+    def __init__(self, config: PredictConfig) -> None:
+        super().__init__(config)
+        self._bundle = load_bundle(config.model_path)
+        meta = self._bundle.meta
+        if (meta["history_s"], meta["horizon_s"]) != (config.history_s, config.horizon_s):
+            raise ValueError(
+                "모델은 history_s={}, horizon_s={} 로 학습됐는데 설정은 {}, {} 다. 설정을 맞추거나 다시 학습한다.".format(
+                    meta["history_s"], meta["horizon_s"], config.history_s, config.horizon_s))
+        # timeline 의 meta.models.predictor 에 어떤 모델·어떤 데이터로 학습했는지 남긴다 (예: ml-ridge-synthetic)
+        self.name = "ml-{}-{}".format(meta["kind"], meta["trained_on"])
+
+    def predict(
+        self, layout: CellLayout, density_hist: np.ndarray, vx: np.ndarray, vy: np.ndarray
+    ) -> np.ndarray:
+        # 속도(vx, vy)는 쓰지 않는다: 밀도 기록만으로 예측한다 (학습할 때와 같은 입력)
+        return self._bundle.predict(density_hist)
+
+
 PREDICTORS: Dict[str, Type[BasePredictor]] = {
     PersistencePredictor.name: PersistencePredictor,
     LinearTrendPredictor.name: LinearTrendPredictor,
     FlowAdvectionPredictor.name: FlowAdvectionPredictor,
+    MLPredictor.name: MLPredictor,
 }
 
 

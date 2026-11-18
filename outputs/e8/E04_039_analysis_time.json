@@ -1,0 +1,16 @@
+{
+  "video": "E04_039",
+  "duration_s": 180,
+  "seconds": {
+    "counting": 522.0,
+    "flow": 106.8,
+    "predict": 0.1
+  },
+  "total_s": 629.0,
+  "seconds_per_video_second": 3.49,
+  "environment": {
+    "device": "cpu",
+    "cpu": "Intel64 Family 6 Model 94 Stepping 3, GenuineIntel",
+    "torch": "2.4.1+cpu"
+  }
+}
