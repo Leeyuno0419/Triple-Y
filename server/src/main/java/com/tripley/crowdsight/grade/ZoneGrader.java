@@ -12,6 +12,7 @@ import com.tripley.crowdsight.timeline.Frame;
  * 구역 1개의 셀 등급·구역 등급·유입 경보 판정 (api-spec 4.1~4.4).
  * 셀마다 GradeHysteresis·InstabilityTracker를, 구역에 InflowMonitor 1개를 가진다.
  * 셀 관측 등급 = 불안정이면 CRITICAL, 아니면 밀도 등급. 여기에 히스테리시스를 적용한다.
+ * 불안정은 밀도가 instability.min-density 이상인 셀만 될 수 있다 (InstabilityTracker).
  * 스레드 규칙: evaluate·reset은 재생 스레드 하나만 부른다. 잠금 없음.
  */
 public final class ZoneGrader {
@@ -71,7 +72,7 @@ public final class ZoneGrader {
         for (int i = 0; i < states.size(); i++) {
             CellState state = states.get(i);
             Double density = state.density();
-            boolean unstable = trackers[i].update(state.pressure());
+            boolean unstable = trackers[i].update(state.pressure(), density);
             Grade grade = hysteresis[i].update(observedGrade(density, unstable));
             if (eligible[i]) {
                 zoneGrade = Grade.max(zoneGrade, grade);

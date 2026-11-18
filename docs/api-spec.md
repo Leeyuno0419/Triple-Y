@@ -9,6 +9,7 @@
 | 상태 | 초안 v0.2 (11-11). 팀 결정 4·6·7·9와 타임라인 v0.2(`count`, `counterflow`), 조영준 결정(느린 화면·허용 출처·null 관측·v0.2 검증·유입 평균) 반영. 나예린(화면)·이유노(타임라인) 검토 전 |
 | S6 보충 | 11-13: `GET .../alerts` 응답 형식, 확인 세부(4.5) |
 | S7 보충 | 11-16: 재생 제어 REST 삭제(실시간 CCTV 전제), `playback` 상태 값 `playing`·`ended`, `/api/zones`·`/meta`·`/health` 응답(5절), 오류 본문(4.5) |
+| 11-18 보충 | 4.3 불안정은 셀 밀도 `instability.min-density`(3명/㎡, 제안) 이상인 초만 센다 (E05 저밀도 오경보, `docs/plans/fix_instability_false_alarm_plan.md`) |
 | 기준 문서 | `docs/timeline-spec.md` v0.2 (파일 규격), `docs/decisions-2026-11-11.md` (팀 결정 4·6·7·9), `docs/plans/server_impl_plan.md` 결정 기록 1·2·4·7·8 (조영준 결정: 느린 화면, 허용 출처, null 관측, v0.2 검증, 유입 평균), `docs/proposal.md` v3.1 3.2·4.3·5.1, `docs/server-alignment.md` Q2~Q6 |
 | 범위 | Spring Boot ↔ React 상황실 화면. `timeline-spec.md` 9절 6·7번(결정됨)의 세부 |
 
@@ -196,10 +197,12 @@
 
 ### 4.3 불안정 → 심각
 
-- 셀 `pressure`가 `thresholds.pressure`(0.02/s², 가정)를 **3초 연속** 넘으면 그 셀을 심각 조건으로 본다.
+- 셀 `pressure`가 `thresholds.pressure`(0.02/s², 가정)를 넘고 셀 `density`가 `instability.min-density`(3명/㎡, 제안) 이상인 초가 **3초 연속**이면 그 셀을 심각 조건으로 본다.
+- 밀도 하한 이유: 군중난류는 고밀도 현상이다(`crowd_turbulence_research.md` 1.2). E05_035·E05_038처럼 밀도 1명/㎡ 안팎 셀에서도 머리 수가 적으면 속도 분산이 커져 압력이 기준을 넘는다. 하한은 주의 기준과 같은 3명/㎡로 시작하고 E5로 조정한다 `[토론]`.
 - 셀 관측 등급 = 밀도 등급과 (불안정이면 심각) 중 높은 쪽. 여기에 4.2절 히스테리시스를 적용한다.
 - 조사 결과 0.02/s²는 측정 방법에 따라 달라 그대로 쓰기 어렵다 (`docs/research/crowd_turbulence_research.md`). 기준값은 E5 결과로 바꾼다 `[토론]`.
-- `pressure`가 `null`이거나 기준 이하이면 연속 횟수를 0으로 되돌린다.
+- `pressure`·`density`가 `null`이거나, `pressure`가 기준 이하이거나, `density`가 하한 미만이면 연속 횟수를 0으로 되돌린다.
+- `min-density`는 `hello.thresholds`로 보내지 않는다(표시에 쓰지 않음).
 - `counterflow`는 화면에 전달만 하고 판정에는 쓰지 않는다. 불안정 판정에 넣을지는 `[토론]`이다.
 - `timeline-spec.md` v0.2 4절은 `counterflow`를 불안정 판정(이 문서 4.3)에 쓴다고 적었다. MVP에서는 쓰지 않으므로, 이유노 님께 규격 문구를 맞춰 달라고 요청한다 `[토론]`.
 
@@ -305,6 +308,7 @@ crowdsight:
   instability:
     pressure: 0.02                           # 가정, E5 결과로 조정
     seconds: 3
+    min-density: 3.0                         # 제안, 주의 기준과 같게. 0이면 끔
   inflow:
     ratio: 0.6
     window-seconds: 5
@@ -338,7 +342,7 @@ crowdsight:
 | 번호 | 안건 | 초안 | 함께 정할 사람 |
 |---|---|---|---|
 | 1 | 구역 등급을 셀 최댓값으로 할지, 경계 이상 셀이 N개 이상일 때로 할지 | **닫힘 (결정 4)**: 보행 면적 2㎡ 이상 셀 등급의 최댓값 (4.2절) | 이유노 |
-| 2 | 0.02/s² 불안정 기준과 3초 지속 | E5 결과로 조정 | 이유노 |
+| 2 | 0.02/s² 불안정 기준과 3초 지속 | E5 결과로 조정. 11-18: 저밀도 오경보(E05)로 셀 밀도 하한 3명/㎡ 추가 (4.3절, 제안) | 이유노 |
 | 3 | 유입 경보 기준 0.6과 사람 수 보완 | **닫힘 (결정 6)**: 5초 평균, `count` 3명 미만이면 끔 (4.4절) | 조영준 |
 | 4 | 재생 상태를 접속자마다 따로 둘지 | **닫힘 (S7)**: 재생 제어를 두지 않아 재생 상태는 서버가 정한다 | 나예린 |
 | 5 | 지연 기록 방식 (콘솔·CSV) | CSV 내보내기 | 나예린, 이유노 |

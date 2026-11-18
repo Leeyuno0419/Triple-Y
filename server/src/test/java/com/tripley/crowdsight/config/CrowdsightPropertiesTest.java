@@ -34,6 +34,7 @@ class CrowdsightPropertiesTest {
         map.put("crowdsight.grade.min-walkable-area-m2", "2.0");
         map.put("crowdsight.instability.pressure", "0.02");
         map.put("crowdsight.instability.seconds", "3");
+        map.put("crowdsight.instability.min-density", "3.0");
         map.put("crowdsight.inflow.ratio", "0.6");
         map.put("crowdsight.inflow.window-seconds", "5");
         map.put("crowdsight.inflow.min-samples", "3");
@@ -267,8 +268,8 @@ class CrowdsightPropertiesTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"pressure, 0", "pressure, -0.01", "seconds, 0"})
-    @DisplayName("불안정 기준·초가 틀리면 거부한다")
+    @CsvSource({"pressure, 0", "pressure, -0.01", "seconds, 0", "min-density, -0.1", "min-density, NaN"})
+    @DisplayName("불안정 기준·초·밀도 하한이 틀리면 거부한다")
     void rejectsInvalidInstability(String key, String value) {
         Map<String, String> map = defaults();
         map.put("crowdsight.instability." + key, value);
@@ -276,6 +277,15 @@ class CrowdsightPropertiesTest {
         assertThatThrownBy(() -> bind(map))
                 .isInstanceOf(BindException.class)
                 .rootCause().hasMessageContaining(key);
+    }
+
+    @Test
+    @DisplayName("불안정 밀도 하한 0은 받는다 (밀도 조건 끔)")
+    void acceptsZeroMinDensity() {
+        Map<String, String> map = defaults();
+        map.put("crowdsight.instability.min-density", "0");
+
+        assertThat(bind(map).instability().minDensity()).isZero();
     }
 
     @ParameterizedTest

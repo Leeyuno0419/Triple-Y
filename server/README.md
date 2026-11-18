@@ -39,8 +39,8 @@ cd server
 - 로그: 접속·끊김은 INFO `화면 접속 zone=… session=… 접속자=…`, 보내기 실패는 WARN `보내기 실패한 화면을 닫고 뺌`.
 
 ## 판정 기준 (S4)
-- 기준값은 `application.yml`의 `crowdsight.grade.*`(밀도), `crowdsight.instability.*`(군중 압력), `crowdsight.inflow.*`(유입)에 있다. 화면은 `hello.thresholds`로 같은 값을 받는다.
-- 불안정: 셀 `pressure`가 0.02를 3초 연속 넘으면 그 셀은 심각 조건이다. `null`이거나 기준 이하면 연속이 끊긴다. 심각은 조건이 풀려도 10초에 한 단계씩 내려간다.
+- 기준값은 `application.yml`의 `crowdsight.grade.*`(밀도), `crowdsight.instability.*`(군중 압력, 셀 밀도 하한 `min-density`. `min-density`는 `hello.thresholds`에 없다), `crowdsight.inflow.*`(유입)에 있다. 화면은 `hello.thresholds`로 같은 값을 받는다.
+- 불안정: 셀 밀도가 3명/㎡(`crowdsight.instability.min-density`) 이상이고 `pressure`가 0.02를 넘는 초가 3초 연속이면 그 셀은 심각 조건이다. `pressure`·밀도가 `null`이거나, `pressure`가 기준 이하이거나, 밀도가 하한 미만이면 연속이 끊긴다. 심각은 조건이 풀려도 10초에 한 단계씩 내려간다.
 - 유입 경보(`zone.inflow_alert`): `inflow_ratio` 최근 5초 평균(값 3개 이상일 때)이 0.6을 넘고 `count`가 3명 이상이면 켜진다. 10초 연속 조건이 거짓이면 꺼진다. 반복 뒤 처음 4초는 평균이 없다.
 - DEBUG 로그 `재생 zone=… inflow_avg=… inflow_alert=…`로 5초 평균을 확인한다 (평균은 메시지로 보내지 않는다).
 - 가짜 타임라인은 `inflow_ratio`가 0.6을 넘지 않아 유입 경보가 켜지지 않는다. 판정은 단위 테스트로 확인한다.
