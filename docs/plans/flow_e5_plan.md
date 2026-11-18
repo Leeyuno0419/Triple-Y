@@ -8,7 +8,7 @@
 | 근거 | `docs/proposal.md:51-52`, `:126-127`, `:136`, `:316` (E5), `docs/research/e5_research.md` (조사), 사용자 결정 11-16 (2장 확정 1~5), 11-18 (확정 6) |
 | 서버 판정 | 서버 판정 클래스를 그대로 쓰는 Java 실행기 `e5Sweep` (확정 2). 기본값 `application.yml:19-32` |
 | 상태 | **계획 v1.4. 사용자 점검 중.** v1.3까지 구현·리뷰 완료(미커밋). v1.4는 main 병합과 E5 자체 timeline 생성 제거(8.1절 I1~I4) |
-| 테스트 명령 | Python 전체 `conda run -n crowdsight python -m pytest tests -m "not slow" -q` (v1.4 작성 시 병합 전 작업 트리 408 통과, 5 제외. 그중 `tests/flow` 327). Java (Git Bash, `server/`) `JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-21.0.13.9-hotspot" ./gradlew test --no-daemon` |
+| 테스트 명령 | Python 전체 `conda run -n crowdsight python -m pytest tests -m "not slow" -q` (11-18 `main` 병합 뒤 416 통과, 5 제외. 그중 `tests/flow` 312). Java (Git Bash, `server/`) `JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-21.0.13.9-hotspot" ./gradlew test --no-daemon` |
 | 담당 폴더 | 새 코드는 `src/flow/e5/`, `tests/flow/e5/`, `server/src/test/java/com/tripley/crowdsight/e5/`, `server/src/test/resources/e5/`, `server/build.gradle`(작업 1개 추가), 결과는 `outputs/e5/` (모두 조영준). `server/src/main/`은 바꾸지 않는다. `src/counting/`·`infra/`·`docs/proposal.md`(이유노), `src/predict/`(나예린)는 import·읽기만 |
 
 ## 0. 코드로 다시 확인한 것
@@ -877,6 +877,7 @@ cd server
 .\gradlew.bat bootRun --args='--crowdsight.replay.loop=false --crowdsight.unacked-alert-limit=10000 --crowdsight.timeline-files=E04_039.json,E05_035.json,E05_038.json'
 # 로그에 세 구역 모두 "재생 상태 zone=… state=ENDED"가 나올 때까지 기다린다 (가장 긴 E04_039 180초)
 # 창 2 (저장소 루트): 구역마다 낸 알림 전체를 받는다
+New-Item -ItemType Directory -Force data/processed/e5 | Out-Null  # curl -o는 폴더를 만들지 않는다
 curl.exe -s http://localhost:8080/api/zones/zone-e04-039/alerts -o data/processed/e5/E04_039_server_alerts.json
 curl.exe -s http://localhost:8080/api/zones/zone-e05-035/alerts -o data/processed/e5/E05_035_server_alerts.json
 curl.exe -s http://localhost:8080/api/zones/zone-e05-038/alerts -o data/processed/e5/E05_038_server_alerts.json
