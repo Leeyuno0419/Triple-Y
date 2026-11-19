@@ -16,7 +16,7 @@ public final class TestProperties {
     public static final GradeSettings GRADE = new GradeSettings(new DensityThresholds(3.0, 4.0, 5.0), 2, 10, 2.0);
 
     /** application.yml crowdsight.instability 기본값과 같다 (bindsDefaultInstabilityInflowSettings가 확인). */
-    public static final InstabilitySettings INSTABILITY = new InstabilitySettings(0.02, 3);
+    public static final InstabilitySettings INSTABILITY = new InstabilitySettings(0.02, 3, 3.0);
 
     /** application.yml crowdsight.inflow 기본값과 같다. */
     public static final InflowSettings INFLOW = new InflowSettings(0.6, 5, 3, 10, 3.0);

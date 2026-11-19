@@ -24,6 +24,7 @@ crowdsight:
   instability:
     pressure: 0.02                           # 군중 압력 기준(1/s²). 넘는 초가 이어지면 셀 심각 (가정, E5로 조정)
     seconds: 3                               # 기준을 이 초만큼 연속 넘으면 불안정 (api-spec 4.3)
+    min-density: 3.0                         # 셀 밀도(명/㎡)가 이 값 이상인 초만 센다. 주의 기준과 같게 (제안, E5로 조정). 0이면 끔
   inflow:
     ratio: 0.6                               # 5초 평균 inflow_ratio가 이 값을 넘으면 경보 조건 (가정)
     window-seconds: 5                        # 평균 창(초). 시작·초기화 뒤 창이 다 차야 평균을 낸다 (결정 기록 8)

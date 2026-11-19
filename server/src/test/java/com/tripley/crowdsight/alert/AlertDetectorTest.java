@@ -247,7 +247,7 @@ class AlertDetectorTest {
         List<List<AlertEvent>> results = new ArrayList<>();
         for (int t = 0; t < 4; t++) {
             Frame frame = new Frame(t, null, null,
-                    List.of(new CellState("c-0000", 1.0, null, null, null, 0.03, null, null)));
+                    List.of(new CellState("c-0000", 3.5, null, null, null, 0.03, null, null)));
             results.add(detector.detect(grader.evaluate(frame)));
         }
 
@@ -255,6 +255,6 @@ class AlertDetectorTest {
         assertThat(results.get(2)).containsExactly(new AlertEvent(CRITICAL, AlertReason.INSTABILITY,
                 "셀 c-0000에서 군중 불안정이 감지됐다", 0.03, List.of("c-0000")));
         assertThat(results.get(3)).containsExactly(new AlertEvent(CRITICAL, AlertReason.GRADE_UP,
-                "구역 등급이 정상 → 심각으로 올랐다", 1.0, List.of("c-0000")));
+                "구역 등급이 주의 → 심각으로 올랐다", 3.5, List.of("c-0000")));
     }
 }

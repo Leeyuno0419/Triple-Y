@@ -258,12 +258,22 @@ class ZoneGraderTest {
     @Test
     @DisplayName("불안정 셀은 관측 등급이 심각이 되어 2초 뒤 심각으로 오른다")
     void instabilityToCritical() {
-        List<ZoneEvaluation> results = runOne(grader(ONE), 4, 1.0, 0.03, null, null);
+        List<ZoneEvaluation> results = runOne(grader(ONE), 4, 3.5, 0.03, null, null);
 
         assertThat(results).extracting(e -> e.cells().get(0).unstable()).containsExactly(false, false, true, true);
         assertThat(results).extracting(e -> e.cells().get(0).grade())
-                .containsExactly(NORMAL, NORMAL, NORMAL, CRITICAL);
-        assertThat(results).extracting(ZoneEvaluation::zoneGrade).containsExactly(NORMAL, NORMAL, NORMAL, CRITICAL);
+                .containsExactly(NORMAL, CAUTION, CAUTION, CRITICAL);
+        assertThat(results).extracting(ZoneEvaluation::zoneGrade).containsExactly(NORMAL, CAUTION, CAUTION, CRITICAL);
+    }
+
+    @Test
+    @DisplayName("저밀도 셀은 압력이 기준을 넘어도 정상이다 (E05 오경보)")
+    void sparseHighPressureStaysNormal() {
+        List<ZoneEvaluation> results = runOne(grader(ONE), 10, 0.47, 0.8, null, null);
+
+        assertThat(results).extracting(e -> e.cells().get(0).unstable()).containsOnly(false);
+        assertThat(results).extracting(e -> e.cells().get(0).grade()).containsOnly(NORMAL);
+        assertThat(results).extracting(ZoneEvaluation::zoneGrade).containsOnly(NORMAL);
     }
 
     @Test
@@ -278,7 +288,7 @@ class ZoneGraderTest {
     @DisplayName("불안정이 풀려도 심각은 10초 뒤 한 단계씩 내려간다")
     void instabilityReleaseUsesDownHysteresis() {
         ZoneGrader grader = grader(ONE);
-        List<ZoneEvaluation> results = new ArrayList<>(runOne(grader, 4, 1.0, 0.03, null, null));
+        List<ZoneEvaluation> results = new ArrayList<>(runOne(grader, 4, 3.5, 0.03, null, null));
         for (int t = 4; t < 14; t++) {
             results.add(grader.evaluate(frame(t, ONE, densities(1.0), pressures(0.0), null, null)));
         }
@@ -294,7 +304,7 @@ class ZoneGraderTest {
         ZoneGrader grader = grader(METAS);
         ZoneEvaluation last = null;
         for (int t = 0; t < 4; t++) {
-            last = grader.evaluate(frame(t, METAS, densities(1.0, 1.0, 1.0), pressures(0.0, 0.0, 0.03), null, null));
+            last = grader.evaluate(frame(t, METAS, densities(1.0, 1.0, 3.5), pressures(0.0, 0.0, 0.03), null, null));
         }
 
         assertThat(cellGrades(last)).containsExactly(NORMAL, NORMAL, CRITICAL);
@@ -318,10 +328,10 @@ class ZoneGraderTest {
     @DisplayName("초기화하면 불안정 연속과 유입 창도 비운다")
     void resetClearsInstabilityAndInflow() {
         ZoneGrader grader = grader(ONE);
-        ZoneEvaluation before = runOne(grader, 5, 1.0, 0.03, 0.8, 5.0).get(4);
+        ZoneEvaluation before = runOne(grader, 5, 3.5, 0.03, 0.8, 5.0).get(4);
 
         grader.reset();
-        ZoneEvaluation after = grader.evaluate(frame(5, ONE, densities(1.0), pressures(0.03), 0.8, 5.0));
+        ZoneEvaluation after = grader.evaluate(frame(5, ONE, densities(3.5), pressures(0.03), 0.8, 5.0));
 
         assertThat(before.cells().get(0).unstable()).isTrue();
         assertThat(before.inflowAlert()).isTrue();
