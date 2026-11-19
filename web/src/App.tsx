@@ -127,15 +127,20 @@ export default function App() {
   const videoSrc = videoId ? videoUrl(videoId) : undefined;
   const onVideoTime = useCallback(
     (sec: number) => {
+      // 실시간에서 최신 프레임을 따라가는 중에는 서버 프레임이 시간의 기준이다. 영상은 그 t 에 맞춰 따라올 뿐이라
+      // 영상 시각으로 프레임을 고르지 않는다. 고르면 영상이 조금만 늦어도 '지난 시점'으로 빠져 영상이 멈춘다.
+      if (data?.source === 'live' && !playing && following.current) return;
       const i = frameIndexAtTime(frames, sec);
       following.current = i >= frames.length - 1;
       setIndex(i);
     },
-    [frames],
+    [frames, data?.source, playing],
   );
   const onVideoEnded = useCallback(() => setPlaying(false), []);
   // 영상은 사용자가 재생 중이거나, 실시간에서 최신 프레임을 따라가는 중일 때 재생한다
-  const videoPlaying = playing || (data?.source === 'live' && index >= lastIndex);
+  // 새 프레임이 막 도착한 렌더에서는 index 가 아직 lastIndex 를 따라가기 전이다. 그때 index 만 보면 한 번 '정지'로 판단해
+  // 영상을 이전 t 로 되감았다가 다시 재생한다(1초마다 끊김). 따라가는 중인지는 following 으로 본다.
+  const videoPlaying = playing || (data?.source === 'live' && (following.current || index >= lastIndex));
 
   // ---- 화면 전환: state 로 분기하고, URL 해시(#/monitor 등)와 동기화해 뒤로가기·새로고침을 지원한다 ----
   const go = useCallback((next: ViewId) => {
