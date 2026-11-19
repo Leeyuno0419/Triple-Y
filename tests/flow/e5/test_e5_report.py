@@ -56,10 +56,14 @@ def runner_rows() -> tuple[list[dict], ...]:
               {"t": "31", "reason": "INSTABILITY", "level": "CRITICAL",
                "value": "0.03", "cell_ids": "c-0000"}]
     instability = [
-        {"pressure": "0.02", "seconds": "3", "is_default": "true",
-         **SUMMARY},
-        {"pressure": "0.04", "seconds": "3", "is_default": "false",
-         **NO_ALERT},
+        {"pressure": "0.02", "seconds": "1", "min_density": "0.0",
+         "is_default": "false", **SUMMARY},
+        {"pressure": "0.02", "seconds": "3", "min_density": "0.0",
+         "is_default": "false", **SUMMARY},
+        {"pressure": "0.02", "seconds": "3", "min_density": "3.0",
+         "is_default": "true", **SUMMARY},
+        {"pressure": "0.04", "seconds": "3", "min_density": "3.0",
+         "is_default": "false", **NO_ALERT},
     ]
     inflow = [
         {"ratio": "0.6", "window_seconds": "5", "min_samples": "3",
@@ -101,7 +105,8 @@ def test_columns_match_java_headers() -> None:
         "n_instability,n_grade_up,n_inflow,first_instability_t,"
         "first_grade_up_t,first_inflow_t,unstable_s,critical_s,inflow_on_s")
     assert ",".join(INSTABILITY_COLUMNS) == (
-        "pressure,seconds,is_default," + ",".join(SUMMARY_COLUMNS))
+        "pressure,seconds,min_density,is_default,"
+        + ",".join(SUMMARY_COLUMNS))
     assert ",".join(INFLOW_COLUMNS) == (
         "ratio,window_seconds,min_samples,min_count,off_seconds,is_default,"
         + ",".join(SUMMARY_COLUMNS))
@@ -214,9 +219,18 @@ def test_render_markdown_sections_and_default_bold(tmp_path: Path) -> None:
     window = md.split("### 2.3 창 길이 T")[1].split("## 3.")[0]
     assert "non-null 비율의 분모는 모든 t" in window
     assert "T=60" in window
-    assert "| **0.02** | **3** |" in md
-    assert "| 0.04 | 3 |" in md
+    assert "| **0.02** | **3** | **3.0** |" in md
+    assert "| 0.04 | 3 | 3.0 |" in md
     assert "정답 클립이 없어 감지 성능은 주장하지 않는다" in md
+
+
+def test_render_markdown_instability_rows(tmp_path: Path) -> None:
+    """2.1 표는 기본 하한 행 전체와 기본 seconds의 다른 하한 행만 담는다."""
+    md = render_markdown(make_report(tmp_path), "t.json")
+    table = md.split("### 2.1 불안정")[1].split("### 2.2")[0]
+    assert "| pressure | seconds | min_density |" in table
+    assert "| 0.02 | 3 | 0.0 |" in table
+    assert "| 0.02 | 1 | 0.0 |" not in table
 
 
 def test_render_markdown_server_section(tmp_path: Path) -> None:

@@ -39,6 +39,7 @@ public final class E5Sweep {
 
     static final List<Double> PRESSURES = List.of(0.005, 0.01, 0.02, 0.04, 0.08);
     static final List<Integer> SECONDS = List.of(1, 2, 3, 5);
+    static final List<Double> MIN_DENSITIES = List.of(0.0, 2.0, 3.0);
     static final List<Double> RATIOS = List.of(0.5, 0.55, 0.6, 0.65, 0.7);
     static final List<Window> WINDOWS = List.of(new Window(3, 2), new Window(5, 3), new Window(10, 6));
     static final List<Double> MIN_COUNTS = List.of(0.0, 3.0, 5.0);
@@ -47,7 +48,7 @@ public final class E5Sweep {
     static final String TICKS_HEADER =
             "t,zone_grade,max_density,inflow_avg,inflow_alert,n_unstable,unstable_cells,events";
     static final String ALERTS_HEADER = "t,reason,level,value,cell_ids";
-    static final String INSTABILITY_HEADER = "pressure,seconds,is_default," + SweepSummary.HEADER;
+    static final String INSTABILITY_HEADER = "pressure,seconds,min_density,is_default," + SweepSummary.HEADER;
     static final String INFLOW_HEADER =
             "ratio,window_seconds,min_samples,min_count,off_seconds,is_default," + SweepSummary.HEADER;
 
@@ -97,16 +98,18 @@ public final class E5Sweep {
                 TestProperties.ALERT_LOG, TestProperties.CORS);
     }
 
-    /** 불안정 격자 20행 (제안 P4). 유입·등급은 기본값. */
+    /** 불안정 격자 60행 (제안 P4 × 밀도 하한, 결정 D3). 유입·등급은 기본값. */
     static List<String> instabilityRows(Path timeline) {
         List<String> rows = new ArrayList<>();
         for (double pressure : PRESSURES) {
             for (int seconds : SECONDS) {
-                InstabilitySettings settings = new InstabilitySettings(pressure, seconds);
-                SweepSummary summary = SweepSummary.of(replay(timeline, TestProperties.GRADE, settings,
-                        TestProperties.INFLOW));
-                rows.add(pressure + "," + seconds + "," + settings.equals(TestProperties.INSTABILITY) + ","
-                        + summary.toCsv());
+                for (double minDensity : MIN_DENSITIES) {
+                    InstabilitySettings settings = new InstabilitySettings(pressure, seconds, minDensity);
+                    SweepSummary summary = SweepSummary.of(replay(timeline, TestProperties.GRADE, settings,
+                            TestProperties.INFLOW));
+                    rows.add(pressure + "," + seconds + "," + minDensity + ","
+                            + settings.equals(TestProperties.INSTABILITY) + "," + summary.toCsv());
+                }
             }
         }
         return rows;

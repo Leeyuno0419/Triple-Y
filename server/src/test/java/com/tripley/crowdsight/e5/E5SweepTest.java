@@ -32,6 +32,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * E5 실행기 시험. fixture는 e5/e5_sweep_v02.json (계획 7.2절, 40초, 판정 대상 셀 c-0000·작은 셀 c-0102).
+ * c-0000 밀도는 불안정 밀도 하한 경계인 3.0이라 기본값에서 불안정이 되고, 불안정이 아닌 초의 관측 등급은 주의다.
  * 기대값은 서버 규칙(InstabilityTracker·GradeHysteresis·InflowMonitor·AlertDetector)으로 손 계산했다.
  */
 class E5SweepTest {
@@ -45,6 +46,15 @@ class E5SweepTest {
         } catch (URISyntaxException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /** c-0000 밀도를 모두 1.0(하한 3.0 아래)으로 바꾼 fixture를 dir에 쓴다. 압력은 그대로다. */
+    private Path sparseFixture() throws IOException {
+        ObjectNode root = (ObjectNode) TimelineFixtures.MAPPER.readTree(fixture());
+        root.get("frames").forEach(f -> ((ObjectNode) f.get("cells").get(0)).put("density", 1.0));
+        Path sparse = dir.resolve("e5_sparse.json");
+        Files.writeString(sparse, TimelineFixtures.MAPPER.writeValueAsString(root), StandardCharsets.UTF_8);
+        return sparse;
     }
 
     private static List<ZoneStep> replayDefault(Path timeline) {
@@ -68,10 +78,26 @@ class E5SweepTest {
                 .containsExactlyElementsOf(IntStream.range(0, 40).boxed().toList());
         assertThat(alertTuples(steps)).containsExactly(
                 tuple(2, AlertReason.INSTABILITY, Grade.CRITICAL, 0.03, List.of("c-0000")),
-                tuple(3, AlertReason.GRADE_UP, Grade.CRITICAL, 1.0, List.of("c-0000")),
+                tuple(3, AlertReason.GRADE_UP, Grade.CRITICAL, 3.0, List.of("c-0000")),
                 tuple(12, AlertReason.INFLOW, Grade.CAUTION, 0.8, List.of()),
                 tuple(32, AlertReason.INSTABILITY, Grade.CRITICAL, 0.03, List.of("c-0000")),
-                tuple(33, AlertReason.GRADE_UP, Grade.CRITICAL, 1.0, List.of("c-0000")));
+                tuple(33, AlertReason.GRADE_UP, Grade.CRITICAL, 3.0, List.of("c-0000")));
+    }
+
+    @Test
+    @DisplayName("밀도 1.0 셀은 압력이 기준을 넘어도 기본값(하한 3.0)에서 불안정 알림이 없고, 하한 0이면 생긴다")
+    void sparseHighPressureCellIsNotUnstableAtDefault() throws IOException {
+        Path sparse = sparseFixture();
+
+        List<ZoneStep> byDefault = replayDefault(sparse);
+        List<ZoneStep> noFloor = E5Sweep.replay(sparse, TestProperties.GRADE, new InstabilitySettings(0.02, 3, 0.0),
+                TestProperties.INFLOW);
+
+        assertThat(alertTuples(byDefault)).containsExactly(
+                tuple(12, AlertReason.INFLOW, Grade.CAUTION, 0.8, List.of()));
+        assertThat(alertTuples(noFloor)).extracting(t -> t.toList().get(1))
+                .containsExactly(AlertReason.INSTABILITY, AlertReason.GRADE_UP, AlertReason.INFLOW,
+                        AlertReason.INSTABILITY, AlertReason.GRADE_UP);
     }
 
     @Test
@@ -124,7 +150,8 @@ class E5SweepTest {
     @Test
     @DisplayName("알림이 없으면 첫 알림 초는 null이고 CSV에서는 빈칸이다")
     void summaryWithoutAlertsHasNullFirstTimes() {
-        List<ZoneStep> steps = E5Sweep.replay(fixture(), TestProperties.GRADE, new InstabilitySettings(0.04, 3),
+        List<ZoneStep> steps = E5Sweep.replay(fixture(), TestProperties.GRADE, new InstabilitySettings(0.04, 3,
+                TestProperties.INSTABILITY.minDensity()),
                 new InflowSettings(0.9, 5, 3, 10, 3.0));
 
         SweepSummary summary = SweepSummary.of(steps);
@@ -134,17 +161,29 @@ class E5SweepTest {
     }
 
     @Test
-    @DisplayName("불안정 격자는 20행이고 기본 행 1개와 손 계산한 행을 담는다")
+    @DisplayName("불안정 격자는 60행(압력×초×밀도 하한)이고 기본 행 1개와 손 계산한 행을 담는다")
     void instabilityRowsCoverGrid() {
         List<String> rows = E5Sweep.instabilityRows(fixture());
 
-        assertThat(rows).hasSize(20);
-        assertThat(rows).filteredOn(r -> r.split(",")[2].equals("true"))
-                .containsExactly("0.02,3,true,2,2,1,2,3,12,4,17,13");
+        assertThat(rows).hasSize(60);
+        assertThat(rows).filteredOn(r -> r.split(",")[3].equals("true"))
+                .containsExactly("0.02,3,3.0,true,2,2,1,2,3,12,4,17,13");
         assertThat(rows).contains(
-                "0.04,3,false,0,0,1,,,12,0,0,13",
-                "0.02,1,false,2,2,1,0,1,12,8,21,13",
-                "0.02,5,false,0,0,1,,,12,0,0,13");
+                "0.02,3,0.0,false,2,2,1,2,3,12,4,17,13",
+                "0.04,3,3.0,false,0,0,1,,,12,0,0,13",
+                "0.02,1,3.0,false,2,2,1,0,1,12,8,21,13",
+                "0.02,5,3.0,false,0,0,1,,,12,0,0,13");
+    }
+
+    @Test
+    @DisplayName("밀도 1.0 셀이면 불안정 격자에서 하한 0 행만 알림이 있고 하한 2.0·3.0 행은 없다")
+    void instabilityRowsSeparateDensityFloors() throws IOException {
+        List<String> rows = E5Sweep.instabilityRows(sparseFixture());
+
+        assertThat(rows).contains(
+                "0.02,3,0.0,false,2,2,1,2,3,12,4,17,13",
+                "0.02,3,2.0,false,0,0,1,,,12,0,0,13",
+                "0.02,3,3.0,true,0,0,1,,,12,0,0,13");
     }
 
     @Test
@@ -173,8 +212,9 @@ class E5SweepTest {
         assertThat(E5Sweep.TICKS_HEADER)
                 .isEqualTo("t,zone_grade,max_density,inflow_avg,inflow_alert,n_unstable,unstable_cells,events");
         assertThat(E5Sweep.ALERTS_HEADER).isEqualTo("t,reason,level,value,cell_ids");
-        assertThat(E5Sweep.INSTABILITY_HEADER).isEqualTo("pressure,seconds,is_default,n_instability,n_grade_up,"
-                + "n_inflow,first_instability_t,first_grade_up_t,first_inflow_t,unstable_s,critical_s,inflow_on_s");
+        assertThat(E5Sweep.INSTABILITY_HEADER).isEqualTo("pressure,seconds,min_density,is_default,n_instability,"
+                + "n_grade_up,n_inflow,first_instability_t,first_grade_up_t,first_inflow_t,unstable_s,critical_s,"
+                + "inflow_on_s");
         assertThat(E5Sweep.INFLOW_HEADER).isEqualTo("ratio,window_seconds,min_samples,min_count,off_seconds,"
                 + "is_default,n_instability,n_grade_up,n_inflow,first_instability_t,first_grade_up_t,first_inflow_t,"
                 + "unstable_s,critical_s,inflow_on_s");
@@ -186,9 +226,10 @@ class E5SweepTest {
         List<String> rows = E5Sweep.tickRows(replayDefault(fixture()));
 
         assertThat(rows).hasSize(40);
-        assertThat(rows.get(0)).isEqualTo("0,NORMAL,1.0,,false,0,,");
-        assertThat(rows.get(2)).isEqualTo("2,NORMAL,1.0,,false,1,c-0000,INSTABILITY:CRITICAL");
-        assertThat(rows.get(3)).isEqualTo("3,CRITICAL,1.0,,false,1,c-0000,GRADE_UP:CRITICAL");
+        assertThat(rows.get(0)).isEqualTo("0,NORMAL,3.0,,false,0,,");
+        assertThat(rows.get(1)).isEqualTo("1,CAUTION,3.0,,false,0,,");
+        assertThat(rows.get(2)).isEqualTo("2,CAUTION,3.0,,false,1,c-0000,INSTABILITY:CRITICAL");
+        assertThat(rows.get(3)).isEqualTo("3,CRITICAL,3.0,,false,1,c-0000,GRADE_UP:CRITICAL");
         String[] t12 = rows.get(12).split(",", -1);
         assertThat(Double.parseDouble(t12[3])).isCloseTo(0.8, within(1e-12));
         assertThat(t12[4]).isEqualTo("true");
@@ -206,10 +247,10 @@ class E5SweepTest {
 
         assertThat(rows).containsExactly(
                 "2,INSTABILITY,CRITICAL,0.03,c-0000",
-                "3,GRADE_UP,CRITICAL,1.0,c-0000",
+                "3,GRADE_UP,CRITICAL,3.0,c-0000",
                 "12,INFLOW,CAUTION,0.8,",
                 "32,INSTABILITY,CRITICAL,0.03,c-0000",
-                "33,GRADE_UP,CRITICAL,1.0,c-0000");
+                "33,GRADE_UP,CRITICAL,3.0,c-0000");
     }
 
     @Test
@@ -221,7 +262,7 @@ class E5SweepTest {
 
         assertCsv(out.resolve("e5_sweep_v02_ticks.csv"), E5Sweep.TICKS_HEADER, 40);
         assertCsv(out.resolve("e5_sweep_v02_alerts.csv"), E5Sweep.ALERTS_HEADER, 5);
-        assertCsv(out.resolve("e5_sweep_v02_sweep_instability.csv"), E5Sweep.INSTABILITY_HEADER, 20);
+        assertCsv(out.resolve("e5_sweep_v02_sweep_instability.csv"), E5Sweep.INSTABILITY_HEADER, 60);
         assertCsv(out.resolve("e5_sweep_v02_sweep_inflow.csv"), E5Sweep.INFLOW_HEADER, 45);
     }
 

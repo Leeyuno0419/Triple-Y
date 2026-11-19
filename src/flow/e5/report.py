@@ -39,7 +39,8 @@ SUMMARY_COLUMNS = ("n_instability", "n_grade_up", "n_inflow",
                    "first_instability_t", "first_grade_up_t",
                    "first_inflow_t", "unstable_s", "critical_s",
                    "inflow_on_s")
-INSTABILITY_COLUMNS = ("pressure", "seconds", "is_default") + SUMMARY_COLUMNS
+INSTABILITY_COLUMNS = ("pressure", "seconds", "min_density",
+                       "is_default") + SUMMARY_COLUMNS
 INFLOW_COLUMNS = ("ratio", "window_seconds", "min_samples", "min_count",
                   "off_seconds", "is_default") + SUMMARY_COLUMNS
 THRESHOLD = 0.02  # 서버 기본 pressure 기준 (application.yml, 문헌 참고선)
@@ -164,19 +165,38 @@ def _section_series(report: dict, video: str) -> list[str]:
     return lines
 
 
-def _section_sweep(report: dict, video: str) -> list[str]:
-    """2절: 불안정·유입 민감도와 창 길이 T."""
+def _default_floor_rows(report: dict) -> list[dict]:
+    """불안정 격자 중 기본 밀도 하한 행. 기본 행이 없으면 전체."""
+    default = report["default_instability"]
     inst = report["sweep_instability"]
+    if default is None:
+        return list(inst)
+    return [r for r in inst if r["min_density"] == default["min_density"]]
+
+
+def _section_sweep(report: dict, video: str) -> list[str]:
+    """2절: 불안정·유입 민감도와 창 길이 T.
+
+    2.1 표는 기본 밀도 하한 행 전체와, 기본 seconds의 다른 하한 행만
+    담는다(전체는 CSV).
+    """
+    default = report["default_instability"]
+    inst = [r for r in report["sweep_instability"]
+            if default is None
+            or r["min_density"] == default["min_density"]
+            or r["seconds"] == default["seconds"]]
     lines = [
         "## 2. 기준값 민감도 (서버 판정 클래스 재생)",
         f"그림 `{video}_sweep.png`. 굵은 행이 기본값(application.yml).",
         "",
-        "### 2.1 불안정",
+        "### 2.1 불안정 (기본 밀도 하한 전체 + 기본 seconds의 다른 하한, "
+        "전체는 CSV)",
     ]
     lines += _table(
-        ["pressure", "seconds", "INSTABILITY 수", "GRADE_UP 수",
-         "첫 INSTABILITY", "첫 GRADE_UP", "unstable_s", "critical_s"],
-        [[r["pressure"], r["seconds"], r["n_instability"],
+        ["pressure", "seconds", "min_density", "INSTABILITY 수",
+         "GRADE_UP 수", "첫 INSTABILITY", "첫 GRADE_UP", "unstable_s",
+         "critical_s"],
+        [[r["pressure"], r["seconds"], r["min_density"], r["n_instability"],
           r["n_grade_up"], r["first_instability_t"],
           r["first_grade_up_t"], r["unstable_s"], r["critical_s"]]
          for r in inst],
@@ -394,13 +414,15 @@ def _num(value: str | None) -> float:
 def plot_sweep(report: dict, path: Path) -> None:
     """2칸. 왼쪽: x = pressure 기준(로그), y = unstable_s, seconds별 선.
 
+    왼쪽은 기본 밀도 하한 행만 그린다.
+
     색 순서 파랑·주황·초록·노랑, 기본점은 검은 테두리. 오른쪽: x = ratio,
     y = first_inflow_t(창 5), min_count별 선.
     """
     plt = _pyplot()
     colors = (BLUE, ORANGE, GREEN, YELLOW)
     fig, (ax_s, ax_f) = plt.subplots(1, 2, figsize=(12, 4.5))
-    inst = report["sweep_instability"]
+    inst = _default_floor_rows(report)
     for color, sec in zip(colors, sorted({r["seconds"] for r in inst},
                                          key=int)):
         rows = [r for r in inst if r["seconds"] == sec]

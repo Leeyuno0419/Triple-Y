@@ -15,7 +15,8 @@ ALERTS_HEADER = "t,reason,level,value,cell_ids"
 SUMMARY_HEADER = ("n_instability,n_grade_up,n_inflow,first_instability_t,"
                   "first_grade_up_t,first_inflow_t,unstable_s,critical_s,"
                   "inflow_on_s")
-INSTABILITY_HEADER = "pressure,seconds,is_default," + SUMMARY_HEADER
+INSTABILITY_HEADER = ("pressure,seconds,min_density,is_default,"
+                      + SUMMARY_HEADER)
 INFLOW_HEADER = ("ratio,window_seconds,min_samples,min_count,off_seconds,"
                  "is_default," + SUMMARY_HEADER)
 
