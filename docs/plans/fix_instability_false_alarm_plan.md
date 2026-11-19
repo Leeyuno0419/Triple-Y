@@ -413,3 +413,4 @@ public final class InstabilityTracker {
 |---|---|---|
 | v1 | 2026-11-18 | 최초 작성 (Planner). (a)(b)(c) 비교, (b) 제안, 기본 3.0 제안, #62 충돌 처리 |
 | v1.1 | 11-18 | 사용자 "추천안대로 진행": D1~D9 확정. D3은 계획 초안(넣지 않음)과 달리 넣는다(0·2.0·3.0). 진행은 1단계 서버 수정 → #62 병합 뒤 2단계 E5 맞춤 |
+| v1.2 | 11-19 | 2단계(#62 병합 뒤): `E5Sweep`·`E5SweepTest`를 3인자 `InstabilitySettings`로, fixture c-0000 밀도 1.0 → 3.0(알림 시각·요약 그대로, GRADE_UP `value`·`max_density` 3.0, 바닥 등급 주의). 저밀도 변형 fixture 시험(기본값 INSTABILITY 0개, 하한 0이면 2개) 추가. D3 격자 `min_density` {0, 2.0, 3.0}을 CSV·`report.py`에 반영. api-spec 4.3 `counterflow` 문구와 10절 2번 닫힘 |
