@@ -278,7 +278,7 @@ def test_keeps_counting_fields_and_sets_flow_model(tmp_path: Path) -> None:
     result, data, out_dir = _run(tmp_path, [2, 2, 2], n_frames=31)
     assert result["schema_version"] == "0.1"
     expected_meta = data["meta"]
-    expected_meta["models"]["flow"] = "farneback-cv2 head-r6"
+    expected_meta["models"]["flow"] = "farneback-cv2 head-r6 gap1 mh2"
     assert result["meta"] == expected_meta
     assert [f["t"] for f in result["frames"]] == list(range(31))
     assert result["frames"][30]["cells"][0]["density_pred_60s"] == 30.5
@@ -841,3 +841,83 @@ def test_head_points_are_not_written(tmp_path: Path) -> None:
         for cell, old in zip(frame["cells"], before["cells"]):
             assert set(cell) == set(old)
     assert [p.name for p in out_dir.iterdir()] == ["SYN_001.json"]
+
+
+def _single_head_c0000(n_s: int) -> list[np.ndarray]:
+    """t=1에 c-0000만 머리 1개, 다른 셀은 4개인 초별 머리 점 목록."""
+    heads = _heads(n_s)
+    heads[1] = np.vstack(
+        [_cell_heads(0, 1)] + [_cell_heads(i) for i in (1, 2, 3)]
+    )
+    return heads
+
+
+def test_single_head_cell_is_null_by_default(tmp_path: Path) -> None:
+    """min_heads 기본값(2)에서 머리 1개 셀은 vx·vy·speed_var·pressure null.
+
+    t=1에 c-0000(ρ 4.0) 머리를 1개만 둔다. 다른 셀은 4개라 vx 1.0.
+    """
+    result = _run_stub(
+        tmp_path, 2, lambda call: _uniform(2.0),
+        heads=_single_head_c0000(2),
+    )
+    cell = result["frames"][1]["cells"][0]
+    assert cell["vx"] is None and cell["vy"] is None
+    assert cell["speed_var"] is None and cell["pressure"] is None
+    assert result["frames"][1]["cells"][1]["vx"] == 1.0
+
+
+def test_min_heads_one_keeps_single_head_cell(tmp_path: Path) -> None:
+    """min_heads=1을 명시하면 머리 1개 셀도 속도를 낸다 (예전 기본 동작)."""
+    result = _run_stub(
+        tmp_path, 2, lambda call: _uniform(2.0),
+        heads=_single_head_c0000(2), min_heads=1,
+    )
+    assert result["frames"][1]["cells"][0]["vx"] == 1.0
+
+
+@pytest.mark.parametrize("bad", [0, -1, 1.5, True])
+def test_rejects_bad_min_heads(tmp_path: Path, bad: object) -> None:
+    """min_heads가 1 이상 정수(bool 제외)가 아니면 ValueError, 출력 없음."""
+    video, timeline_in, _ = _prepare(tmp_path, [2])
+    out = tmp_path / "out" / "o.json"
+    with pytest.raises(ValueError, match="min_heads"):
+        analyze_video(
+            video, timeline_in, out,
+            _StubEstimator(lambda call: _uniform(2.0)),
+            **_head_kw(1, {"min_heads": bad}),
+        )
+    assert not out.exists()
+
+
+def test_flow_model_records_gap_frames_and_min_heads(tmp_path: Path) -> None:
+    """gap_frames=2, min_heads=3이면 models.flow 끝에 gap2 mh3이 붙는다."""
+    result, _, _ = _run(tmp_path, [2, 2], gap_frames=2, min_heads=3)
+    assert result["meta"]["models"]["flow"] == (
+        "farneback-cv2 head-r6 gap2 mh3"
+    )
+
+
+def test_half_scale_gap6_keeps_velocity_in_m_per_s(tmp_path: Path) -> None:
+    """Farneback 0.5배 + gap 6: 움직이는 셀 vx ≈ 1.0, 멈춘 셀 ≈ 0 m/s.
+
+    손 계산: 6프레임 동안 12 px (원본) ÷ (6 / 10 fps) × 0.05 m/px
+    = 1.0 m/s. 반해상도 흐름이 원본 px로 돌아오고 dt가 gap/fps인지 본다.
+    models.flow에는 배율 이름과 gap6이 남는다.
+    """
+    video, timeline_in, data = _prepare(tmp_path, [2, 2, 2])
+    out = tmp_path / "out.json"
+    analyze_video(
+        video, timeline_in, out, FarnebackEstimator(scale=0.5),
+        **_head_kw(len(data["frames"]), {"gap_frames": 6, "window_s": 2.0}),
+    )
+    result = _read(out)
+    for frame in result["frames"]:
+        moving, still = frame["cells"][0], frame["cells"][1]
+        assert abs(moving["vx"] - EXPECTED_VX) < TOL_V
+        assert abs(moving["vy"]) < TOL_V
+        assert abs(still["vx"]) < TOL_V
+        assert abs(still["vy"]) < TOL_V
+    assert result["meta"]["models"]["flow"] == (
+        "farneback-cv2-x0.5 head-r6 gap6 mh2"
+    )

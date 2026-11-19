@@ -64,7 +64,7 @@ def analyze_video(
     gap_frames: int = 1,
     noise_var: np.ndarray | None = None,
     window_s: float = 30.0,
-    min_heads: int = 1,
+    min_heads: int = 2,
     patch_radius_px: int = 6,
     inflow_min_heads: int = 0,
 ) -> dict:
@@ -80,10 +80,14 @@ def analyze_video(
     넣어 셀 평균을 낸다. h_head 부호는 셀 중심에서 w > 0이 되게
     맞춘다. 셀마다 vx·vy·speed_var·pressure를, 프레임마다
     inflow_ratio(소수 2자리, 가정)를 채운다.
-    유효 머리가 min_heads보다 적은 셀은 vx·vy·speed_var·pressure가
-    null이고 불안정 창에도 넣지 않는다. density > 0인데 그 초 머리가
-    없으면 측정 못 함이라 null이다 (0 아님).
-    meta.models.flow는 "{estimator.name} head-r{patch_radius_px}"다.
+    유효 머리가 min_heads(기본 2, 가정)보다 적은 셀은 vx·vy·speed_var·
+    pressure가 null이고 불안정 창에도 넣지 않는다. 머리 1개 셀의 속도는
+    패치 잡음이 그대로 실려 3 m/s를 넘기도 한다 (11-18 실제 timeline:
+    3 m/s 초과는 모두 추정 머리 2개 미만 셀). density > 0인데 그 초
+    머리가 없으면 측정 못 함이라 null이다 (0 아님). min_heads가 1 이상
+    정수(bool 제외)가 아니면 ValueError다.
+    meta.models.flow는 "{estimator.name} head-r{patch_radius_px}
+    gap{gap_frames} mh{min_heads}"다.
     다른 필드(density, density_pred_60s, meta, 모르는 키)는 그대로 둔다.
     영상이 어떤 t보다 먼저 끝나면 그 프레임은 지우지 않고 흐름 필드를
     비운다: vx·vy·speed_var·inflow_ratio는 null, pressure는 density가
@@ -105,6 +109,9 @@ def analyze_video(
     """
     if isinstance(gap_frames, bool) or not isinstance(gap_frames, int):
         raise ValueError(f"gap_frames는 정수여야 한다: {gap_frames!r}")
+    if (isinstance(min_heads, bool) or not isinstance(min_heads, int)
+            or min_heads < 1):
+        raise ValueError(f"min_heads는 1 이상 정수여야 한다: {min_heads!r}")
     if np.shape(h_head) != (3, 3) or not np.isfinite(h_head).all():
         raise ValueError(
             f"h_head는 유한한 (3, 3)이어야 한다: {np.shape(h_head)}"
@@ -152,7 +159,8 @@ def analyze_video(
         cap.release()
 
     meta.setdefault("models", {})["flow"] = (
-        f"{estimator.name} head-r{patch_radius_px}"
+        f"{estimator.name} head-r{patch_radius_px} gap{gap_frames} "
+        f"mh{min_heads}"
     )
     out_path = Path(timeline_out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
