@@ -130,3 +130,34 @@ def test_raft_rejects_invalid_work_hw(work_hw: tuple[int, int]) -> None:
 
     with pytest.raises(ValueError):
         RaftEstimator(size="small", device="cpu", work_hw=work_hw)
+
+
+# 반해상도 허용 오차는 TOL_CV_PX(0.5 px)를 그대로 쓴다. 배율 복원을
+# 빠뜨리면 x가 2 px(4→2), x·y를 거꾸로 나누면 이동 (+4, -2)에서 두
+# 축 모두 크게 어긋난다. 질감 σ 2는 0.5배로 줄이면 σ 1이 되므로 더 큰
+# 영상에서 시험한다.
+# 변이 검사(2026-11-19) 결과, 이동 (+4, -2) px 에서:
+#   정상: 차이 0.001 px 이하
+#   flow /= s 빠뜨림: 차이 x 2.0, y 1.0 px
+def test_farneback_half_scale_recovers_shift_in_original_px() -> None:
+    """scale=0.5: (H, W, 2) float32, 원본 px 단위로 (+4, -2)가 나온다."""
+    prev, nxt = _shifted_pair(256, 320, 4, -2)
+    flow = FarnebackEstimator(scale=0.5).estimate(prev, nxt)
+    assert flow.shape == (256, 320, 2)
+    assert flow.dtype == np.float32
+    mx, my = _interior_median(flow, border=32)
+    assert abs(mx - 4) < TOL_CV_PX
+    assert abs(my - (-2)) < TOL_CV_PX
+
+
+def test_farneback_name_marks_scale_only_when_not_one() -> None:
+    """이름: 기본은 그대로, 0.5배는 -x0.5가 붙는다."""
+    assert FarnebackEstimator().name == "farneback-cv2"
+    assert FarnebackEstimator(scale=0.5).name == "farneback-cv2-x0.5"
+
+
+@pytest.mark.parametrize("scale", [0, -0.5, 1.5, True])
+def test_farneback_rejects_bad_scale(scale: object) -> None:
+    """scale이 (0, 1] 밖이거나 bool이면 ValueError다."""
+    with pytest.raises(ValueError):
+        FarnebackEstimator(scale=scale)

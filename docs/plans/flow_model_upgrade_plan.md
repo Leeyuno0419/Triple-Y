@@ -151,10 +151,12 @@ def main() -> None:
 
 ### 3.5 `src/counting/analyze.py` 제안 (이유노 님께, 편집하지 않음, A1~A7 통과 뒤)
 ```python
-    analyze_video(Path(args.video), out, out, FarnebackEstimator(scale=0.5), heads=heads,
+    analyze_video(Path(args.video), out, out,
+                  FarnebackEstimator(scale=0.5), heads=heads,
                   h_head=np.array(cfg["head_plane"]["H_head_img_to_ground"]),
                   cell_origin_m=tuple(cfg["cell_origin_m"]), gap_frames=6)
 ```
+- `min_heads`는 넘기지 않아도 `run_flow` 기본값 2를 그대로 물려받는다. 그래서 저장되는 `meta.models.flow`는 `farneback-cv2-x0.5 head-r6 gap6 mh2`가 된다.
 - 제안 문구: "흐름 단계를 반해상도·0.2초 간격으로 바꾸면 흐름이 3배 이상 빠르고 속도 잡음이 절반 아래로 줍니다(연구 문서 5.2절). `analyze.py` 56행 호출에 `scale=0.5`와 `gap_frames=6` 두 인자만 더해 주세요. 되돌릴 때는 두 인자를 빼면 됩니다."
 - 영상 fps가 7 미만이면 `gap_frames=6`은 기존 검사(`run_flow.py:140~144`)에서 ValueError다. 지금 영상은 모두 30 fps(가정, E05_035는 확인)다.
 

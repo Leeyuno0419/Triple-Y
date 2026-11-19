@@ -28,20 +28,41 @@ def _to_gray(img_bgr: np.ndarray) -> np.ndarray:
 class FarnebackEstimator:
     """OpenCV Farneback 흐름. 학습하지 않는 기준선이다."""
 
-    def __init__(self) -> None:
-        """기본 파라미터(proposal-detail 3.4 시작값, 가정)로 만든다."""
-        self.name = "farneback-cv2"
+    def __init__(self, scale: float = 1.0) -> None:
+        """기본 파라미터(proposal-detail 3.4 시작값, 가정)로 만든다.
+
+        scale은 흐름을 구할 해상도 배율이다(0 < scale ≤ 1). 1이 아니면
+        줄인 회색조로 흐름을 구하고 원본 크기로 선형 확대한 뒤 값을
+        1/scale배 해 원본 px로 돌려준다. 범위 밖이거나 bool이면
+        ValueError다.
+        """
+        if isinstance(scale, bool) or not 0 < scale <= 1:
+            raise ValueError(
+                f"scale은 0보다 크고 1 이하여야 한다: {scale!r}"
+            )
+        self._scale = float(scale)
+        self.name = (
+            "farneback-cv2" if scale == 1 else f"farneback-cv2-x{scale:g}"
+        )
 
     def estimate(
         self, prev_bgr: np.ndarray, next_bgr: np.ndarray
     ) -> np.ndarray:
-        """Farneback 흐름을 px 단위로 돌려준다."""
+        """Farneback 흐름을 원본 해상도 px 단위로 돌려준다."""
+        a, b = _to_gray(prev_bgr), _to_gray(next_bgr)
+        s = self._scale
+        if s != 1:
+            a = cv2.resize(a, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
+            b = cv2.resize(b, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
         # 인자 순서: prev, next, flow, pyr_scale, levels, winsize,
         # iterations, poly_n, poly_sigma, flags. 값은 시작값 (가정)
         flow = cv2.calcOpticalFlowFarneback(
-            _to_gray(prev_bgr), _to_gray(next_bgr), None,
-            0.5, 3, 15, 3, 5, 1.2, 0,
+            a, b, None, 0.5, 3, 15, 3, 5, 1.2, 0,
         )
+        if s != 1:
+            h, w = prev_bgr.shape[:2]
+            flow = cv2.resize(flow, (w, h), interpolation=cv2.INTER_LINEAR)
+            flow /= s
         return flow.astype(np.float32)
 
 
