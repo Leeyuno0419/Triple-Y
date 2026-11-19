@@ -1,0 +1,181 @@
+{
+  "schema_version": "0.2",
+  "meta": {
+    "zone_id": "zone-e5-test",
+    "camera_id": "cam-e5-test",
+    "video_id": "E5_TEST",
+    "duration_s": 40,
+    "interval_s": 1,
+    "cell_size_m": 2.0,
+    "models": { "counter": "fixture", "flow": "fixture", "predictor": "fixture" },
+    "prediction": { "history_s": 30, "horizon_s": 60 },
+    "cells": [
+      { "cell_id": "c-0000", "row": 0, "col": 0, "walkable_area_m2": 4.0,
+        "image_polygon": [[0.0, 0.0], [0.5, 0.0], [0.5, 0.5], [0.0, 0.5]] },
+      { "cell_id": "c-0102", "row": 1, "col": 2, "walkable_area_m2": 1.5,
+        "image_polygon": [[0.5, 0.5], [1.0, 0.5], [1.0, 1.0], [0.5, 1.0]] }
+    ]
+  },
+  "frames": [
+    { "t": 0, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 1, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 2, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 3, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 4, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 5, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 6, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 7, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 8, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 9, "inflow_ratio": null, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 10, "inflow_ratio": 0.8, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 11, "inflow_ratio": 0.8, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 12, "inflow_ratio": 0.8, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 13, "inflow_ratio": 0.8, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 14, "inflow_ratio": 0.8, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 15, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 16, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 17, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 18, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 19, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 20, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 21, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 22, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 23, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 24, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 25, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 26, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 27, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 28, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 29, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 30, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 31, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 32, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 33, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.03, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 34, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 35, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 36, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 37, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 38, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] },
+    { "t": 39, "inflow_ratio": 0.1, "count": 5.0, "cells": [
+      { "cell_id": "c-0000", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null },
+      { "cell_id": "c-0102", "density": 1.0, "vx": null, "vy": null, "speed_var": null, "pressure": 0.0, "counterflow": null, "density_pred_60s": null }
+    ] }
+  ]
+}
