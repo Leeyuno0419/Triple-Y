@@ -68,8 +68,8 @@ export function MonitorView(p: Props) {
     const pair = pairCells(meta, frame).find((c) => c.meta.cell_id === p.selectedCellId);
     if (!pair) return null;
     const value = cellValue(pair.state, mode);
-    return { meta: pair.meta, state: pair.state, value, level: cellLevel(pair.state, mode, value) };
-  }, [meta, frame, mode, p.selectedCellId]);
+    return { meta: pair.meta, state: pair.state, value, level: cellLevel(pair.state, mode, value, p.bounds) };
+  }, [meta, frame, mode, p.selectedCellId, p.bounds]);
 
   const toggleGrade = (i: number) => setActiveGrade((prev) => (prev === i ? null : i));
   const closeCell = () => p.onCellSelect(null);
@@ -172,6 +172,7 @@ export function MonitorView(p: Props) {
             onVideoTime={p.onVideoTime}
             onVideoStatus={p.onVideoStatus}
             onVideoEnded={p.onVideoEnded}
+            bounds={p.bounds}
           />
         )}
         {summary && <RegionPanel summary={summary} cell={cellInfo} mode={mode} onClose={closeCell} />}

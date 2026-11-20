@@ -23,8 +23,14 @@ export interface CellStyle {
   blink: boolean;
 }
 
-export function levelOf(density: number): DensityLevel {
-  return DENSITY_LEVELS.find((l) => density < l.max) ?? DENSITY_LEVELS[DENSITY_LEVELS.length - 1];
+/**
+ * 밀도(명/m²) → 화면 단계. bounds 는 단계 경계값 [주의, 경계, 심각] (서버 hello.thresholds)이고,
+ * 없으면 DENSITY_LEVELS 의 기본 max 를 쓴다.
+ */
+export function levelOf(density: number, bounds?: number[]): DensityLevel {
+  const last = DENSITY_LEVELS.length - 1;
+  const upper = (i: number) => (i < last ? (bounds?.[i] ?? DENSITY_LEVELS[i].max) : Infinity);
+  return DENSITY_LEVELS.find((_, i) => density < upper(i)) ?? DENSITY_LEVELS[last];
 }
 
 /** 심각 단계(가장 높은 단계)인가? */
@@ -54,7 +60,8 @@ export function fillOpacityOf(density: number): number {
 
 /**
  * 셀 밀도(null=화각 밖) → 지도에 칠할 색/투명도/테두리.
- * predicted=true 면 같은 등급 색을 반투명 + 점선 테두리로 그려 측정값과 구분한다.
+ * predicted=true 면 채움에 PREDICTED_STYLE.fillOpacityFactor 를 곱하고 점선 테두리 값을 함께 돌려준다
+ * (영상 위 히트맵은 테두리를 쓰지 않고 관측과 같이 그린다. 점선은 지도 레이어용).
  * levelOverride: 서버가 판정한 단계(lib/grade.ts cellLevel). 주면 그 단계 색을 그대로 쓰고 밀도로 다시 판정하지 않는다.
  *   undefined 면(등급이 없는 timeline 파일) 밀도로 해석하고, null 이면 판정이 없는 셀이라 '값 없음'으로 칠한다.
  */

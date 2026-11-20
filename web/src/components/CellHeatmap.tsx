@@ -29,6 +29,8 @@ interface Props {
   onVideoTime?: (sec: number) => void;
   onVideoStatus?: (status: VideoStatus) => void;
   onVideoEnded?: () => void;
+  /** 단계 경계값 [주의, 경계, 심각] (서버 hello.thresholds). 서버 등급이 없는 셀을 밀도로 해석할 때 쓴다 */
+  bounds?: number[];
 }
 
 /** 영상 크기를 알기 전 기본 화면 비율 (16:9) */
@@ -43,7 +45,7 @@ const DEFAULT_ASPECT = 16 / 9;
  * 컨테이너 비율은 영상의 실제 크기(videoWidth/videoHeight)에서 가져온다. 영상이 없으면 16:9 다.
  */
 export function CellHeatmap({
-  meta, frame, mode, selectedCellId, onCellSelect, videoSrc, t, playing, onVideoTime, onVideoStatus, onVideoEnded,
+  meta, frame, mode, selectedCellId, onCellSelect, videoSrc, t, playing, onVideoTime, onVideoStatus, onVideoEnded, bounds,
 }: Props) {
   const predicted = mode === 'pred';
   const byId = new Map(pairCells(meta, frame).map((p) => [p.meta.cell_id, p.state]));
@@ -125,8 +127,8 @@ export function CellHeatmap({
           {meta.cells.map((cm) => {
             const state = byId.get(cm.cell_id);
             const value = state ? cellValue(state, mode) : null;
-            // 색은 서버가 판정한 등급을 그대로 쓴다 (서버 등급이 없는 timeline 파일이면 밀도로 해석)
-            const s = cellStyle(value, predicted, state ? cellLevel(state, mode, value) : undefined);
+            // 색은 서버가 판정한 등급을 그대로 쓴다 (서버 등급이 없으면 hello.thresholds 경계값으로 밀도를 해석)
+            const s = cellStyle(value, predicted, state ? cellLevel(state, mode, value, bounds) : undefined);
             const selected = cm.cell_id === selectedCellId;
             const fillOpacity = overlay
               ? s.opacity * HEATMAP_OVERLAY.opacityScale
@@ -135,15 +137,14 @@ export function CellHeatmap({
             return (
               <polygon
                 key={cm.cell_id}
-                className={`heatmap-cell${selected ? ' selected' : ''}${s.predicted ? ' predicted' : ''}${s.blink ? ' severe' : ''}`}
+                className={`heatmap-cell${selected ? ' selected' : ''}${s.blink ? ' severe' : ''}`}
                 points={cm.image_polygon.map(([x, y]) => `${x},${y}`).join(' ')}
                 fill={s.color}
                 fillOpacity={fillOpacity}
-                // 관측 셀은 테두리 없이 채움만 (격자선은 아래 path 가 담당). 예측 셀만 등급 색 점선 테두리로 구분한다.
-                stroke={s.predicted ? s.strokeColor : 'none'}
-                strokeOpacity={s.strokeOpacity}
+                // 관측·예측 모두 테두리 없이 채움만 그린다 (격자선은 아래 path 가 담당). 예측용 점선 테두리는 셀 경계가
+                // 번져 보여 쓰지 않는다. 예측 중이라는 표시는 상태 칩·시간 배지가 맡는다.
+                stroke="none"
                 strokeWidth={CELL_STYLE.strokeWeight}
-                strokeDasharray={s.predicted ? '5 3' : undefined}
                 style={s.blink ? { animationDuration: `${SEVERE_BLINK.periodMs}ms` } : undefined}
                 tabIndex={0}
                 role="button"
