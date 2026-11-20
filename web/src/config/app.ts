@@ -1,9 +1,9 @@
 import { apiBaseFromWs, resolveWsUrl } from '../lib/liveFeed';
 
-// TODO: 프로젝트 명칭 확정 후 수정 (index.html <title>, vite.config.ts manifest 와 함께)
-export const APP_NAME = '인파 밀집 모니터';
-/** 상단 내비게이션 오른쪽에 표시하는 영문 서비스 제목 */
-export const APP_NAME_EN = 'Crowd Density Monitoring System';
+/** 프로젝트명 (docs/proposal.md). 바꾸면 index.html <title>, vite.config.ts manifest 도 함께 고친다 */
+export const APP_NAME = 'CrowdSight';
+/** 상단 내비게이션 오른쪽에 표시하는 서비스 제목 */
+export const APP_NAME_EN = APP_NAME;
 
 export const KAKAO_JS_KEY: string = import.meta.env.VITE_KAKAO_JS_KEY ?? '';
 export const TIMELINE_URL: string = import.meta.env.VITE_TIMELINE_URL ?? '/timeline.json';
