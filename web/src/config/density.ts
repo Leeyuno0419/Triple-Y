@@ -113,11 +113,12 @@ export const REGION_OUTLINE = {
 };
 
 /**
- * 예측 프레임 표시 (기획서 3.2: 예측 지점은 같은 색을 반투명 또는 점선으로 구분).
- * 채움은 관측의 절반 투명도, 테두리는 등급 색의 점선.
+ * 예측 프레임 표시. 영상 위 히트맵(CellHeatmap)은 예측도 관측과 같은 채움·테두리로 선명하게 그린다
+ * (예측 중이라는 표시는 상태 칩 '● 예측'과 시간 배지 '예측 +60s'가 맡는다).
+ * 채움 배율 1 = 관측과 같은 투명도. 점선 테두리 값은 지도 레이어(deferred/)에서만 쓴다.
  */
 export const PREDICTED_STYLE = {
-  fillOpacityFactor: 0.5,
+  fillOpacityFactor: 1,
   /** kakao.maps.Rectangle strokeStyle 값 */
   strokeStyle: 'dash',
   strokeWeight: 2,
