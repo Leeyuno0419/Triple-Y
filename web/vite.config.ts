@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// TODO: 프로젝트 확정 후 name / short_name 변경 (src/config/app.ts 와 맞출 것)
+// manifest name / short_name 은 src/config/app.ts 의 APP_NAME 과 맞출 것
 export default defineConfig({
   plugins: [
     react(),
@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
       manifest: {
-        name: '인파 밀집 모니터',
-        short_name: '인파모니터',
+        name: 'CrowdSight',
+        short_name: 'CrowdSight',
         description: '셀 단위 인파 밀도 지도 시각화',
         lang: 'ko',
         display: 'standalone',
