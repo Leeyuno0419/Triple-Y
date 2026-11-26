@@ -7,7 +7,7 @@ export { validateTimeline };
 
 export interface LoadResult {
   timeline: Timeline;
-  source: 'server' | 'mock' | 'live';
+  source: 'server' | 'mock' | 'live' | 'library';
 }
 
 export async function loadTimeline(signal?: AbortSignal): Promise<LoadResult> {

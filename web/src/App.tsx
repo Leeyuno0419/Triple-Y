@@ -10,6 +10,7 @@ import { thresholdBounds } from './lib/grade';
 import { applyLiveMessage, INITIAL_LIVE_STATE, markAck, removeAlert, type LiveState } from './lib/liveFeed';
 import type { ViewMode } from './lib/model';
 import type { LiveMessage } from './types/live';
+import type { VideoEntry } from './lib/videoLibrary';
 import { loadTimeline, type LoadResult } from './lib/timeline';
 import { useLiveFeed, type LiveStatus } from './lib/useLiveFeed';
 import { frameIndexAtTime, videoUrl } from './lib/video';
@@ -36,10 +37,20 @@ export default function App() {
   // 정적 timeline 파일(서버 없이 볼 때)과 서버 실시간 상태를 따로 둔다. 실시간 hello 가 오면 실시간이 우선한다.
   const [staticData, setStaticData] = useState<LoadResult | null>(null);
   const [live, setLive] = useState<LiveState>(INITIAL_LIVE_STATE);
-  const data = useMemo<LoadResult | null>(
-    () => (live.timeline ? { timeline: live.timeline, source: 'live' } : staticData),
-    [live.timeline, staticData],
-  );
+  // 영상 관리에서 고른 등록 영상. null 이면 기본(설정 파일) 영상. 실시간 데이터가 있으면 실시간이 우선한다.
+  const [picked, setPicked] = useState<{ entry: VideoEntry; src: string } | null>(null);
+  const data = useMemo<LoadResult | null>(() => {
+    if (live.timeline) return { timeline: live.timeline, source: 'live' };
+    if (picked?.entry.timeline) return { timeline: picked.entry.timeline, source: 'library' };
+    return staticData;
+  }, [live.timeline, picked, staticData]);
+  // 로컬 파일로 만든 주소는 다른 영상으로 바꾸면 해제한다
+  useEffect(() => {
+    const src = picked?.src;
+    return () => {
+      if (src?.startsWith('blob:')) URL.revokeObjectURL(src);
+    };
+  }, [picked]);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0); // frames 배열 위치 (영상 시간 t 와 같지 않을 수 있다: 실시간은 최근 프레임만 유지)
   const [playing, setPlaying] = useState(false);
@@ -124,7 +135,7 @@ export default function App() {
 
   // 재생(영상 기준): 영상 시각에 해당하는 프레임을 보여 준다
   const videoId = meta?.video_id;
-  const videoSrc = videoId ? videoUrl(videoId) : undefined;
+  const videoSrc = data?.source === 'library' ? picked?.src : videoId ? videoUrl(videoId) : undefined;
   const onVideoTime = useCallback(
     (sec: number) => {
       // 실시간에서 최신 프레임을 따라가는 중에는 서버 프레임이 시간의 기준이다. 영상은 그 t 에 맞춰 따라올 뿐이라
@@ -141,6 +152,18 @@ export default function App() {
   // 새 프레임이 막 도착한 렌더에서는 index 가 아직 lastIndex 를 따라가기 전이다. 그때 index 만 보면 한 번 '정지'로 판단해
   // 영상을 이전 t 로 되감았다가 다시 재생한다(1초마다 끊김). 따라가는 중인지는 following 으로 본다.
   const videoPlaying = playing || (data?.source === 'live' && (following.current || index >= lastIndex));
+
+  /** 영상 관리에서 고른 영상으로 바꾼다 (null = 기본 영상). 등록 영상은 처음부터, 기본 영상은 마지막 프레임부터 보여 준다 */
+  const onSelectVideo = useCallback(
+    (entry: VideoEntry | null) => {
+      const src = entry ? (entry.file ? URL.createObjectURL(entry.file) : entry.url) : undefined;
+      setPicked(entry && src ? { entry, src } : null);
+      setPlaying(false);
+      setSelectedCellId(null);
+      setIndex(entry ? 0 : Math.max((staticData?.timeline.frames.length ?? 0) - 1, 0));
+    },
+    [staticData],
+  );
 
   // ---- 화면 전환: state 로 분기하고, URL 해시(#/monitor 등)와 동기화해 뒤로가기·새로고침을 지원한다 ----
   const go = useCallback((next: ViewId) => {
@@ -227,7 +250,7 @@ export default function App() {
           <section id="view-monitor" role="tabpanel" aria-labelledby="tab-monitor" className="view">
             <MonitorView
               hasData={!!data}
-              error={error}
+              error={data?.source === 'library' ? null : error}
               meta={meta}
               frames={frames}
               frame={frame}
@@ -251,6 +274,14 @@ export default function App() {
               onVideoStatus={setVideoState}
               onVideoEnded={onVideoEnded}
               bounds={bounds}
+              alerts={alerts}
+              liveAlerts={liveAlerts}
+              onAck={onAck}
+              selectedVideoId={data?.source === 'library' ? (picked?.entry.id ?? null) : null}
+              videoName={data?.source === 'library' ? (picked?.entry.name ?? '') : (meta?.video_id ?? '')}
+              defaultVideoName={staticData?.timeline.meta.video_id ?? '기본 영상'}
+              isLive={data?.source === 'live'}
+              onSelectVideo={onSelectVideo}
             />
           </section>
         )}
