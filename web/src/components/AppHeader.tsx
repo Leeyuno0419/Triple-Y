@@ -1,6 +1,7 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { ChartIcon, GridIcon, HomeIcon } from './Icons';
 import { LiveClock } from './LiveClock';
+import { useTheme } from '../lib/useTheme';
 
 export type ViewId = 'home' | 'monitor' | 'analysis';
 
@@ -22,6 +23,7 @@ interface Props {
 
 /** 상단 헤더: [로고 + 검색 + 상태 배지] · [탭 메뉴(슬라이딩 인디케이터)] · [영문 제목] */
 export function AppHeader({ title, view, onChange, search, badges }: Props) {
+  const [theme, toggleTheme] = useTheme();
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   const index = TABS.findIndex((t) => t.id === view);
 
@@ -81,6 +83,9 @@ export function AppHeader({ title, view, onChange, search, badges }: Props) {
       </div>
 
       <div className="nav-right">
+        <button type="button" className="theme-toggle" aria-pressed={theme === 'dark'} onClick={toggleTheme}>
+          {theme === 'dark' ? '라이트' : '다크'}
+        </button>
         <div className="nav-titles">
           <h1 className="nav-title">{title}</h1>
           <LiveClock />

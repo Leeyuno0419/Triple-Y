@@ -31,6 +31,8 @@ interface Props {
   onVideoEnded?: () => void;
   /** 단계 경계값 [주의, 경계, 심각] (서버 hello.thresholds). 서버 등급이 없는 셀을 밀도로 해석할 때 쓴다 */
   bounds?: number[];
+  /** 셀 안에 구역(셀) ID 와 밀도를 표시할지 */
+  showLabels?: boolean;
 }
 
 /** 영상 크기를 알기 전 기본 화면 비율 (16:9) */
@@ -46,6 +48,7 @@ const DEFAULT_ASPECT = 16 / 9;
  */
 export function CellHeatmap({
   meta, frame, mode, selectedCellId, onCellSelect, videoSrc, t, playing, onVideoTime, onVideoStatus, onVideoEnded, bounds,
+  showLabels = true,
 }: Props) {
   const predicted = mode === 'pred';
   const byId = new Map(pairCells(meta, frame).map((p) => [p.meta.cell_id, p.state]));
@@ -173,6 +176,31 @@ export function CellHeatmap({
             aria-hidden="true"
           />
         </svg>
+        {showLabels && !DEBUG_GRID && (
+          // SVG 는 가로·세로가 다르게 늘어나 글자가 찌그러지므로 HTML 로 얹는다. 같은 정보는 셀의 aria-label 에 있다.
+          <div className="cell-labels" aria-hidden="true">
+            {meta.cells.map((cm) => {
+              const state = byId.get(cm.cell_id);
+              const value = state ? cellValue(state, mode) : null;
+              const xs = cm.image_polygon.map(([x]) => x);
+              const ys = cm.image_polygon.map(([, y]) => y);
+              return (
+                <div
+                  key={cm.cell_id}
+                  className="cell-label"
+                  style={{
+                    left: `${((xs[0] + xs[1] + xs[2] + xs[3]) / 4) * 100}%`,
+                    top: `${((ys[0] + ys[1] + ys[2] + ys[3]) / 4) * 100}%`,
+                    width: `${(Math.max(...xs) - Math.min(...xs)) * 80}%`,
+                  }}
+                >
+                  <small>{cm.cell_id}</small>
+                  <b>{value === null ? '-' : value.toFixed(1)}</b>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {DEBUG_GRID && <DebugGrid meta={meta} stageRef={stageRef} videoSrc={videoSrc} status={status} t={t} />}
       </div>
     </div>
